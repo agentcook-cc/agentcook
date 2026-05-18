@@ -1,0 +1,119 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Foundation/Intro" />
+
+# agentcook 设计系统 — 设计哲学
+
+> 这套设计系统的存在不是为了"看起来很专业",而是为了让 admin(Vue 3 + Element Plus 后台风)和 app(React 19 + Tailwind + shadcn/ui 消费风)在两套截然不同的组件库 / 布局密度 / 用户场景下,**视觉上仍然像同一个产品**。
+
+---
+
+## 四条原则
+
+### 1. 双栈一致性优先
+
+`admin` 和 `app` 用了完全不同的技术栈,但**以下层面必须零认知差**:
+
+- 颜色 / 字体 / 间距(同一 token → 同一像素值)
+- 错误码 / 错误文案 / i18n key
+- 用户 / 权限模型 / 业务术语
+- API client 类型(从同一份 OpenAPI 生成)
+
+布局密度可以差异化(admin 紧凑后台 / app 现代留白),但**用户从 admin 切到 app**,色彩温度、字体观感、按钮形态都要稳定。
+
+### 2. 单一信源 (SSOT)
+
+| 共享物 | 唯一信源 | 派生方 |
+|--------|---------|--------|
+| 设计 token | `tokens/*.json`(本目录) | admin / app / Storybook / Figma |
+| API 类型 | OpenAPI v1(后端 Day 24 冻结) | admin / app codegen |
+| 错误码 | `agentcook-core/errors.py` | 前端同步生成 enum |
+| 业务术语 | glossary.md(Phase 2 加) | i18n / UI / 教程 |
+
+**反例**:admin 把 "插件" 翻译成 "扩展",app 翻译成 "插件" — 同一概念双栈不一致 = 失败。
+
+### 3. 反过度抽象
+
+写第一个 admin 页和第一个 app 页时,**不要**先抽 `useApi` / `useAuth` / `useFormState` 这种"通用 hook 库"。**三处用到再抽,两处用到就重复**。
+
+token 也一样:Phase 0 只有 atomic 层(`primary.500` / `neutral.700`),Phase 1 末才补 semantic 层(`text.primary` / `bg.surface` / `border.default`)。**没有真业务消费场景前不做语义抽象**。
+
+### 4. Atomic → Semantic → Component 三层
+
+```
+Component 层    button.primary.bg = ...  ←  组件级 token(等用了真组件再加)
+                                  ↓
+Semantic 层     text.primary = ...      ←  语义层(Phase 1 末加)
+                                  ↓
+Atomic 层       primary.500 = #3b82f6   ←  当前(Phase 0 已就位)
+```
+
+**当前阶段**:atomic 完整,semantic 待补,component 不预先建。Phase 3 admin/app 真消费时,反推 semantic / component 层补。
+
+---
+
+## 当前阶段(2026-05 / Phase 1 Day 13)
+
+| Token 类 | 状态 | 缺补 |
+|----------|------|------|
+| **Color** | atomic 6 色系 + neutral 全档 | primary 缺 200/300/400/800/900;semantic 层未建;dark mode 未建 |
+| **Typography** | sans/mono + 8 字号 + 4 字重 + 3 行高 | **中文 fallback 缺失**(详见 `Foundation > Color > ChineseFallbackMissing`)|
+| **Spacing** | 4px 基线,8 档 | 缺 0/0.5/5/10/20/24,Phase 3 补 |
+| **Radius** | sm/md/lg/full | 缺 xs/xl/2xl(chat 气泡),Phase 3 补 |
+| **Shadow** | sm/md/lg/xl | 缺 inner/focus-ring/dark 变体 |
+| **Motion** | 3 时长 + 4 缓动 | ⚠ `easing.inOut` 与 `default` 数值重复(已知 bug,Day 14-15 修)|
+
+> 完整缺补优先级见 `tutorial/_internal/audit/design-tokens-gaps.md`(P0 8 项 / P1 4 项 / P2 6 项 / P3 6 项)
+
+---
+
+## 双栈消费方式速查
+
+> 完整接入指南见 `frontend-conventions.md` §9。
+
+```ts
+// admin (Vue 3) - 入口
+import '@design-tokens/css/variables.css';
+import './styles/element-plus.scss';     // SCSS map 接 Element Plus theme
+
+// app (React 19) - 入口
+import '@design-tokens/css/variables.css';
+// tailwind.config.js 内:
+import preset from '@design-tokens/tailwind/preset.js';
+export default { presets: [preset] };
+```
+
+业务代码里**不直接写色值 / 字号 / 间距字面量**:
+
+```jsx
+{/* ❌ */}
+<div style={{ color: '#3b82f6', padding: 16 }}>...</div>
+
+{/* ✅ admin */}
+<div class="text-primary p-4">...</div>
+
+{/* ✅ app */}
+<div className="text-primary-500 p-4">...</div>
+
+{/* ✅ 直接消费 CSS variables(脱离两套样式系统时)*/}
+<div style={{ background: 'var(--color-primary-500)', borderRadius: 'var(--radius-md)' }}>...</div>
+```
+
+---
+
+## 导航
+
+- **Foundation/Color**(这一组)— 6 色系 atomic + Primary Gap 评审证据 + 双栈 Button 并排
+- **Foundation/Typography** — 字体栈 / 字号 / 字重 + **Chinese Fallback Missing 评审证据**
+- **Foundation/Spacing** — 4px 基线 + 真实卡片层级 demo + 双栈 padding 风格对比
+- **Foundation/Radius** — 4 档圆角(待补 chat 气泡用 2xl)
+- **Foundation/Shadow** — 4 档阴影分层
+- **Foundation/Motion** — 3 时长 + 4 缓动 + ⚠ inOut bug 红字
+
+---
+
+## 给作者 / Reviewer
+
+打开 Storybook 看到的不是"漂亮的色卡"。这是 **Phase 0 助手 F 的产出 + Phase 1 Agent B 的接手 review** 共同呈现的"半成品现场":合理的部分作为基线,缺的部分用 `Primary Gap` / `Chinese Fallback Missing` 等 **review evidence story** 显式硬显,**让所有跨 Agent 协作的人(A / C / D)都能看到一份不撒谎的 "this is where we are now"**。
+
+按 v4.2 真实性红线 — 不画"理想态"的设计稿,只展示 token 实际存在的状态 + 实际缺的部分。

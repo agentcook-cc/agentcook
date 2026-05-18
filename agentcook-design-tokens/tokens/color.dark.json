@@ -1,0 +1,55 @@
+{
+  "color": {
+    "dark": {
+      "primary": {
+        "50":  { "value": "{color.primary.900.value}", "comment": "Day 14 P0-3 — light primary.50 (浅) ↔ dark primary.50 (深),Phase 2 Day 22-23 P1-1 完整调整" },
+        "100": { "value": "{color.primary.800.value}" },
+        "200": { "value": "{color.primary.700.value}" },
+        "300": { "value": "{color.primary.600.value}" },
+        "400": { "value": "{color.primary.500.value}" },
+        "500": { "value": "{color.primary.400.value}", "comment": "dark 模式下 primary 主色稍亮,提升 dark bg 上的对比度" },
+        "600": { "value": "{color.primary.300.value}" },
+        "700": { "value": "{color.primary.200.value}" },
+        "800": { "value": "{color.primary.100.value}" },
+        "900": { "value": "{color.primary.50.value}" }
+      },
+      "secondary": {
+        "50":  { "value": "{color.secondary.600.value}" },
+        "500": { "value": "{color.secondary.500.value}" },
+        "600": { "value": "{color.secondary.50.value}" }
+      },
+      "success": {
+        "50":  { "value": "{color.success.600.value}" },
+        "500": { "value": "{color.success.500.value}" },
+        "600": { "value": "{color.success.50.value}" }
+      },
+      "warning": {
+        "50":  { "value": "{color.warning.600.value}" },
+        "500": { "value": "{color.warning.500.value}" },
+        "600": { "value": "{color.warning.50.value}" }
+      },
+      "danger": {
+        "50":  { "value": "{color.danger.600.value}" },
+        "500": { "value": "{color.danger.500.value}" },
+        "600": { "value": "{color.danger.50.value}" }
+      },
+      "info": {
+        "50":  { "value": "{color.info.600.value}" },
+        "500": { "value": "{color.info.500.value}" },
+        "600": { "value": "{color.info.50.value}" }
+      },
+      "neutral": {
+        "50":  { "value": "{color.neutral.900.value}" },
+        "100": { "value": "{color.neutral.800.value}" },
+        "200": { "value": "{color.neutral.700.value}" },
+        "300": { "value": "{color.neutral.600.value}" },
+        "400": { "value": "{color.neutral.500.value}" },
+        "500": { "value": "{color.neutral.400.value}" },
+        "600": { "value": "{color.neutral.300.value}" },
+        "700": { "value": "{color.neutral.200.value}" },
+        "800": { "value": "{color.neutral.100.value}" },
+        "900": { "value": "{color.neutral.50.value}" }
+      }
+    }
+  }
+}

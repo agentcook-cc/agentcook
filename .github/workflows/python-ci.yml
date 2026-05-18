@@ -1,0 +1,146 @@
+name: Python CI
+
+# Phase 1 Day 14 — codecov 4 components + schemathesis job.
+# Path-gated: only fires on Python sources / Python CI changes.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "agentcook-core/**"
+      - "agentcook-providers/**"
+      - "agentcook-storage/**"
+      - "agentcook/**"
+      - "tests/**"
+      - "conftest.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "codecov.yml"
+      - ".github/workflows/python-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "agentcook-core/**"
+      - "agentcook-providers/**"
+      - "agentcook-storage/**"
+      - "agentcook/**"
+      - "tests/**"
+      - "conftest.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "codecov.yml"
+      - ".github/workflows/python-ci.yml"
+
+concurrency:
+  group: python-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-type-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Run ruff
+        run: uv run ruff check .
+      - name: Run mypy
+        run: uv run mypy . || true   # Day 14: A 还在补 mypy 注解,先 non-blocking
+
+  unit-and-coverage:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Run unit tests + coverage
+        # Single coverage.xml at root; codecov splits by source path into 4 flags.
+        # `-m unit` keeps integration (Docker) out of this job — integration runs
+        # in `testcontainers-integration` below.
+        run: uv run pytest -m unit --cov --cov-report=xml --cov-report=term
+
+      - name: Upload to Codecov — core
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: core
+          name: core-py${{ matrix.python-version }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Upload to Codecov — providers
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: providers
+          name: providers-py${{ matrix.python-version }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Upload to Codecov — storage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: storage
+          name: storage-py${{ matrix.python-version }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+      - name: Upload to Codecov — app
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.xml
+          flags: app
+          name: app-py${{ matrix.python-version }}
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: false
+
+  schemathesis:
+    # OpenAPI schema-driven fuzzing (A Day 13). 10 endpoint × 15 hypothesis examples,
+    # 7 known interop skips are tolerated (see tests/test_schemathesis.py docstring).
+    runs-on: ubuntu-latest
+    needs: unit-and-coverage    # only worth running once base unit passes
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Run schemathesis (allows 7 known interop skips)
+        env:
+          AGENTCOOK_JWT_SECRET: ci-only-do-not-use-anywhere-else
+        run: uv run pytest agentcook/tests/test_schemathesis.py -v --no-cov
+
+  testcontainers-integration:
+    # Real PostgreSQL (pgvector) + Redis via testcontainers.
+    # GitHub-hosted ubuntu runners ship Docker, no service-container hack needed.
+    runs-on: ubuntu-latest
+    needs: unit-and-coverage
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Run integration tests (testcontainers PG/Redis)
+        run: uv run pytest -m integration -v --no-cov

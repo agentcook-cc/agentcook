@@ -1,0 +1,150 @@
+import { Meta, Canvas, Source } from '@storybook/blocks';
+import * as TypoStories from '../typography.stories';
+
+<Meta of={TypoStories} />
+
+# Typography — 字体系统
+
+> 中英文混排是 agentcook 的核心场景(教程读者 90% 中文用户 + 海外破圈预备 10% 英文)。**字体栈、行高、字重的选择必须同时为中英文优化**。
+
+---
+
+## 1. 字体栈
+
+### sans(默认正文)
+
+```
+'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif
+```
+
+**当前问题(Day 6 review T1 红字证据)**:**缺中文 fallback**。Inter 不含 CJK,Mac/iOS 靠系统自动 PingFang SC 兜住,Win Chrome 上回退到中易宋(SimSun) — 衬线、字重不齐、视觉灾难。
+
+<Canvas of={TypoStories.ChineseFallbackMissing} />
+
+**Day 14-15 P0-3 修法**:加 `'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei'` 三档中文 fallback。
+
+### mono(代码 / 等宽)
+
+```
+'JetBrains Mono', 'Fira Code', monospace
+```
+
+同样**缺中文等宽 fallback**(代码块嵌中文注释会跳字)。Day 14-15 加 `'Sarasa Mono SC'` 或 `'PingFang SC'`。
+
+<Canvas of={TypoStories.FontFamilies} />
+
+---
+
+## 2. 字号 — 8 档
+
+```
+xs   0.75rem  (12px)   小标 / 时间戳
+sm   0.875rem (14px)   表单提示 / 次要文字
+base 1rem     (16px)   正文(默认)
+lg   1.125rem (18px)   段落强调 / 子标题
+xl   1.25rem  (20px)   区块标题
+2xl  1.5rem   (24px)   页面 H2
+3xl  1.875rem (30px)   页面 H1
+4xl  2.25rem  (36px)   landing hero(Phase 3 加 5xl/6xl 更大档)
+```
+
+<Canvas of={TypoStories.FontSizes} />
+
+---
+
+## 3. 字重 — 4 档
+
+`normal (400)` / `medium (500)` / `semibold (600)` / `bold (700)`
+
+**双栈使用习惯**:
+
+- admin(Element Plus 紧凑)— 默认 400,标题 600,正文几乎不用 500/700
+- app(shadcn/ui 现代)— 默认 400,标题 600/700,UI 强调用 500
+
+<Canvas of={TypoStories.FontWeights} />
+
+---
+
+## 4. 行高
+
+`tight (1.25)` / `normal (1.5)` / `relaxed (1.75)`
+
+**中英混排准则**:
+- **正文**:用 `normal` (1.5) — 中文字符方块比英文宽 + 高,需要更多行间距才不挤
+- **标题**:用 `tight` (1.25) — 标题字号大,过宽行高会让标题显得松散
+- **大段阅读(blog / docs)**:用 `relaxed` (1.75)
+
+<Canvas of={TypoStories.LineHeights} />
+
+---
+
+## 5. 双栈使用例 — 同 token 双栈一致
+
+### 5.1 标题层级
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8, fontFamily: "'Inter', sans-serif" }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · 紧凑后台</div>
+    <h1 style={{ fontSize: 'var(--typography-font-size-2-xl, 1.5rem)', fontWeight: 600, lineHeight: 'var(--typography-line-height-tight, 1.25)', margin: '0 0 8px' }}>Plugin 管理</h1>
+    <p style={{ fontSize: 'var(--typography-font-size-sm, 0.875rem)', color: '#525252', margin: 0, lineHeight: 'var(--typography-line-height-normal, 1.5)' }}>共 24 个插件,12 个已启用</p>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · 现代消费</div>
+    <h1 style={{ fontSize: 'var(--typography-font-size-3-xl, 1.875rem)', fontWeight: 700, lineHeight: 'var(--typography-line-height-tight, 1.25)', margin: '0 0 12px' }}>Your AI Agents</h1>
+    <p style={{ fontSize: 'var(--typography-font-size-base, 1rem)', color: '#525252', margin: 0, lineHeight: 'var(--typography-line-height-relaxed, 1.75)' }}>Pick a plugin to start a conversation with.</p>
+  </div>
+</div>
+
+**视觉差异**:admin 用 2xl + 600(紧凑后台优先信息密度);app 用 3xl + 700(现代消费优先视觉冲击)。**字号 / 字重 token 来自同一份 typography.json**。
+
+### 5.2 chat 消息中英混排
+
+<div style={{ padding: 24, background: '#fafafa', borderRadius: 8, fontFamily: "'Inter', -apple-system, BlinkMacSystemFont, sans-serif" }}>
+  <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · chat 气泡(中英混排)</div>
+  <div style={{ display: 'flex', flexDirection: 'column', gap: 12, maxWidth: 480 }}>
+    <div style={{ alignSelf: 'flex-end', background: '#3b82f6', color: 'white', padding: '10px 16px', borderRadius: 16, fontSize: 'var(--typography-font-size-base, 1rem)', lineHeight: 'var(--typography-line-height-normal, 1.5)', maxWidth: '80%' }}>
+      帮我用 weather-fetcher plugin 查一下 SF 今天天气
+    </div>
+    <div style={{ alignSelf: 'flex-start', background: 'white', border: '1px solid #e5e5e5', padding: '10px 16px', borderRadius: 16, fontSize: 'var(--typography-font-size-base, 1rem)', lineHeight: 'var(--typography-line-height-normal, 1.5)', maxWidth: '80%' }}>
+      Calling <code style={{ background: '#f5f5f5', padding: '1px 6px', borderRadius: 4, fontFamily: "'JetBrains Mono', monospace", fontSize: '0.9em' }}>weather.get(location: "San Francisco")</code> ...<br/>
+      旧金山今天 18°C,多云,东南风 8 km/h。建议穿薄外套。
+    </div>
+  </div>
+</div>
+
+**关键**:这段渲染**真的暴露了中文 fallback 缺失问题** — Mac 用户看着像样(系统兜底 PingFang SC),Win 用户在 Chrome 里看到的中文部分会是中易宋(衬线、笔画细),与 Inter 的英文部分视觉断裂。Day 14-15 修后这个段落会无缝。
+
+---
+
+## 6. 给业务代码的写法
+
+```jsx
+{/* ✅ admin */}
+<h1 class="text-2xl font-semibold leading-tight">Plugin 管理</h1>
+<p class="text-sm text-neutral-600">共 24 个插件</p>
+
+{/* ✅ app */}
+<h1 className="text-3xl font-bold leading-tight">Your AI Agents</h1>
+<p className="text-base text-neutral-600 leading-relaxed">Pick a plugin...</p>
+
+{/* ✅ 直接消费 CSS variables(自定义组件)*/}
+<h2 style={{
+  fontSize: 'var(--typography-font-size-xl)',
+  lineHeight: 'var(--typography-line-height-tight)',
+  fontWeight: 'var(--typography-font-weight-semibold)',
+}}>...</h2>
+```
+
+**禁止**:
+- 在组件里硬编码 `font-size: 14px` / `font-weight: 600`
+- 用 inline `style={{ fontFamily: 'Helvetica' }}` 绕过 design tokens
+
+---
+
+## 7. 完整 Stories
+
+- **Font Families** — sans / mono 字体栈渲染对比
+- **Font Sizes** — 8 档字号
+- **Font Weights** — 4 档字重
+- **Line Heights** — 3 档行高对比
+- **Chinese Fallback Missing(review evidence)** — Day 6 review T1 红字证据

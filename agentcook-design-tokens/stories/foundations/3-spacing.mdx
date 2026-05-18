@@ -1,0 +1,177 @@
+import { Meta, Canvas, Source } from '@storybook/blocks';
+import * as SpacingStories from '../spacing.stories';
+
+<Meta of={SpacingStories} />
+
+# Spacing — 4px 基线 / 8pt 网格
+
+> 所有间距值是 **4px 的整数倍**。这个约束让双栈 UI 在视觉节奏上锁齐 — admin 紧凑布局 / app 现代留白可以选不同档位,但**同档位下的像素值绝对一致**。
+
+---
+
+## 1. 为什么 4px 基线
+
+业界主流做法(Material Design / Tailwind / Carbon)。**理由**:
+
+1. 大多数 UI 控件的最小可点区域是 32px(iOS HIG)/ 48px(Material AA),都是 4 的倍数 — 4px 基线天然兼容
+2. retina 屏(2x DPR)下 4px = 8 物理像素,边缘不糊
+3. 设计师 / 工程师 / 截图工具的基本 grid snap 单位都是 4 / 8
+
+**8pt 网格** 是 4px 基线的"双倍同步"变体:**主要间距用 8 的倍数**(8/16/24/32),零碎调整用 4(spacing-1)。我们的 token 用数字命名(`1` / `2` / `3` / `4` ...)正好对应 4px 倍数。
+
+---
+
+## 2. 当前 8 档
+
+```
+spacing-1   4px      微调 / icon padding
+spacing-2   8px      表单元素垂直间距
+spacing-3   12px     按钮 padding
+spacing-4   16px     正文段落间距 / 卡片 padding
+spacing-6   24px     卡片之间 / section 间距
+spacing-8   32px     页面块状区分
+spacing-12  48px     大区块 / hero 上下
+spacing-16  64px     首屏 hero / landing 巨型间距
+```
+
+**缺补预告**(Phase 3 按需加):
+- `0` (0px) / `0.5` (2px) — 极致微调
+- `5` (20px) / `10` (40px) — 8/12 / 12/16 之间的中间档
+- `20` (80px) / `24` (96px) / `32` (128px) — landing 页大间距
+
+<Canvas of={SpacingStories.Ruler} />
+
+---
+
+## 3. 真实卡片层级 demo
+
+把 spacing-1 / 2 / 4 / 6 用在一张真实 Plugin 卡片里,层级关系一目了然:
+
+<Canvas of={SpacingStories.StackingDemo} />
+
+**层级解析**:
+- `padding: spacing-6` (24px) — 卡片整体内边距,呼吸感
+- `margin-bottom: spacing-2` (8px) — 标题 → 描述
+- `margin-bottom: spacing-4` (16px) — 描述 → 标签区
+- `gap: spacing-2` (8px) — 标签之间
+- `padding: spacing-1 spacing-2` (4px / 8px) — 标签内边距
+
+**禁忌**:同一组件内乱用零碎 5/7/13/19px 这种非 4 倍数。视觉上看不出差,但累积起来 grid 就乱了。
+
+---
+
+## 4. 双栈使用例 — admin 紧凑 vs app 现代
+
+### 4.1 列表项密度
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8, fontFamily: "'Inter', sans-serif" }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · 紧凑(信息密度优先)</div>
+    <div style={{ background: 'white', border: '1px solid #e5e5e5', borderRadius: 4, overflow: 'hidden' }}>
+      {['weather-fetcher', 'github-integration', 'jira-sync', 'slack-notifier'].map((name, i) => (
+        <div key={name} style={{
+          padding: 'var(--spacing-2, 8px) var(--spacing-4, 16px)',
+          borderTop: i === 0 ? 'none' : '1px solid #f5f5f5',
+          fontSize: 14,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span>{name}</span>
+          <span style={{ color: '#22c55e', fontSize: 12 }}>● 已启用</span>
+        </div>
+      ))}
+    </div>
+    <p style={{ fontSize: 11, color: '#737373', marginTop: 8, fontFamily: "'JetBrains Mono', monospace" }}>row padding: spacing-2 / 4 (8px / 16px)</p>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · 现代(留白优先)</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3, 12px)' }}>
+      {['weather-fetcher', 'github-integration', 'jira-sync', 'slack-notifier'].map((name) => (
+        <div key={name} style={{
+          padding: 'var(--spacing-4, 16px) var(--spacing-6, 24px)',
+          background: 'white',
+          border: '1px solid #e5e5e5',
+          borderRadius: 12,
+          fontSize: 15,
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}>
+          <span style={{ fontWeight: 500 }}>{name}</span>
+          <span style={{ background: '#f0fdf4', color: '#16a34a', fontSize: 12, padding: '4px 10px', borderRadius: 999, fontWeight: 500 }}>active</span>
+        </div>
+      ))}
+    </div>
+    <p style={{ fontSize: 11, color: '#737373', marginTop: 8, fontFamily: "'JetBrains Mono', monospace" }}>card padding: spacing-4 / 6 (16px / 24px), card gap: spacing-3 (12px)</p>
+  </div>
+</div>
+
+**关键观察**:同样 4 个 Plugin,admin 占 ~150px 高度(紧凑表格),app 占 ~280px 高度(独立卡片)。**两者用的都是 design-tokens 的 spacing 档位,只是组合策略不同**。哪种风格"更好"取决于场景:
+- admin 的运营 / 配置类高频操作 → 紧凑表格更高效
+- app 的用户消费 / 浏览类场景 → 卡片留白更舒适
+
+**禁止**:不允许任何一边写 `padding: 7px` / `padding: 13px` 这种偏离 4 倍数的值。如果发现某档不够用(比如想要 20px) → 加 `spacing-5` token,不在组件内硬编码。
+
+### 4.2 表单字段间距
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8, fontFamily: "'Inter', sans-serif" }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · 表单(field gap: spacing-3)</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-3, 12px)' }}>
+      {['用户名', '邮箱', '密码'].map((label) => (
+        <label key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-1, 4px)', fontSize: 13 }}>
+          <span style={{ color: '#525252' }}>{label}</span>
+          <input style={{ padding: '6px 10px', border: '1px solid #d4d4d4', borderRadius: 4, fontSize: 14 }} />
+        </label>
+      ))}
+    </div>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · 表单(field gap: spacing-4)</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4, 16px)' }}>
+      {['Email', 'Password', 'Confirm Password'].map((label) => (
+        <label key={label} style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-2, 8px)', fontSize: 14 }}>
+          <span style={{ color: '#525252', fontWeight: 500 }}>{label}</span>
+          <input style={{ padding: '10px 14px', border: '1px solid #d4d4d4', borderRadius: 8, fontSize: 14 }} />
+        </label>
+      ))}
+    </div>
+  </div>
+</div>
+
+**双栈节奏对照表**:
+
+| 用途 | admin 档位 | app 档位 | 比例 |
+|------|-----------|---------|------|
+| label → input | spacing-1 (4px) | spacing-2 (8px) | 1:2 |
+| field → field | spacing-3 (12px) | spacing-4 (16px) | 1:1.33 |
+| section gap | spacing-6 (24px) | spacing-8 (32px) | 1:1.33 |
+
+**经验法则**:app 比 admin 留白多 1 档(spacing-N → spacing-N+1)。这是双栈密度差异的"系数",不是随便选的。
+
+---
+
+## 5. 给业务代码的写法
+
+```jsx
+{/* ✅ admin Tailwind class(配 design-tokens preset 后,4 = 16px 一致)*/}
+<div class="p-4 mb-2">...</div>
+
+{/* ✅ app Tailwind class */}
+<div className="p-6 gap-4">...</div>
+
+{/* ✅ CSS variables(自定义组件 / SCSS / 非 Tailwind 场景)*/}
+<div style={{ padding: 'var(--spacing-4)', marginBottom: 'var(--spacing-2)' }}>...</div>
+
+{/* ❌ 反例 */}
+<div style={{ padding: 17, marginBottom: 9 }}>...</div>      {/* 偏离 4 倍数 */}
+<div style={{ padding: '0.875rem 1.125rem' }}>...</div>      {/* 字面量,不走 token */}
+```
+
+---
+
+## 6. 完整 Stories
+
+- **Ruler** — 8 档 spacing 尺规可视化
+- **Stacking Demo (real card)** — 真实 Plugin 卡片层级 demo

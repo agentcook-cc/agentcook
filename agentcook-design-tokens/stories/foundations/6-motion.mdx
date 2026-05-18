@@ -1,0 +1,98 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as MotionStories from '../motion.stories';
+
+<Meta of={MotionStories} />
+
+# Motion — 动效时长 + 缓动曲线
+
+> 动效是 UI 反馈的核心通道。快动效（150ms）给微交互（hover / toggle），慢动效（400ms）给大范围过渡（page transition / drawer slide）。双栈共用同一套 token — **视觉一致性靠 timing 保证，不靠框架**。
+
+---
+
+## 1. 设计思路
+
+动效分两层：**时长（duration）** 控制"多久"，**缓动（easing）** 控制"怎么动"。
+
+| 维度 | 选择依据 |
+|------|---------|
+| **时长** | 面积越大、距离越远 → 时长越长。微交互 ≤ 150ms，页面过渡 ≥ 400ms |
+| **缓动** | 进入用 ease-out（快到位），退出用 ease-in（快消失），对称过渡用 ease-in-out |
+
+**Material Design 参考**：default 用 `cubic-bezier(0.4, 0, 0.2, 1)` — 偏快进、平稳出，适合大多数日常 UI。
+
+---
+
+## 2. Duration — 3 档
+
+```
+duration-fast    150ms   hover / toggle / tooltip show-hide
+duration-normal  250ms   dropdown open / tab switch / accordion
+duration-slow    400ms   drawer slide / page transition / modal enter
+```
+
+### Canvas 演示
+
+<Canvas of={MotionStories.Durations} />
+
+鼠标悬停方块，观察不同 duration 下的平移速度差异。
+
+---
+
+## 3. Easing — 4 条曲线
+
+```
+easing-default   cubic-bezier(0.4, 0, 0.2, 1)    Material 标准 — 日常默认
+easing-in        cubic-bezier(0.4, 0, 1, 1)       ease-in — 退出/消失
+easing-out       cubic-bezier(0, 0, 0.2, 1)       ease-out — 进入/出现
+easing-inOut     cubic-bezier(0.42, 0, 0.58, 1)   W3C symmetric — 对称过渡
+```
+
+**Day 14 P0-5 修复**：`inOut` 原值与 `default` 完全相同（都是 `0.4, 0, 0.2, 1`），Day 14 修正为 W3C 经典 `0.42, 0, 0.58, 1`（对称 ease-in-out）。Easings story 内含 defensive 检查 — 如 token 回归导致重复，红字自动重新亮起。
+
+### Canvas 演示
+
+<Canvas of={MotionStories.Easings} />
+
+鼠标悬停方块，观察不同缓动曲线的加速/减速差异。
+
+---
+
+## 4. 双栈并排用法
+
+**admin（Element Plus）**：
+
+```html
+<el-drawer
+  :style="{
+    '--el-drawer-transition-duration': 'var(--motion-duration-slow)',
+    '--el-transition-function-ease-in-out-bezier': 'var(--motion-easing-inOut)',
+  }"
+>
+  ...
+</el-drawer>
+```
+
+**app（Tailwind）**：
+
+```html
+<!-- Tailwind preset 映射 token → utility -->
+<div class="transition-all duration-normal ease-default hover:scale-105">
+  卡片 hover 放大
+</div>
+<div class="transition-transform duration-slow ease-inOut">
+  Drawer 滑入
+</div>
+```
+
+> ⏳ 当前为 HTML + CSS variables 模拟。Phase 3 admin/app 真组件落地后切 Vue/React render。
+
+---
+
+## 5. 缺补预告
+
+| 项 | 用途 | 计划 |
+|----|------|------|
+| `duration-instant` (0ms) | 禁用动效（a11y `prefers-reduced-motion`） | Phase 2 P1-1 |
+| `duration-slower` (600ms) | landing hero / onboarding 引导动画 | Phase 3 |
+| `easing-spring` | 弹性曲线（chat 气泡弹入） | Phase 3 chat UI |
+| `easing-bounce` | 反弹（notification badge） | Phase 3 按需 |

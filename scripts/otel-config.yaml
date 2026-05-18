@@ -1,0 +1,52 @@
+# OpenTelemetry Collector configuration for agentcook-cc local dev.
+# Phase 2 Day 16 — Agent C.
+#
+# Day 16 architecture: Python SDK → Jaeger OTLP (direct, no Collector).
+# This config is pre-staged for Phase 3+ when we add a Collector sidecar
+# to fan-out traces to Jaeger + metrics to Prometheus + logs to Loki.
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 512
+
+  # Drop health-check spans to reduce noise.
+  filter/healthz:
+    error_mode: ignore
+    traces:
+      span:
+        - 'attributes["http.target"] == "/healthz"'
+        - 'attributes["http.target"] == "/health"'
+        - 'attributes["url.path"] == "/healthz"'
+
+exporters:
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: agentcook
+
+  debug:
+    verbosity: basic
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [filter/healthz, batch]
+      exporters: [otlp/jaeger, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, debug]

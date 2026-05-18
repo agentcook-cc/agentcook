@@ -1,0 +1,183 @@
+import { Meta, Canvas, Source } from '@storybook/blocks';
+import * as ColorStories from '../colors.stories';
+
+<Meta of={ColorStories} />
+
+# Color — 色彩系统
+
+> 6 色系 atomic 层 + neutral 全色阶。`admin`(Element Plus)与 `app`(Tailwind)双栈共享同一份色值。Phase 1 末补 semantic 层(`text.primary` / `bg.surface` 等),Phase 2 加 dark mode 集。
+
+---
+
+## 1. 当前色彩结构
+
+```
+color
+├── primary    (50/100/500/600/700)        ← 缺 200/300/400/800/900,Day 14-15 P0-1
+├── secondary  (50/500/600)                ← 太薄,Phase 1 末补
+├── success    (50/500/600)                ← 同上
+├── warning    (50/500/600)                ← 同上
+├── danger     (50/500/600)                ← 同上
+└── neutral    (50/100/200/300/400/500/600/700/800/900)  ← 完整 10 档
+```
+
+完整色板:
+
+<Canvas of={ColorStories.Palette} />
+
+---
+
+## 2. ⚠ Primary 缺中间色阶(Day 6 review C1 红字证据)
+
+<Canvas of={ColorStories.PrimaryGap} />
+
+**为什么这是大问题**:Element Plus / shadcn/ui 表单聚焦态、按钮 hover/disabled、prose `<a>` 链接 visited 态都要中间色阶过渡。当前只有 5 档,做一次 hover 渐变都不连续。Day 14-15 P0-1 补全到 10 档(对齐 neutral 规模)。
+
+---
+
+## 3. 双栈使用例 — 同 token 双栈一致
+
+下面三组样例展示**同一份 `--color-primary-500` token 在两套样式系统下渲染出像素级一致的视觉**:
+
+### 3.1 默认 Button(主品牌色)
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8 }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · Element Plus</div>
+    {/* Element Plus el-button--primary 等价 HTML 模拟 */}
+    <button style={{
+      background: 'var(--color-primary-500, #3b82f6)',
+      color: 'white',
+      border: 'none',
+      padding: '8px 16px',
+      borderRadius: 'var(--radius-sm, 4px)',
+      fontSize: 14,
+      cursor: 'pointer',
+      fontFamily: "'Inter', sans-serif",
+    }}>提交</button>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · Tailwind + shadcn/ui</div>
+    {/* shadcn Button default 等价 HTML 模拟 */}
+    <button style={{
+      background: 'var(--color-primary-500, #3b82f6)',
+      color: 'white',
+      border: 'none',
+      padding: '10px 16px',
+      borderRadius: 'var(--radius-md, 8px)',
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: 'pointer',
+      fontFamily: "'Inter', sans-serif",
+    }}>Submit</button>
+  </div>
+</div>
+
+**视觉差异**:admin 紧凑(8/4 padding + sm radius)/ app 现代(10/8 padding + md radius)。**色值像素一致**(同一 `--color-primary-500`)。
+
+```ts
+// admin/styles/element-plus.scss(Day 14-15 SD adapter 完善后)
+@use '@design-tokens/element-plus/theme.scss' as tokens;
+@use 'element-plus/theme-chalk/src/index.scss' as * with (
+  $colors: ('primary': ('base': tokens.$color-primary-500)),
+);
+
+// app/tailwind.config.js
+import preset from '@design-tokens/tailwind/preset.js';
+export default { presets: [preset], content: [...] };
+// 然后用 className="bg-primary-500 text-white"
+```
+
+### 3.2 Danger Button(删除 / 危险动作)
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8 }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · Element Plus</div>
+    <button style={{
+      background: 'var(--color-danger-500, #ef4444)',
+      color: 'white',
+      border: 'none',
+      padding: '8px 16px',
+      borderRadius: 'var(--radius-sm, 4px)',
+      fontSize: 14,
+      cursor: 'pointer',
+      fontFamily: "'Inter', sans-serif",
+    }}>删除 Plugin</button>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · Tailwind + shadcn/ui</div>
+    <button style={{
+      background: 'var(--color-danger-500, #ef4444)',
+      color: 'white',
+      border: 'none',
+      padding: '10px 16px',
+      borderRadius: 'var(--radius-md, 8px)',
+      fontSize: 14,
+      fontWeight: 500,
+      cursor: 'pointer',
+      fontFamily: "'Inter', sans-serif",
+    }}>Delete Session</button>
+  </div>
+</div>
+
+### 3.3 Tag / Badge(状态标记)
+
+<div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, padding: 24, background: '#fafafa', borderRadius: 8 }}>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>admin · 紧凑标签</div>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <span style={{ padding: '2px 8px', background: 'var(--color-success-50, #f0fdf4)', color: 'var(--color-success-600, #16a34a)', borderRadius: 4, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>已启用</span>
+      <span style={{ padding: '2px 8px', background: 'var(--color-warning-50, #fffbeb)', color: 'var(--color-warning-600, #d97706)', borderRadius: 4, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>待审核</span>
+      <span style={{ padding: '2px 8px', background: 'var(--color-danger-50, #fef2f2)', color: 'var(--color-danger-600, #dc2626)', borderRadius: 4, fontSize: 12, fontFamily: "'Inter', sans-serif" }}>已禁用</span>
+    </div>
+  </div>
+  <div>
+    <div style={{ fontSize: 12, color: '#737373', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.06em' }}>app · 现代留白标签</div>
+    <div style={{ display: 'flex', gap: 8 }}>
+      <span style={{ padding: '4px 10px', background: 'var(--color-success-50, #f0fdf4)', color: 'var(--color-success-600, #16a34a)', borderRadius: 999, fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>active</span>
+      <span style={{ padding: '4px 10px', background: 'var(--color-warning-50, #fffbeb)', color: 'var(--color-warning-600, #d97706)', borderRadius: 999, fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>pending</span>
+      <span style={{ padding: '4px 10px', background: 'var(--color-danger-50, #fef2f2)', color: 'var(--color-danger-600, #dc2626)', borderRadius: 999, fontSize: 12, fontWeight: 500, fontFamily: "'Inter', sans-serif" }}>disabled</span>
+    </div>
+  </div>
+</div>
+
+---
+
+## 4. 当前展示用 HTML 模拟,Phase 3 起切真组件
+
+> ⚠ 本页所有"双栈并排"展示**当前用 HTML + CSS variables 模拟** Element Plus / shadcn 视觉效果。等 Phase 3 Day 26+ admin/app 真 src 落地、Vue/React 组件 stories 出来后,会换成真 `<el-button>` / `<Button>` 双栈渲染(用 Storybook html-vite render() 函数 mount)。
+
+---
+
+## 5. 即将到来 — Semantic 层(Phase 1 末)
+
+Day 14-15 后会引入 `tokens/color.semantic.json`,业务消费方应优先用 semantic 层:
+
+```jsonc
+// 引入后(Phase 1 末)
+{
+  "color": {
+    "text":   { "primary": "{color.neutral.900}", "secondary": "{color.neutral.600}", "muted": "{color.neutral.400}" },
+    "bg":     { "canvas": "{color.neutral.50}", "surface": "#ffffff", "elevated": "#ffffff" },
+    "border": { "default": "{color.neutral.200}", "subtle": "{color.neutral.100}", "focus": "{color.primary.500}" }
+  }
+}
+```
+
+业务代码改用:
+
+```jsx
+{/* 引入 semantic 后,这才是默认推荐写法 */}
+<div style={{ color: 'var(--color-text-primary)', background: 'var(--color-bg-surface)' }}>...</div>
+```
+
+**为什么**:换品牌色 / 切 dark mode 只改 semantic 映射,业务代码不动。`primary.500` 这种 atomic 引用应**只出现在 semantic 定义和 design system 内部**,不出现在业务组件里。
+
+---
+
+## 6. 完整 Stories
+
+下方所有 stories 在左侧 sidebar 可单独打开:
+
+- **Palette** — 全色板 6 色系 + neutral 完整渲染
+- **Primary Gap (review evidence)** — Day 6 review C1 红字证据

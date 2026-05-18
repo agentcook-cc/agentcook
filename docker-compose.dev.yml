@@ -1,0 +1,228 @@
+# Local dev middleware for agentcook-cc.
+#
+# Brought up at the start of a dev session:
+#   docker compose -f docker-compose.dev.yml up -d
+#
+# Tear down (keep data):
+#   docker compose -f docker-compose.dev.yml down
+# Tear down + wipe volumes:
+#   docker compose -f docker-compose.dev.yml down -v
+#
+# Notes:
+# - testcontainers-python (used by `pytest -m integration`) starts its OWN
+#   ephemeral PG/Redis on random ports. The `postgres` / `redis` services
+#   here are for ad-hoc app dev, not for the test suite.
+# - pact-broker uses its own dedicated `pact-broker-db`, deliberately
+#   isolated from the app PG so dropping app data never touches contracts.
+
+services:
+  postgres:
+    # pgvector official image (PG 16 + pgvector extension preinstalled).
+    # ADR-011 default vector store. ~150MB larger than alpine, acceptable for dev.
+    # Volume layout is compatible with prior postgres:16-alpine on same PG major,
+    # so existing data persists across the switch.
+    image: pgvector/pgvector:pg16
+    container_name: agentcook-postgres
+    environment:
+      POSTGRES_USER: agentcook
+      POSTGRES_PASSWORD: agentcook
+      POSTGRES_DB: agentcook
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentcook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: agentcook-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pact-broker-db:
+    image: postgres:16-alpine
+    container_name: agentcook-pact-broker-db
+    environment:
+      POSTGRES_USER: pact_broker
+      POSTGRES_PASSWORD: pact_broker
+      POSTGRES_DB: pact_broker
+    volumes:
+      - pact-broker-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pact_broker"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pact-broker:
+    image: pactfoundation/pact-broker:latest
+    container_name: agentcook-pact-broker
+    depends_on:
+      pact-broker-db:
+        condition: service_healthy
+    ports:
+      - "9292:9292"
+    environment:
+      PACT_BROKER_DATABASE_URL: "postgres://pact_broker:pact_broker@pact-broker-db/pact_broker"
+      PACT_BROKER_BASIC_AUTH_USERNAME: pact
+      PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+      PACT_BROKER_PUBLIC_HEARTBEAT: "true"
+      # Allow loopback access without auth so smoke checks (`curl /diagnostic/status/heartbeat`) work
+      PACT_BROKER_ALLOW_PUBLIC_READ: "true"
+    healthcheck:
+      # Use 127.0.0.1 explicitly: container `localhost` resolves to ::1 (IPv6),
+      # but Puma in pact-broker only listens on IPv4 0.0.0.0:9292.
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9292/diagnostic/status/heartbeat || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Phase 2 Day 16-18 — Observability stack (Agent C).
+  #
+  # Status as of Day 18:
+  #   ✅ jaeger       — healthy, OTLP 4317/4318 + UI 16686, spans verified
+  #   ✅ prometheus   — healthy, scrape config at ./scripts/prometheus.yml
+  #   ⏸  langfuse    — image pull blocked (docker.io mirror TLS fault),
+  #                     Phase 4 Day 38 统一解决, 不阻塞 Phase 2
+  #
+  # Jaeger all-in-one  → traces (OTLP gRPC 4317 / HTTP 4318 / UI 16686)
+  # Prometheus         → metrics scrape (UI 9090)
+  # Langfuse           → LLM-specific observability (UI 3000)
+  # ──────────────────────────────────────────────────────────────────────────
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.57
+    container_name: agentcook-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: "true"
+    ports:
+      - "16686:16686"   # Jaeger UI
+      - "4317:4317"     # OTLP gRPC receiver
+      - "4318:4318"     # OTLP HTTP receiver
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:14269/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  prometheus:
+    # quay.io bypass: docker.io mirror TLS broken since Day 16.
+    image: quay.io/prometheus/prometheus:v2.53.0
+    container_name: agentcook-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - prometheus-data:/prometheus
+      - ./scripts/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  langfuse:
+    image: langfuse/langfuse:2
+    container_name: agentcook-langfuse
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      DATABASE_URL: "postgresql://agentcook:agentcook@postgres:5432/agentcook"
+      NEXTAUTH_URL: "http://localhost:3000"
+      NEXTAUTH_SECRET: "dev-only-langfuse-secret"
+      SALT: "dev-only-langfuse-salt"
+      TELEMETRY_ENABLED: "false"
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:3000/api/public/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  postgres-data:
+  redis-data:
+  pact-broker-db-data:
+  prometheus-data:
+  # Phase 2 ADR-013 — uncomment when Agent D fills java-app + postgres-business below.
+  # postgres-business-data:
+
+# ──────────────────────────────────────────────────────────────────────────
+# Phase 2 ADR-013 — Spring Boot business logic service (Agent D, Day 16+).
+# Draft only. Day 22 D fills concrete config + uncomments. C reviews PR.
+# ──────────────────────────────────────────────────────────────────────────
+#
+# services:
+#   java-app:
+#     build:
+#       context: ./agentcook-java
+#       # Multi-stage Dockerfile written by D in agentcook-java/Dockerfile.
+#     container_name: agentcook-java
+#     ports:
+#       - "8080:8080"
+#     depends_on:
+#       postgres-business:
+#         condition: service_healthy
+#       redis:
+#         condition: service_healthy
+#     environment:
+#       SPRING_PROFILES_ACTIVE: dev
+#       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-business:5432/agentcook_business
+#       SPRING_DATASOURCE_USERNAME: agentcook_business
+#       SPRING_DATASOURCE_PASSWORD: agentcook_business
+#       SPRING_DATA_REDIS_HOST: redis
+#       SPRING_DATA_REDIS_PORT: "6379"
+#       # JWT signing key — Day 22 D injects via Vault / sealed-secret in real env.
+#       AGENTCOOK_JWT_SECRET: dev-only-do-not-use-in-prod
+#     healthcheck:
+#       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || exit 1"]
+#       interval: 10s
+#       timeout: 5s
+#       retries: 12
+#       start_period: 45s
+#
+#   postgres-business:
+#     # Independent from the application `postgres` (which is pgvector for memory store).
+#     # Business data (users / agents / billing) doesn't need vector → plain alpine.
+#     image: postgres:16-alpine
+#     container_name: agentcook-postgres-business
+#     environment:
+#       POSTGRES_USER: agentcook_business
+#       POSTGRES_PASSWORD: agentcook_business
+#       POSTGRES_DB: agentcook_business
+#     ports:
+#       - "5433:5432"   # ★ host port 5433 (5432 is taken by `postgres` pgvector above)
+#     volumes:
+#       - postgres-business-data:/var/lib/postgresql/data
+#     healthcheck:
+#       test: ["CMD-SHELL", "pg_isready -U agentcook_business"]
+#       interval: 5s
+#       timeout: 3s
+#       retries: 10

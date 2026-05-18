@@ -1,0 +1,117 @@
+{
+  "consumer": {
+    "name": "agentcook-admin"
+  },
+  "interactions": [
+    {
+      "description": "a request to echo the text 'hello'",
+      "providerStates": [
+        {
+          "name": "EchoProvider is configured with prefix=Echo"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/v1/echo",
+        "query": {
+          "text": [
+            "hello"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "model": "echo-v0",
+          "reply": "[Echo] hello"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request to echo an empty string",
+      "providerStates": [
+        {
+          "name": "EchoProvider rejects empty text"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/v1/echo",
+        "query": {
+          "text": [
+            ""
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "code": "empty_text",
+          "error": "text must not be empty"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 400
+      }
+    },
+    {
+      "description": "a request for an existing profile",
+      "providerStates": [
+        {
+          "name": "a profile exists with id 'alice'"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/v1/profiles/alice"
+      },
+      "response": {
+        "body": {
+          "display_name": "Alice",
+          "id": "alice"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "a request for a non-existent profile",
+      "providerStates": [
+        {
+          "name": "no profile exists with id 'ghost'"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/v1/profiles/ghost"
+      },
+      "response": {
+        "body": {
+          "code": "profile_missing",
+          "error": "profile 'ghost' not found"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 404
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "echo-api"
+  }
+}

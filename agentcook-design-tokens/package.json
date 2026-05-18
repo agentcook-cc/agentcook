@@ -1,0 +1,30 @@
+{
+  "name": "@agentcook-cc/design-tokens",
+  "version": "0.1.0",
+  "description": "Shared design tokens for agentcook admin and app — single source of truth for colors, typography, spacing, radius, shadow, motion",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "style-dictionary build --config style-dictionary.config.mjs",
+    "clean": "rm -rf dist storybook-static",
+    "storybook": "storybook dev -p 6006",
+    "build-storybook": "storybook build",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "style-dictionary": "^4.0.0",
+    "storybook": "^8.5.0",
+    "@storybook/html": "^8.5.0",
+    "@storybook/html-vite": "^8.5.0",
+    "@storybook/addon-essentials": "^8.5.0",
+    "@storybook/addon-themes": "^8.5.0",
+    "@storybook/addon-a11y": "^8.5.0",
+    "@storybook/blocks": "^8.5.0",
+    "@types/node": "^20.11.0",
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0",
+    "vitest": "^1.6.0"
+  }
+}

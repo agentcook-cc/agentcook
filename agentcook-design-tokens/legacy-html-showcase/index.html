@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>agentcook Design Tokens</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #f9fafb; color: #1f2937; padding: 48px; }
+        h1 { font-size: 2.25rem; font-weight: 700; margin-bottom: 48px; color: #111827; }
+        h2 { font-size: 1.5rem; font-weight: 600; margin: 48px 0 24px; color: #374151; }
+        .section { margin-bottom: 48px; }
+        
+        /* Colors */
+        .color-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 16px; }
+        .color-item { border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .color-swatch { height: 80px; }
+        .color-label { padding: 8px; font-size: 0.75rem; text-align: center; background: white; }
+        
+        /* Typography */
+        .type-item { margin: 16px 0; padding: 16px; background: white; border-radius: 8px; }
+        
+        /* Spacing */
+        .spacing-grid { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; }
+        .spacing-item { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+        .spacing-box { background: #3b82f6; border-radius: 4px; }
+        .spacing-label { font-size: 0.75rem; color: #6b7280; }
+        
+        /* Shadows */
+        .shadow-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
+        .shadow-card { background: white; padding: 32px; border-radius: 8px; text-align: center; }
+        
+        /* Border Radius */
+        .radius-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 24px; }
+        .radius-item { width: 80px; height: 80px; background: #e5e7eb; margin: 0 auto; }
+        .radius-label { text-align: center; margin-top: 8px; font-size: 0.75rem; }
+        
+        /* Motion */
+        .motion-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 24px; }
+        .motion-card { background: white; padding: 32px; border-radius: 8px; text-align: center; cursor: pointer; transition: transform 250ms ease; }
+        .motion-card:hover { transform: scale(1.05); }
+        .motion-fast { transition-duration: 150ms; }
+        .motion-normal { transition-duration: 250ms; }
+        .motion-slow { transition-duration: 400ms; }
+        
+        footer { margin-top: 64px; padding-top: 24px; border-top: 1px solid #e5e7eb; font-size: 0.75rem; color: #9ca3af; text-align: center; }
+    </style>
+</head>
+<body>
+    <h1>agentcook Design Tokens</h1>
+    
+    <div class="section">
+        <h2>Colors</h2>
+        <div class="color-grid">
+            <div class="color-item"><div class="color-swatch" style="background: #3b82f6;"></div><div class="color-label">primary<br/>#3b82f6</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #8b5cf6;"></div><div class="color-label">secondary<br/>#8b5cf6</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #22c55e;"></div><div class="color-label">success<br/>#22c55e</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #f59e0b;"></div><div class="color-label">warning<br/>#f59e0b</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #ef4444;"></div><div class="color-label">danger<br/>#ef4444</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #f9fafb;"></div><div class="color-label">neutral-50<br/>#f9fafb</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #e5e7eb;"></div><div class="color-label">neutral-200<br/>#e5e7eb</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #6b7280;"></div><div class="color-label">neutral-500<br/>#6b7280</div></div>
+            <div class="color-item"><div class="color-swatch" style="background: #1f2937;"></div><div class="color-label">neutral-800<br/>#1f2937</div></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Typography</h2>
+        <div class="type-item" style="font-size: 0.75rem;">xs - 0.75rem (12px)</div>
+        <div class="type-item" style="font-size: 0.875rem;">sm - 0.875rem (14px)</div>
+        <div class="type-item" style="font-size: 1rem;">base - 1rem (16px)</div>
+        <div class="type-item" style="font-size: 1.125rem;">lg - 1.125rem (18px)</div>
+        <div class="type-item" style="font-size: 1.25rem;">xl - 1.25rem (20px)</div>
+        <div class="type-item" style="font-size: 1.5rem;">2xl - 1.5rem (24px)</div>
+        <div class="type-item" style="font-size: 1.875rem;">3xl - 1.875rem (30px)</div>
+        <div class="type-item" style="font-size: 2.25rem;">4xl - 2.25rem (36px)</div>
+    </div>
+    
+    <div class="section">
+        <h2>Spacing</h2>
+        <div class="spacing-grid">
+            <div class="spacing-item"><div class="spacing-box" style="width: 4px; height: 4px;"></div><div class="spacing-label">4px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 8px; height: 8px;"></div><div class="spacing-label">8px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 12px; height: 12px;"></div><div class="spacing-label">12px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 16px; height: 16px;"></div><div class="spacing-label">16px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 24px; height: 24px;"></div><div class="spacing-label">24px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 32px; height: 32px;"></div><div class="spacing-label">32px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 48px; height: 48px;"></div><div class="spacing-label">48px</div></div>
+            <div class="spacing-item"><div class="spacing-box" style="width: 64px; height: 64px;"></div><div class="spacing-label">64px</div></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Shadows</h2>
+        <div class="shadow-grid">
+            <div class="shadow-card" style="box-shadow: 0 1px 2px rgba(0,0,0,0.05);">sm</div>
+            <div class="shadow-card" style="box-shadow: 0 4px 6px rgba(0,0,0,0.1);">md</div>
+            <div class="shadow-card" style="box-shadow: 0 10px 15px rgba(0,0,0,0.1);">lg</div>
+            <div class="shadow-card" style="box-shadow: 0 20px 25px rgba(0,0,0,0.1);">xl</div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Border Radius</h2>
+        <div class="radius-grid">
+            <div><div class="radius-item" style="border-radius: 4px;"></div><div class="radius-label">sm (4px)</div></div>
+            <div><div class="radius-item" style="border-radius: 8px;"></div><div class="radius-label">md (8px)</div></div>
+            <div><div class="radius-item" style="border-radius: 12px;"></div><div class="radius-label">lg (12px)</div></div>
+            <div><div class="radius-item" style="border-radius: 9999px;"></div><div class="radius-label">full</div></div>
+        </div>
+    </div>
+    
+    <div class="section">
+        <h2>Motion (Hover to see animation)</h2>
+        <div class="motion-grid">
+            <div class="motion-card motion-fast">fast (150ms)</div>
+            <div class="motion-card motion-normal">normal (250ms)</div>
+            <div class="motion-card motion-slow">slow (400ms)</div>
+        </div>
+    </div>
+    
+    <footer>Generated from agentcook-design-tokens v0.1.0</footer>
+</body>
+</html>

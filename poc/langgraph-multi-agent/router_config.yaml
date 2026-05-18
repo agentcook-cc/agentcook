@@ -1,0 +1,37 @@
+# 声明式 Multi-Agent Router 配置
+# agentcook 的差异化：用 YAML/JSON 配置代替 Python 代码定义状态机
+
+router:
+  name: "task-router"
+  description: "根据用户意图路由到合适的 SubAgent"
+
+agents:
+  - name: "research-agent"
+    description: "负责信息搜索和研究"
+    trigger_patterns:
+      - "搜索"
+      - "查找"
+      - "research"
+      - "search"
+    model: "gpt-4o-mini"
+    system_prompt: "你是一个研究助手，擅长搜索和整理信息。"
+
+  - name: "code-agent"
+    description: "负责代码编写和调试"
+    trigger_patterns:
+      - "代码"
+      - "编程"
+      - "code"
+      - "debug"
+      - "实现"
+    model: "gpt-4o"
+    system_prompt: "你是一个编程助手，擅长编写和调试代码。"
+
+  - name: "general-agent"
+    description: "通用对话 Agent（兜底）"
+    trigger_patterns: []
+    model: "gpt-4o-mini"
+    system_prompt: "你是一个通用 AI 助手。"
+    is_fallback: true
+
+routing_strategy: "pattern_match"  # pattern_match | llm_classify

@@ -1,0 +1,81 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as ShadowStories from '../shadow.stories';
+
+<Meta of={ShadowStories} />
+
+# Shadow — 阴影分层
+
+> 阴影传达 **层级（elevation）**。层级越高，阴影越重。双栈共用同一套 token：admin 用 `sm/md` 就够（表格/卡片），app 用到 `lg/xl`（浮层/modal/toast）。
+
+---
+
+## 1. 设计思路
+
+Material Design 把阴影分 24 层。我们简化为 **4 层**，覆盖 95% 场景：
+
+| 层 | 语义 | 典型用途 |
+|----|------|---------|
+| `sm` | 微浮 | 卡片静态、表格行 hover |
+| `md` | 中浮 | dropdown / popover / tooltip |
+| `lg` | 高浮 | dialog / modal / drawer |
+| `xl` | 最高浮 | toast / notification / 全局浮层 |
+
+**关键原则**：阴影只做层级暗示，不做装饰。暗色模式下阴影减弱（Phase 2 P1-1 dark mode 调整时同步）。
+
+---
+
+## 2. 当前 4 档
+
+```
+shadow-sm   0 1px 2px 0 rgba(0,0,0,0.05)
+shadow-md   0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -2px rgba(0,0,0,0.1)
+shadow-lg   0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -4px rgba(0,0,0,0.1)
+shadow-xl   0 20px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1)
+```
+
+**复合阴影**：`md/lg/xl` 使用双层 box-shadow（主阴影 + ambient 阴影），模拟真实光照的漫反射 + 直射。
+
+---
+
+## 3. Canvas 演示
+
+<Canvas of={ShadowStories.Layers} />
+
+---
+
+## 4. 双栈并排用法
+
+**admin（Element Plus）**：
+
+```html
+<el-card shadow="never" style="box-shadow: var(--shadow-sm)">
+  静态卡片用 sm
+</el-card>
+<el-dialog style="box-shadow: var(--shadow-lg)">
+  弹窗用 lg
+</el-dialog>
+```
+
+**app（Tailwind）**：
+
+```html
+<div class="shadow-sm hover:shadow-md transition-shadow">
+  卡片 hover 升层
+</div>
+<div class="shadow-xl rounded-lg p-6">
+  Toast 浮层
+</div>
+```
+
+> ⏳ 当前为 HTML + CSS variables 模拟。Phase 3 admin/app 真组件落地后切 Vue/React render。
+
+---
+
+## 5. 缺补预告
+
+| 档位 | 用途 | 计划 |
+|------|------|------|
+| `inner` | 输入框内凹效果 | Phase 3 form 组件 |
+| `focus-ring` | a11y 键盘焦点环 | Phase 2 P1-1 |
+| `dark-*` | 暗色模式阴影减弱变体 | Phase 2 Day 22-23 |
+| `none` | 显式取消阴影 | Phase 3 按需 |

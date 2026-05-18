@@ -1,0 +1,84 @@
+# Codecov component-level config for agentcook-cc.
+#
+# ⏸ STATUS:配置就绪,token 暂未申请。Day 14 末作者拍板:agentcook-cc 还没
+#    git init / push GitHub,所以 codecov.io 申请 token 没意义,Phase 4 Day 47
+#    首次 push 到 github.com/agentcook 时再申请 + 在 GitHub repo Secrets 加
+#    `CODECOV_TOKEN`。在那之前 python-ci.yml 的 codecov upload step 用
+#    `fail_ci_if_error: false`,缺 token 时 silently skip,build job 仍 pass。
+#
+# 当前覆盖率口径(Day 14 实测):4 包合计 73%,GO 标准 ≥ 70%。各包独立目标见
+# `coverage.status.project.*`。
+
+codecov:
+  require_ci_to_pass: false   # CI 大盘 fail 不应该让 PR 卡在覆盖率上
+  notify:
+    after_n_builds: 1         # 单 build 上传即出报告(我们只 1 个 unit job)
+
+coverage:
+  precision: 1
+  round: down
+  range: "70...95"
+  status:
+    project:
+      default:
+        target: 80%           # ADR-007 测试金字塔目标
+        threshold: 2%         # 一次 PR 允许下降 2 pp
+      core:
+        flags: [core]
+        target: 90%           # core 是协议/dataclass,coverage 应该最高
+        threshold: 1%
+      providers:
+        flags: [providers]
+        target: 75%           # OpenAI/Anthropic 真调 client 测不进 unit
+        threshold: 3%
+      storage:
+        flags: [storage]
+        target: 80%
+        threshold: 2%
+      app:
+        flags: [app]
+        target: 80%
+        threshold: 2%
+    patch:
+      default:
+        target: 80%           # 新增代码至少 80% 覆盖
+
+# 4 component flags — pytest 上传单 coverage.xml,codecov 按 source path 切分
+flag_management:
+  default_rules:
+    carryforward: true        # 没改的 component 沿用上次 coverage
+  individual_flags:
+    - name: core
+      paths: [agentcook-core/src/]
+    - name: providers
+      paths: [agentcook-providers/src/]
+    - name: storage
+      paths: [agentcook-storage/src/]
+    - name: app
+      paths: [agentcook/src/]
+
+component_management:
+  individual_components:
+    - component_id: agentcook-core
+      name: core
+      paths: [agentcook-core/src/**]
+    - component_id: agentcook-providers
+      name: providers
+      paths: [agentcook-providers/src/**]
+    - component_id: agentcook-storage
+      name: storage
+      paths: [agentcook-storage/src/**]
+    - component_id: agentcook
+      name: app
+      paths: [agentcook/src/**]
+
+comment:
+  layout: "header, diff, components, flags, files"
+  behavior: default
+  require_changes: false
+
+ignore:
+  - "tests/**"
+  - "**/tests/**"
+  - "poc/**"
+  - "scripts/**"

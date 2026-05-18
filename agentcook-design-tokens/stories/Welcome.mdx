@@ -1,0 +1,35 @@
+import { Meta } from '@storybook/blocks';
+
+<Meta title="Welcome" />
+
+# agentcook Design Tokens
+
+> 共享设计系统的单一信源。`admin`(Vue 3 + Element Plus)与 `app`(React + Tailwind + shadcn/ui)双栈消费同一份 token,视觉一致性由此保证。
+
+## 当前状态(2026-05-17 / Phase 1 Day 7)
+
+- ✅ 6 类 token JSON(color / typography / spacing / radius / shadow / motion)就位
+- ✅ Style Dictionary 4 端编译配置(CSS variables / Element Plus theme / Tailwind preset / Figma)
+- ✅ Storybook 8 + html-vite 双栈展示框架(本页所在)
+- 🚧 token 缺补(primary 中间色阶 / semantic 语义层 / dark mode / 中文字体 fallback)— Day 14-15 / Phase 2 Day 22-23 分批补
+- 🚧 Vue / React 组件 stories(Day 8 加 Element Plus Button + shadcn/ui Button 并排展示)
+
+## 导航
+
+- **Foundation/Colors** — 6 色系(primary / secondary / success / warning / danger / neutral)
+- **Foundation/Typography** — 字体栈 / 字号 / 行高 / 字重
+- **Foundation/Spacing** — 4px 基线间距系统
+- **Foundation/Radius** — 圆角档位
+- **Foundation/Shadow** — 阴影分层
+- **Foundation/Motion** — 动效时长 + 缓动曲线
+
+## 原则
+
+1. **Atomic → Semantic → Component** 三层 — 当前只有 atomic,Phase 1 末补完 semantic
+2. **单一信源** — 任何色值改动只在 `tokens/*.json`,SD 编译同步到 4 端
+3. **双栈一致** — admin 紧凑布局 + app 现代留白,但同 token 出同色值
+4. **dark mode is a token concern, not a CSS hack** — Phase 2 Day 22-23 引入 dark token 集
+
+## 参考决策
+
+- ADR-003(`tutorial/_internal/L3-strategy/v6-architecture-rationale.md`)

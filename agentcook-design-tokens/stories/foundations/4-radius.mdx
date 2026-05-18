@@ -1,0 +1,75 @@
+import { Meta, Canvas } from '@storybook/blocks';
+import * as RadiusStories from '../radius.stories';
+
+<Meta of={RadiusStories} />
+
+# Radius — 圆角分层
+
+> 圆角是 UI 层次感的基础工具。小圆角给紧凑控件(按钮/badge)，大圆角给容器(卡片/modal)，full 给头像/pill 型标签。双栈复用同一套 token，admin 偏克制、app 偏圆润 — **但同档位像素值一致**。
+
+---
+
+## 1. 设计思路
+
+圆角分层的核心逻辑：**控件尺寸越大，圆角越大**。
+
+- 小控件（badge / toggle / chip）→ `sm`（4px）
+- 中控件（button / input / select）→ `md`（8px）
+- 大容器（card / dialog / dropdown）→ `lg`（12px）
+- 胶囊 / 头像 → `full`（9999px）
+
+**为什么不用百分比**：`border-radius: 50%` 在非正方形元素上变椭圆，`9999px` 保证任何尺寸都是 pill 形。
+
+---
+
+## 2. 当前 4 档
+
+```
+radius-sm     4px     badge / toggle / chip / 表格单元格
+radius-md     8px     button / input / card-inner / dropdown-item
+radius-lg    12px     card / dialog / modal / popover
+radius-full  9999px   avatar / pill-tag / FAB
+```
+
+---
+
+## 3. Canvas 演示
+
+<Canvas of={RadiusStories.All} />
+
+---
+
+## 4. 双栈并排用法
+
+**admin（Element Plus）**：
+
+```html
+<!-- Element Plus card 覆盖默认 4px → 用 token -->
+<el-card :body-style="{ borderRadius: 'var(--radius-lg)' }">
+  <el-button style="border-radius: var(--radius-md)">Action</el-button>
+</el-card>
+```
+
+**app（Tailwind）**：
+
+```html
+<!-- Tailwind preset 映射 token → utility class -->
+<div class="rounded-lg p-4 shadow-md">
+  <button class="rounded-md px-4 py-2">Action</button>
+</div>
+```
+
+> ⏳ 当前为 HTML + CSS variables 模拟。Phase 3 admin/app 真组件落地后切 Vue/React render。
+
+---
+
+## 5. 缺补预告（Phase 3 按需加）
+
+| 档位 | 值 | 用途 |
+|------|-----|------|
+| `none` | 0px | 直角强调 |
+| `xs` | 2px | 微圆角（内嵌子元素） |
+| `xl` | 16px | app chat 气泡 |
+| `2xl` | 24px | 大型 hero card / onboarding |
+
+Phase 3 chat UI 落地时优先补 `xl`（气泡圆角需要 ≥ 16px 才有"对话感"）。

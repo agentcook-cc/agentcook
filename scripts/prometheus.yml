@@ -1,0 +1,33 @@
+# Prometheus scrape config for agentcook-cc local dev.
+# Phase 2 Day 16 — Agent C.
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Python runtime (FastAPI) — exposes /metrics via prometheus_client.
+  - job_name: agentcook-python
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:8000"]
+        labels:
+          service: agentcook-python
+
+  # Java business service (Spring Boot Actuator) — Day 22 D enables.
+  - job_name: agentcook-java
+    metrics_path: /actuator/prometheus
+    static_configs:
+      - targets: ["host.docker.internal:8080"]
+        labels:
+          service: agentcook-java
+
+  # Jaeger internal metrics.
+  - job_name: jaeger
+    static_configs:
+      - targets: ["jaeger:14269"]
+
+  # Prometheus self-monitoring.
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

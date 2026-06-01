@@ -33,20 +33,15 @@ jobs:
           # Mirror push needs the full history; default fetch-depth is 1.
           fetch-depth: 0
 
-      - name: Configure Gitee credentials (HTTPS + token via extraheader)
+      - name: Add Gitee remote (HTTPS + token in URL)
         env:
           GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
           # Gitee deploy keys are read-only; personal access token is required for push.
-          # extraheader keeps the token out of the remote URL (and out of `git remote -v` logs).
-          AUTH=$(printf '%s:%s' "$GITEE_USERNAME" "$GITEE_TOKEN" | base64 -w 0)
-          git config --global http.https://gitee.com/.extraheader "Authorization: basic $AUTH"
-
-      - name: Add Gitee remote
-        run: |
-          git remote add gitee https://gitee.com/agentcook-cc/agentcook.git 2>/dev/null \
-            || git remote set-url gitee https://gitee.com/agentcook-cc/agentcook.git
+          # Token is embedded in remote URL; GitHub Actions auto-masks secret values in logs.
+          REMOTE_URL="https://${GITEE_USERNAME}:${GITEE_TOKEN}@gitee.com/agentcook-cc/agentcook.git"
+          git remote add gitee "$REMOTE_URL" 2>/dev/null || git remote set-url gitee "$REMOTE_URL"
 
       - name: Mirror push (branches + tags)
         run: |

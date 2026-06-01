@@ -2,20 +2,18 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 
+import pytest
+from agentcook_core.protocols import SkillProtocol
 from agentcook_core.skill_loader import (
-    SkillEntry,
-    SkillRegistry,
     SkillConflictError,
     SkillLoadError,
+    SkillRegistry,
     load_skill_file,
     manifest_from_frontmatter,
     parse_frontmatter,
 )
-from agentcook_core.protocols import SkillProtocol
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

@@ -23,12 +23,12 @@ pytestmark = pytest.mark.unit
 
 os.environ.setdefault("AGENTCOOK_JWT_SECRET", "test-secret-do-not-use-anywhere-else")
 
-from agentcook_core import IdentityCard  # noqa: E402
 from agentcook_app.main import create_app  # noqa: E402
 from agentcook_app.services import (  # noqa: E402
     InMemoryAgentRuntime,
     get_runtime,
 )
+from agentcook_core import IdentityCard  # noqa: E402
 
 _AGENT = "agent-1"
 _USER = "user-1"
@@ -38,7 +38,7 @@ def _token(*, expired: bool = False, claims: dict | None = None) -> str:
     base: dict = {
         "sub": _USER,
         "scopes": "agent:read agent:write",
-        "exp": dt.datetime.now(tz=dt.timezone.utc)
+        "exp": dt.datetime.now(tz=dt.UTC)
         + dt.timedelta(minutes=-5 if expired else 15),
     }
     if claims:
@@ -81,14 +81,44 @@ def client(fake_runtime: InMemoryAgentRuntime) -> Iterator[TestClient]:
 
 # --------------------------- meta / health ---------------------------
 
-def test_healthz_is_open(client: TestClient) -> None:
-    resp = client.get("/healthz")
+# Endpoint renamed Day 20: `setup_health(app)` registers `/health` (liveness)
+# and `/health/ready` (readiness). The legacy `/healthz` was removed.
+
+def test_health_is_open(client: TestClient) -> None:
+    resp = client.get("/health")
     assert resp.status_code == 200 and resp.json() == {"status": "ok"}
 
 
 def test_request_id_header_is_set(client: TestClient) -> None:
-    resp = client.get("/healthz")
+    resp = client.get("/health")
     assert resp.headers.get("x-request-id")
+
+
+def test_health_ready_returns_503_when_dependencies_down(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Readiness fails closed when postgres or redis is unreachable.
+
+    Stubs the dependency probes so the test doesn't depend on whatever
+    happens to be listening on the host's :5432/:6379 — `make dev` may or
+    may not be running. The probes are looked up by name on every request
+    in `setup_health`, so monkeypatching the module attribute takes effect
+    even though `client` was created earlier.
+    """
+    from agentcook_app import health as health_mod
+
+    async def _down() -> tuple[bool, str]:
+        return False, "stub: dependency down"
+
+    monkeypatch.setattr(health_mod, "_check_postgres", _down)
+    monkeypatch.setattr(health_mod, "_check_redis", _down)
+
+    resp = client.get("/health/ready")
+    assert resp.status_code == 503
+    body = resp.json()
+    assert body["status"] == "not_ready"
+    assert body["checks"]["postgres"]["status"] == "down"
+    assert body["checks"]["redis"]["status"] == "down"
 
 
 def test_cors_preflight_allows_admin_origin(client: TestClient) -> None:

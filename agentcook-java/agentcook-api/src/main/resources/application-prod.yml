@@ -1,0 +1,36 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST}:${POSTGRES_PORT:5432}/${POSTGRES_DB}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  jpa:
+    show-sql: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+
+  cache:
+    type: redis
+
+  flyway:
+    baseline-on-migrate: false
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoint:
+    health:
+      show-details: when-authorized
+
+agentcook:
+  auth:
+    jwt-secret: ${AGENTCOOK_AUTH_JWT_SECRET}
+    jwt-ttl-seconds: ${AGENTCOOK_AUTH_JWT_TTL_SECONDS:7200}

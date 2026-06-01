@@ -1,0 +1,101 @@
+{
+  "consumer": {
+    "name": "agentcook-admin"
+  },
+  "interactions": [
+    {
+      "description": "login with valid credentials",
+      "providerStates": [
+        {
+          "name": "Java dev profile auth is enabled"
+        }
+      ],
+      "request": {
+        "body": {
+          "password": "dev-secret",
+          "username": "alice"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/auth/login"
+      },
+      "response": {
+        "body": {
+          "accessToken": "dev-token-alice",
+          "expiresIn": 3600,
+          "tokenType": "Bearer"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "list users for the admin user list view",
+      "providerStates": [
+        {
+          "name": "at least one user exists"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/users"
+      },
+      "response": {
+        "body": [
+          {
+            "createdAt": "2026-05-30T08:00:00Z",
+            "displayName": "Alice",
+            "email": "alice@example.com",
+            "id": "01HXYZAB000000000000000001",
+            "status": "ACTIVE"
+          }
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "upload a plugin (multipart body verified provider-side)",
+      "providerStates": [
+        {
+          "name": "the admin uploader has a valid plugin zip"
+        }
+      ],
+      "request": {
+        "method": "POST",
+        "path": "/api/v1/plugins"
+      },
+      "response": {
+        "body": {
+          "createdAt": "2026-06-05T09:00:00Z",
+          "id": "01HXYZPL000000000000000001",
+          "name": "demo-skill",
+          "status": "DRAFT",
+          "version": "0.1.0"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 201
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook-java"
+  }
+}

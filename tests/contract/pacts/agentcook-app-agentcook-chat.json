@@ -1,0 +1,44 @@
+{
+  "consumer": {
+    "name": "agentcook-app"
+  },
+  "interactions": [
+    {
+      "description": "send a chat message and stream reply",
+      "providerStates": [
+        {
+          "name": "session sess-001 exists with agent agt-001"
+        }
+      ],
+      "request": {
+        "body": {
+          "message": "What are the pricing tiers?",
+          "plugin_ids": [
+            "plugin-translate"
+          ],
+          "session_id": "sess-001"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/chat/stream"
+      },
+      "response": {
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook-chat"
+  }
+}

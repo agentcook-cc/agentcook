@@ -26,12 +26,12 @@ pytestmark = [pytest.mark.unit]
 
 os.environ.setdefault("AGENTCOOK_JWT_SECRET", "test-secret-do-not-use-anywhere-else")
 
-from agentcook_core import IdentityCard  # noqa: E402
 from agentcook_app.main import create_app  # noqa: E402
 from agentcook_app.services import (  # noqa: E402
     InMemoryAgentRuntime,
     get_runtime,
 )
+from agentcook_core import IdentityCard  # noqa: E402
 
 
 def _build_app() -> Any:
@@ -47,6 +47,7 @@ def _build_app() -> Any:
     )
     # Initialise soul so /soul GET 200s rather than 404s during fuzzing.
     import asyncio
+
     from agentcook_core import SoulConfig
 
     asyncio.get_event_loop().run_until_complete(
@@ -63,7 +64,7 @@ def _bearer() -> str:
         {
             "sub": "user-1",
             "scopes": "agent:read agent:write",
-            "exp": dt.datetime.now(tz=dt.timezone.utc) + dt.timedelta(minutes=15),
+            "exp": dt.datetime.now(tz=dt.UTC) + dt.timedelta(minutes=15),
         },
         os.environ["AGENTCOOK_JWT_SECRET"],
         algorithm="HS256",

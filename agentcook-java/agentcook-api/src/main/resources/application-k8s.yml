@@ -1,0 +1,52 @@
+# K8s profile — activated by SPRING_PROFILES_ACTIVE=k8s in the Deployment.
+#
+# Service discovery: K8s in-cluster DNS replaces etcd. agentcook-java reaches
+# the Python runtime via the cluster-local Service name; etcd registration is
+# disabled (kube-proxy + Service round-robin handles it).
+#
+# Sensitive values (datasource password, JWT secret) are sourced from a
+# Secret mounted as env vars; non-sensitive config (URLs, timeouts) from
+# a ConfigMap. See docs/k8s-config-mapping.md for the full mapping.
+
+spring:
+  datasource:
+    url: jdbc:postgresql://${POSTGRES_HOST:postgres.default.svc.cluster.local}:${POSTGRES_PORT:5432}/${POSTGRES_DB:agentcook_business}
+    username: ${POSTGRES_USER}
+    password: ${POSTGRES_PASSWORD}
+
+  data:
+    redis:
+      host: ${REDIS_HOST:redis.default.svc.cluster.local}
+      port: ${REDIS_PORT:6379}
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 300000
+
+# K8s-native service discovery — etcd is for Docker Swarm only.
+agentcook:
+  service-registry:
+    enabled: false
+  python-upstream-url: ${PYTHON_UPSTREAM_URL:http://agent-core.default.svc.cluster.local:8000}
+
+# Expose K8s probes separately:
+#   /actuator/health/liveness   — restart pod when this fails (livenessProbe)
+#   /actuator/health/readiness  — gate Service traffic on this (readinessProbe)
+# `probes.enabled=true` is already set in application.yml; this profile
+# tightens the show-details policy to never (no secret leakage from probes).
+management:
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+
+# gRPC server still on 9090; ClusterIP Service exposes both 8080 + 9090.
+grpc:
+  server:
+    port: 9090

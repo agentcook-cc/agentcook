@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,GET /api/v1/users,LocustBadStatusCode(code=405),1489,2026-05-21T07:29:51Z,2026-05-21T07:30:20Z

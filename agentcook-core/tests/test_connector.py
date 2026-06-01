@@ -3,10 +3,7 @@
 from __future__ import annotations
 
 import pytest
-from dataclasses import dataclass
-
 from agentcook_core.connector import (
-    BaseAdapter,
     ConnectorManager,
     HttpAdapter,
     McpAdapter,
@@ -15,7 +12,6 @@ from agentcook_core.connector import (
     create_connector,
 )
 from agentcook_core.types import ConnectorConfig, ConnectorKind
-
 
 # ---------------------------------------------------------------------------
 # Helpers

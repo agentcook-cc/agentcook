@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package agentcook.grpc;
+
+option java_package = "cc.agentcook.grpc";
+option java_multiple_files = true;
+option java_outer_classname = "AgentcookProto";
+
+// ChatService — gRPC bridge between Java backend and Python runtime.
+// Phase 4 Day 35+ will generate Java stubs via protobuf-maven-plugin
+// and implement GrpcChatService that forwards to Python's /api/v1/chat/stream.
+service ChatService {
+  // Server-streaming RPC: client sends one request, server streams back tokens.
+  rpc StreamChat (ChatRequest) returns (stream ChatResponse);
+
+  // Unary RPC: single-turn completion (no streaming).
+  rpc Chat (ChatRequest) returns (ChatResponse);
+}
+
+message ChatRequest {
+  string session_id = 1;
+  string message = 2;
+  repeated string plugin_ids = 3;
+  string user_id = 4;
+  ChatOptions options = 5;
+}
+
+message ChatOptions {
+  string model = 1;         // override model selection
+  float temperature = 2;    // 0.0-2.0
+  int32 max_tokens = 3;     // max response tokens
+  bool stream = 4;          // hint for unary endpoint
+}
+
+message ChatResponse {
+  string role = 1;          // "assistant" | "tool"
+  string content = 2;       // partial or full content
+  bool done = 3;            // true = final frame
+  ChatMetadata metadata = 4;
+}
+
+message ChatMetadata {
+  string model_used = 1;
+  int32 prompt_tokens = 2;
+  int32 completion_tokens = 3;
+  int64 latency_ms = 4;
+  string connector_id = 5;  // if a plugin/connector was invoked
+}

@@ -51,7 +51,6 @@ from agentcook_core import (  # noqa: E402
     ToolResult,
 )
 
-
 # --------------------------- Tool ---------------------------
 
 class _StubTool:

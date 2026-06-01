@@ -1,0 +1,107 @@
+{
+  "uid": "agentcook-llm",
+  "title": "agentcook · LLM Metrics",
+  "tags": ["agentcook", "llm", "langfuse"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {"from": "now-6h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "type": "stat",
+      "title": "Total LLM calls (last 24h)",
+      "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "sum(count_over_time({service=\"agent-core\"} |= \"model.chat\" [24h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "Tokens in (last 24h, sum)",
+      "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "sum(sum_over_time({service=\"agent-core\"} |= \"model.chat\" | json | unwrap prompt_tokens [24h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "Tokens out (last 24h, sum)",
+      "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "sum(sum_over_time({service=\"agent-core\"} |= \"model.chat\" | json | unwrap completion_tokens [24h]))",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Estimated cost USD (last 24h)",
+      "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "sum(sum_over_time({service=\"agent-core\"} |= \"model.chat\" | json | unwrap cost_usd [24h]))",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "currencyUSD", "decimals": 4}}
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Calls/min by model",
+      "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "sum by (model) (rate({service=\"agent-core\"} |= \"model.chat\" | json [1m]))",
+          "legendFormat": "{{model}}",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "p95 LLM latency by provider (ms)",
+      "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "quantile_over_time(0.95, {service=\"agent-core\"} |= \"model.chat\" | json | unwrap latency_ms [5m]) by (provider)",
+          "legendFormat": "{{provider}}",
+          "refId": "A"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "ms"}}
+    },
+    {
+      "id": 7,
+      "type": "table",
+      "title": "Top 10 longest recent calls",
+      "gridPos": {"x": 0, "y": 12, "w": 24, "h": 8},
+      "datasource": {"type": "loki", "uid": "loki"},
+      "targets": [
+        {
+          "expr": "topk(10, {service=\"agent-core\"} |= \"model.chat\" | json | unwrap latency_ms)",
+          "refId": "A"
+        }
+      ]
+    }
+  ]
+}

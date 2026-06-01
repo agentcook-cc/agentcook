@@ -1,0 +1,40 @@
+{
+  "consumer": {
+    "name": "agentcook-admin"
+  },
+  "interactions": [
+    {
+      "description": "a liveness probe",
+      "providerStates": [
+        {
+          "name": "agentcook FastAPI runtime is alive"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/health"
+      },
+      "response": {
+        "body": {
+          "status": "ok"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook"
+  }
+}

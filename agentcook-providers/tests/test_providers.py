@@ -29,7 +29,6 @@ from agentcook_providers import (  # noqa: E402
     create_provider,
 )
 
-
 # --------------------------- EchoProvider ---------------------------
 
 def test_echo_provider_satisfies_llm_provider_protocol() -> None:

@@ -1,0 +1,140 @@
+version: "3.9"
+
+# agentcook-swarm: Phase 4 microservice topology
+# 6 services: gateway / agent-core / admin-bff / connector / admin-static / app-static
+# Traefik gateway + gRPC inter-service + etcd discovery
+
+services:
+  gateway:
+    image: traefik:v3.0
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8081:8080"   # Traefik dashboard
+      - "9090:9090"   # gRPC entrypoint
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./gateway/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./gateway/dynamic:/etc/traefik/dynamic:ro
+      - letsencrypt:/letsencrypt
+    networks:
+      - swarm-net
+
+  agent-core:
+    build:
+      context: ../agentcook
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_SERVICE_NAME=agent-core
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.agent.rule=PathPrefix(`/api/v1/chat`)"
+      - "traefik.http.routers.agent.middlewares=api-chain@file"
+      - "traefik.http.services.agent.loadbalancer.server.port=8000"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - swarm-net
+
+  admin-bff:
+    build:
+      context: ../agentcook-java
+      dockerfile: Dockerfile
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - OTEL_SERVICE_NAME=admin-bff
+      - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/api/v1/users`) || PathPrefix(`/api/v1/plugins`) || PathPrefix(`/api/v1/sessions`) || PathPrefix(`/api/v1/connectors`) || PathPrefix(`/api/v1/permissions`)"
+      - "traefik.http.routers.admin.middlewares=api-chain@file"
+      - "traefik.http.services.admin.loadbalancer.server.port=8080"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - swarm-net
+
+  connector:
+    build:
+      context: ./services/connector
+      dockerfile: Dockerfile
+    environment:
+      - OTEL_SERVICE_NAME=connector
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.connector.rule=PathPrefix(`/api/v1/connectors/exec`)"
+      - "traefik.http.services.connector.loadbalancer.server.port=8082"
+    networks:
+      - swarm-net
+
+  admin-static:
+    build:
+      context: ../../
+      dockerfile: agentcook-cc/agentcook-swarm/services/admin-static/Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.admin-static.rule=PathPrefix(`/admin`)"
+      - "traefik.http.routers.admin-static.middlewares=strip-admin-prefix"
+      - "traefik.http.middlewares.strip-admin-prefix.stripprefix.prefixes=/admin"
+      - "traefik.http.services.admin-static.loadbalancer.server.port=80"
+    networks:
+      - swarm-net
+
+  app-static:
+    build:
+      context: ../../
+      dockerfile: agentcook-cc/agentcook-swarm/services/app-static/Dockerfile
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.app-static.rule=PathPrefix(`/app`)"
+      - "traefik.http.routers.app-static.middlewares=strip-app-prefix"
+      - "traefik.http.middlewares.strip-app-prefix.stripprefix.prefixes=/app"
+      - "traefik.http.services.app-static.loadbalancer.server.port=80"
+    networks:
+      - swarm-net
+
+  # Infrastructure
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: agentcook_business
+      POSTGRES_USER: agentcook
+      POSTGRES_PASSWORD: agentcook_dev
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - swarm-net
+
+  redis:
+    image: redis:7-alpine
+    networks:
+      - swarm-net
+
+  etcd:
+    image: bitnami/etcd:3.5
+    environment:
+      - ALLOW_NONE_AUTHENTICATION=yes
+    networks:
+      - swarm-net
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel-collector-config.yaml:/etc/otel/config.yaml:ro
+    ports:
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    networks:
+      - swarm-net
+
+volumes:
+  pgdata:
+  letsencrypt:
+
+networks:
+  swarm-net:
+    driver: bridge

@@ -1,0 +1,136 @@
+{
+  "consumer": {
+    "name": "agentcook-app"
+  },
+  "interactions": [
+    {
+      "description": "list sessions for user usr-001",
+      "providerStates": [
+        {
+          "name": "user usr-001 has two existing sessions"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions",
+        "query": {
+          "userId": [
+            "usr-001"
+          ]
+        }
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "agent_id": "agt-001",
+              "created_at": "2026-05-20T10:00:00Z",
+              "id": "sess-001",
+              "title": "Pricing discussion",
+              "updated_at": "2026-05-21T15:30:00Z"
+            },
+            {
+              "agent_id": "agt-002",
+              "created_at": "2026-05-19T08:00:00Z",
+              "id": "sess-002",
+              "title": "Feature comparison",
+              "updated_at": "2026-05-19T09:15:00Z"
+            }
+          ],
+          "total": 2
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "create a new session for user usr-001",
+      "providerStates": [
+        {
+          "name": "agent agt-001 is available"
+        }
+      ],
+      "request": {
+        "body": {
+          "agent_id": "agt-001",
+          "title": "New conversation",
+          "user_id": "usr-001"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/sessions"
+      },
+      "response": {
+        "body": {
+          "agent_id": "agt-001",
+          "created_at": "2026-05-21T19:00:00Z",
+          "id": "sess-003",
+          "title": "New conversation",
+          "updated_at": "2026-05-21T19:00:00Z",
+          "user_id": "usr-001"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "list available plugins for plugin picker",
+      "providerStates": [
+        {
+          "name": "three plugins are registered"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/plugins"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "category": "utility",
+              "description": "Translate messages to another language.",
+              "id": "plugin-translate",
+              "name": "Translate"
+            },
+            {
+              "category": "memory",
+              "description": "Summarize long conversations.",
+              "id": "plugin-summarize",
+              "name": "Summarize"
+            },
+            {
+              "category": "dev",
+              "description": "Explain code snippets in natural language.",
+              "id": "plugin-code-explain",
+              "name": "Code Explain"
+            }
+          ],
+          "total": 3
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook-java-app"
+  }
+}

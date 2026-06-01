@@ -2,22 +2,20 @@
 
 from __future__ import annotations
 
-import pytest
 from collections.abc import Sequence
 from typing import Any
 
+import pytest
 from agentcook_core.multi_agent import (
     AgentNode,
     AgentNodeConfig,
     MultiAgentOrchestrator,
-    OrchestrationResult,
     RouterConfig,
     RoutingStrategy,
     parse_router_config,
     pattern_match_route,
 )
 from agentcook_core.types import Message
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

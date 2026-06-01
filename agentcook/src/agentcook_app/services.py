@@ -27,7 +27,6 @@ from agentcook_core import (
     SoulConfig,
 )
 
-
 # --------------------------------------------------------------------------
 # Errors — routers map these to HTTP via the exception handler in errors.py
 # --------------------------------------------------------------------------
@@ -117,7 +116,7 @@ class AgentRuntime(Protocol):
 
 
 def _now_iso() -> str:
-    return dt.datetime.now(tz=dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(tz=dt.UTC).isoformat(timespec="seconds")
 
 
 class InMemoryAgentRuntime:

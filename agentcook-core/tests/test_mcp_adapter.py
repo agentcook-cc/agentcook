@@ -2,22 +2,19 @@
 
 from __future__ import annotations
 
-import pytest
 from collections.abc import Sequence
 from typing import Any
 
+import pytest
 from agentcook_core.mcp_adapter import (
     McpClient,
     McpServerConfig,
     McpToolAdapter,
     McpToolRegistry,
     McpToolSchema,
-    McpTransport,
     McpTransportMode,
 )
 from agentcook_core.protocols import ToolProtocol
-from agentcook_core.types import ToolResult
-
 
 # ---------------------------------------------------------------------------
 # Mock transport

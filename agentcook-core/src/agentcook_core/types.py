@@ -12,7 +12,6 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Literal
 
-
 Role = Literal["system", "user", "assistant", "tool"]
 
 

@@ -61,7 +61,7 @@ if _PROM_AVAILABLE:
 # ── Setup ────────────────────────────────────────────────────────────────────
 
 
-def setup_metrics(app: "FastAPI") -> None:
+def setup_metrics(app: FastAPI) -> None:
     """Wire Prometheus metrics endpoint and collection middleware into FastAPI.
 
     Gracefully no-ops when prometheus_client is not installed.

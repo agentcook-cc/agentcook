@@ -28,23 +28,17 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Protocol, Sequence, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 
-from agentcook_core.protocols import (
-    AgentProtocol,
-    ConnectorProtocol,
-    PluginProtocol,
-    SkillProtocol,
-)
-from agentcook_core.skill_loader import SkillEntry, load_skill_file, SkillLoadError
+from agentcook_core.skill_loader import SkillEntry, SkillLoadError, load_skill_file
 from agentcook_core.types import (
     ConnectorConfig,
     ConnectorKind,
     ModelSpec,
     PluginManifest,
-    SkillManifest,
 )
 
 logger = logging.getLogger(__name__)

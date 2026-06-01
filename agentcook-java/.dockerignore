@@ -1,0 +1,15 @@
+# Exclude target *contents* (file-level), not the target directory itself
+# — Docker legacy builder won't honor `!` negation underneath a parent
+# directory that's been excluded as a dir. File-level exclusion + negation
+# is the only combination that actually re-includes the api fat jar.
+**/target/*
+!agentcook-api/target/agentcook-api-*-SNAPSHOT.jar
+!agentcook-api/target/agentcook-api-*.jar
+**/.idea/
+**/*.iml
+**/.classpath
+**/.project
+**/.settings/
+**/.vscode/
+**/.DS_Store
+.git/

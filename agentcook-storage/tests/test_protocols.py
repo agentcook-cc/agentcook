@@ -29,7 +29,6 @@ from agentcook_storage import (  # noqa: E402
 )
 from agentcook_storage.memory_store import _format_vector  # noqa: E402
 
-
 # --------------------------- SqlStore ---------------------------
 
 class _FakeSqlStore:

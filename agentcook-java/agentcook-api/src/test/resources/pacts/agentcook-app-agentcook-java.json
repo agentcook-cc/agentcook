@@ -1,0 +1,55 @@
+{
+  "consumer": {
+    "name": "agentcook-app"
+  },
+  "provider": {
+    "name": "agentcook-java"
+  },
+  "interactions": [
+    {
+      "description": "list published plugins",
+      "providerStates": [
+        {
+          "name": "one published plugin exists"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/plugins"
+      },
+      "response": {
+        "status": 200,
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "body": [
+          {
+            "id": "11111111-1111-1111-1111-111111111111",
+            "name": "dingtalk-bot",
+            "version": "1.0.0",
+            "kind": "WEBHOOK",
+            "description": "test plugin",
+            "status": "PUBLISHED"
+          }
+        ],
+        "matchingRules": {
+          "body": {
+            "$[*].id":          { "matchers": [{ "match": "regex", "regex": "[0-9a-fA-F-]{36}" }] },
+            "$[*].name":        { "matchers": [{ "match": "type" }] },
+            "$[*].version":     { "matchers": [{ "match": "type" }] },
+            "$[*].kind":        { "matchers": [{ "match": "type" }] },
+            "$[*].description": { "matchers": [{ "match": "type" }] },
+            "$[*].status":      { "matchers": [{ "match": "regex", "regex": "DRAFT|PUBLISHED|DEPRECATED" }] },
+            "$[*].createdAt":   { "matchers": [{ "match": "type" }] },
+            "$[*].updatedAt":   { "matchers": [{ "match": "type" }] }
+          }
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  }
+}

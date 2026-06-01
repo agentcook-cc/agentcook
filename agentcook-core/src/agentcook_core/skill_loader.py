@@ -15,10 +15,9 @@ Design decisions (see ADR-001 / ADR-012):
 from __future__ import annotations
 
 import logging
-import os
+from collections.abc import Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Sequence
 
 from agentcook_core.protocols import SkillProtocol
 from agentcook_core.types import SkillManifest

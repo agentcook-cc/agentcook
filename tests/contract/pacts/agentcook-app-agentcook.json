@@ -1,0 +1,79 @@
+{
+  "consumer": {
+    "name": "agentcook-app"
+  },
+  "interactions": [
+    {
+      "description": "append a memory event",
+      "providerStates": [
+        {
+          "name": "agent agt-001 exists with a fresh diary"
+        }
+      ],
+      "request": {
+        "body": {
+          "content": "user asked about pricing tiers",
+          "kind": "observation",
+          "source": "chat-ui"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/agents/agt-001/memory/events"
+      },
+      "response": {
+        "body": {
+          "content": "user asked about pricing tiers",
+          "event_id": "evt-12345",
+          "kind": "observation",
+          "source": "chat-ui",
+          "timestamp": "2026-05-31T12:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "fetch current soul config",
+      "providerStates": [
+        {
+          "name": "agent agt-001 has a soul configured"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/agents/agt-001/soul"
+      },
+      "response": {
+        "body": {
+          "custom_traits": {},
+          "language_style": "concise",
+          "tone": "warm",
+          "values": [
+            "honesty",
+            "clarity"
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook"
+  }
+}

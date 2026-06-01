@@ -35,6 +35,12 @@
         <springdoc-openapi.version>2.5.0</springdoc-openapi.version>
         <flyway.version>10.11.0</flyway.version>
         <mapstruct.version>1.5.5.Final</mapstruct.version>
+        <testcontainers.version>1.19.7</testcontainers.version>
+        <grpc.version>1.63.0</grpc.version>
+        <protobuf.version>3.25.3</protobuf.version>
+        <protobuf-plugin.version>0.6.1</protobuf-plugin.version>
+        <javax-annotation.version>1.3.2</javax-annotation.version>
+        <jetcd.version>0.7.7</jetcd.version>
     </properties>
 
     <dependencyManagement>
@@ -99,6 +105,34 @@
                 <artifactId>mapstruct-processor</artifactId>
                 <version>${mapstruct.version}</version>
             </dependency>
+
+            <!-- Testcontainers BOM -->
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers-bom</artifactId>
+                <version>${testcontainers.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+
+            <!--
+                gRPC BOM pins every io.grpc:* artifact to ${grpc.version}.
+                Without it, transitive deps drag in older grpc-netty
+                (jetcd-grpc 0.7.7 → grpc-netty 1.56.1, vertx-grpc 4.5.1
+                → grpc-netty 1.60.0). Mixing grpc-netty 1.56 with
+                grpc-core 1.63 produces NoClassDefFoundError on
+                AbstractServerImplBuilder at gRPC server startup —
+                masked in tests by `grpc.server.enabled=false`,
+                surfaced in the docker container the moment the server
+                tries to bind port 9090.
+            -->
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-bom</artifactId>
+                <version>${grpc.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
         </dependencies>
     </dependencyManagement>
 
@@ -111,6 +145,30 @@
                 </plugin>
             </plugins>
         </pluginManagement>
+
+        <plugins>
+            <!-- Test coverage; Day 28 budget bound. Run with `mvn verify` or `mvn test jacoco:report`. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.12</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>
     </build>
 
 </project>

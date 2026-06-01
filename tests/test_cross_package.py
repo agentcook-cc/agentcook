@@ -24,7 +24,6 @@ from typing import Any
 import jwt
 import pytest
 
-
 # --------------------------------------------------------------------------
 # Unit-marker cross-package contract checks
 # --------------------------------------------------------------------------
@@ -97,7 +96,6 @@ def test_providers_x_storage_embedder_wiring_shape() -> None:
 def test_core_x_agentcook_pg_runtime_satisfies_agent_runtime_protocol() -> None:
     """The Phase 2 PgAgentRuntime adapter exposes the AgentRuntime contract."""
     from agentcook_app.runtime_pg import PgAgentRuntime
-    from agentcook_app.services import AgentRuntime
 
     # Structural check via attribute presence (PgAgentRuntime constructor
     # needs a live store; we only assert the class shape here).
@@ -162,7 +160,7 @@ def _make_token() -> str:
         {
             "sub": "user-1",
             "scopes": "agent:read agent:write",
-            "exp": dt.datetime.now(tz=dt.timezone.utc) + dt.timedelta(minutes=15),
+            "exp": dt.datetime.now(tz=dt.UTC) + dt.timedelta(minutes=15),
         },
         os.environ["AGENTCOOK_JWT_SECRET"],
         algorithm="HS256",
@@ -186,11 +184,10 @@ async def test_core_x_agentcook_end_to_end_via_http_and_pgvector(_pgvector_dsn: 
     is in progress`` when the pool was opened on the test loop.)
     """
     import httpx
-
-    from agentcook_core import IdentityCard
     from agentcook_app.main import create_app
     from agentcook_app.runtime_pg import PgAgentRuntime
     from agentcook_app.services import get_runtime
+    from agentcook_core import IdentityCard
     from agentcook_storage import PostgresStore, ensure_pgvector_extension
 
     async def stub_embed(text: str) -> list[float]:

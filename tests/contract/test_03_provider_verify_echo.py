@@ -25,7 +25,6 @@ from pathlib import Path
 import httpx
 import pytest
 
-
 PROVIDER_NAME = "echo-api"
 PROVIDER_VERSION = os.environ.get("PACT_PROVIDER_VERSION", "0.1.0-dev")
 

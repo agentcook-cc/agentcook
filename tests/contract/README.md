@@ -302,6 +302,64 @@ $ uv run python tests/contract/scripts/verify_provider.py \
 
 ---
 
+## Day 24+ 自动化流程(pact-provider-ci.yml 切自动模式)
+
+Day 22 写好 CI 脚手架,Day 24 起切自动模式 — **每次 A 改 spec 或 C 改 contract 测试,GitHub Actions 自动跑全链路**,失败 PR block。
+
+### 触发路径(`.github/workflows/pact-provider-ci.yml` path-gated)
+
+| 路径 | 谁会改 | 含义 |
+|------|--------|------|
+| `agentcook/**` | A | 主壳代码改 → 可能破坏既有契约 |
+| `agentcook-core/**` | A | 业务逻辑改 → handler 行为变 → contract 不再满足 |
+| `agentcook-providers/**` / `agentcook-storage/**` | A | 间接影响 handler 行为 |
+| `tests/contract/**` | A 写 consumer / C 写 provider verify | 显式 contract 改动必须重跑 |
+| `docs/api/v1.yaml` | A | Day 24 冻结后任何 spec 改动都应触发 contract drift 检查 |
+| `pyproject.toml` / `uv.lock` | 全员 | pact-python 版本变,环境变 |
+| `docker-compose.dev.yml` | C | broker / postgres 版本变 |
+| `.github/workflows/pact-provider-ci.yml` | C | workflow 自身改 → 必跑自测 |
+
+### 2 job 流程
+
+```
+push / PR  ─┐
+            │
+            ▼
+   ┌────────────────────────┐
+   │ consumer-publish (job1)│   1. service container 起 pact-broker(本地 :9292 同款)
+   │ 起 broker → 跑 test_01_* + test_02_publish → 把 pacts 推到 broker
+   └────────────┬───────────┘
+                │  (依赖 OK)
+                ▼
+   ┌────────────────────────┐
+   │ provider-verify (job2) │   2. service container 重起 broker(隔离)
+   │ 重新 publish → 启 agentcook FastAPI → pact-verifier 校验所有 provider=`agentcook` 契约
+   └────────────────────────┘
+```
+
+job2 重 publish 是因为 service container 在 job 间不共享(GitHub Actions 设计),重 publish 成本 < 5s,换取每个 job 自包含可调试。
+
+### A 加 spec 后 SOP(每次)
+
+1. A 改 `docs/api/v1.yaml`(加 path / 改 schema 字段)
+2. A 同步加/改 `tests/contract/test_01_consumer_*.py`(consumer 端声明新 interaction)
+3. A push → `pact-provider-ci.yml` 自动跑
+4. job1 PASS = consumer 自洽 + pact 发到 broker;失败通常是 mock 与声明不符 → A 自查
+5. job2 PASS = 真 agentcook FastAPI 满足所有声明 contract;失败常见三类:
+   - handler 实现与 spec 不一致(A 修 handler)
+   - spec 改了但 consumer test 没同步(A 补 test_01_*)
+   - excluded path / auth 缺失(检视 `setup_telemetry` 的 `excluded_urls` + 是否需要 JWT)
+
+### Phase 4 上线后的演进(本期不做)
+
+- broker 切外部持久化(共享给跨 repo 团队)
+- 接入 `can-i-deploy`(部署前查 broker 验证当前版本兼容性)
+- contract publish 带 git tag,实现"contract-as-deployment-gate"
+
+详见 `_internal/L3-strategy/v6-architecture-rationale.md` ADR-007 末段。
+
+---
+
 ## Cross-cutting reference
 
 - ADR-007:`_internal/L3-strategy/v6-architecture-rationale.md`

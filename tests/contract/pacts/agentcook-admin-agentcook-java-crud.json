@@ -1,0 +1,136 @@
+{
+  "consumer": {
+    "name": "agentcook-admin"
+  },
+  "interactions": [
+    {
+      "description": "list sessions for a specific user",
+      "providerStates": [
+        {
+          "name": "the user has at least one active session"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/sessions",
+        "query": {
+          "userId": [
+            "01HXYZAB000000000000000001"
+          ]
+        }
+      },
+      "response": {
+        "body": [
+          {
+            "createdAt": "2026-05-30T10:00:00Z",
+            "id": "01HXYZSE000000000000000001",
+            "status": "ACTIVE",
+            "title": "Debugging payment flow",
+            "updatedAt": "2026-05-30T10:30:00Z",
+            "userId": "01HXYZAB000000000000000001"
+          }
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "create a new session for a user",
+      "providerStates": [
+        {
+          "name": "the target user exists"
+        }
+      ],
+      "request": {
+        "body": {
+          "title": "New debugging session",
+          "userId": "01HXYZAB000000000000000001"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/sessions"
+      },
+      "response": {
+        "body": {
+          "createdAt": "2026-05-30T11:00:00Z",
+          "id": "01HXYZSE000000000000000002",
+          "status": "ACTIVE",
+          "title": "New debugging session",
+          "updatedAt": "2026-05-30T11:00:00Z",
+          "userId": "01HXYZAB000000000000000001"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 201
+      }
+    },
+    {
+      "description": "list connectors for a specific plugin",
+      "providerStates": [
+        {
+          "name": "the plugin has at least one connector configured"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/connectors",
+        "query": {
+          "pluginId": [
+            "01HXYZPL000000000000000001"
+          ]
+        }
+      },
+      "response": {
+        "body": [
+          {
+            "config": {
+              "channel": "#alerts",
+              "webhookUrl": "https://hooks.slack.com/services/T00/B00/XXX"
+            },
+            "createdAt": "2026-06-05T09:30:00Z",
+            "id": "01HXYZCO000000000000000001",
+            "name": "Slack notifications",
+            "pluginId": "01HXYZPL000000000000000001",
+            "status": "ENABLED"
+          }
+        ],
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "delete an existing connector",
+      "providerStates": [
+        {
+          "name": "the connector exists and belongs to the requesting admin"
+        }
+      ],
+      "request": {
+        "method": "DELETE",
+        "path": "/api/v1/connectors/01HXYZCO000000000000000001"
+      },
+      "response": {
+        "status": 204
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook-java-crud"
+  }
+}

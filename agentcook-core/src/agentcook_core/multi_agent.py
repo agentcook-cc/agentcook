@@ -23,13 +23,14 @@ routing logic without any LangGraph import.
 
 from __future__ import annotations
 
-import re
 import logging
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
+from agentcook_core.tracing import get_tracer
 from agentcook_core.types import Message
 
 logger = logging.getLogger(__name__)
@@ -224,9 +225,18 @@ class MultiAgentOrchestrator:
         In compiled mode, delegates to the compiled graph's invoke.
         In simple mode, does pattern-match → single node execution.
         """
-        if self._compiled_graph is not None:
-            return await self._run_compiled(messages, task=task, context=context)
-        return await self._run_simple(messages, task=task, context=context)
+        with get_tracer().start_span(
+            "multi_agent.run",
+            attributes={
+                "agentcook.router.strategy": self._config.strategy.value,
+                "agentcook.router.node_count": len(self._nodes),
+                "agentcook.router.compiled": self._compiled_graph is not None,
+                "agentcook.messages.count": len(messages),
+            },
+        ):
+            if self._compiled_graph is not None:
+                return await self._run_compiled(messages, task=task, context=context)
+            return await self._run_simple(messages, task=task, context=context)
 
     async def _run_simple(
         self,

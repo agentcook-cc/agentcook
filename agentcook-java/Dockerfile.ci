@@ -1,0 +1,60 @@
+# agentcook-java multi-stage build
+# Note: # syntax=docker/dockerfile:1.6 was removed — host docker mirror TLS
+# fault makes the frontend image unfetchable, and we don't use any 1.6-only
+# features (no RUN --mount, no heredocs). The default builder handles every
+# directive used below.
+# Stage 1: Maven build (Java 17)
+FROM maven:3.9-eclipse-temurin-17 AS build
+
+WORKDIR /workspace
+
+COPY pom.xml ./
+COPY agentcook-domain/pom.xml agentcook-domain/
+COPY agentcook-application/pom.xml agentcook-application/
+COPY agentcook-infrastructure/pom.xml agentcook-infrastructure/
+COPY agentcook-api/pom.xml agentcook-api/
+
+# Proto file needed for protobuf-maven-plugin compilation
+COPY proto proto
+
+RUN mvn -B -pl agentcook-api -am dependency:go-offline -DskipTests || true
+
+COPY agentcook-domain agentcook-domain
+COPY agentcook-application agentcook-application
+COPY agentcook-infrastructure agentcook-infrastructure
+COPY agentcook-api agentcook-api
+
+RUN mvn -B -pl agentcook-api -am package -DskipTests \
+    && cp agentcook-api/target/agentcook-api-*.jar /workspace/app.jar
+
+# Stage 2: Runtime (JRE slim)
+FROM eclipse-temurin:17-jre-jammy
+
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r app && useradd -r -g app app
+USER app
+
+WORKDIR /app
+COPY --from=build /workspace/app.jar /app/agentcook-java.jar
+
+EXPOSE 8080 9090
+
+# K8s-aware JVM defaults:
+#   UseContainerSupport          — honor cgroup CPU/memory limits
+#   MaxRAMPercentage=75          — leave headroom for thread stacks / metaspace
+#   UseG1GC                      — pause-time GC for long-lived servers
+#   UseStringDeduplication       — small RSS win for log-heavy workloads
+#   ExitOnOutOfMemoryError       — let K8s restart on OOM rather than thrash
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError" \
+    SPRING_PROFILES_ACTIVE=docker
+
+# Liveness probe (the K8s readiness probe hits /actuator/health/readiness;
+# Docker's HEALTHCHECK uses the aggregated /actuator/health for parity).
+HEALTHCHECK --interval=15s --timeout=3s --start-period=40s --retries=3 \
+    CMD curl -fsS http://localhost:8080/actuator/health | grep -q '"status":"UP"' || exit 1
+
+# exec form forwards SIGTERM so Spring Boot graceful shutdown
+# (server.shutdown=graceful) gets the 30s drain window K8s grants.
+ENTRYPOINT ["sh", "-c", "exec java $JAVA_OPTS -jar /app/agentcook-java.jar"]

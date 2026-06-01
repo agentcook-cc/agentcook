@@ -1,0 +1,44 @@
+# Traefik v3 static configuration
+# Replaces command-line args in docker-compose.swarm.yml
+
+api:
+  dashboard: true
+  insecure: true
+
+log:
+  level: INFO
+  format: json
+
+accessLog:
+  format: json
+  filters:
+    statusCodes:
+      - "400-599"
+
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+    http:
+      tls: {}
+  grpc:
+    address: ":9090"
+
+providers:
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+    network: swarm-net
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+# TLS — dev: default snake-oil cert / prod: Let's Encrypt ACME
+certificatesResolvers:
+  letsencrypt:
+    acme:
+      email: devops@agentcook.cc
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web

@@ -2,19 +2,34 @@ spring:
   application:
     name: agentcook-java
 
+  # K8s preStop hook fires SIGTERM; Spring Boot then waits up to this long
+  # before forcing shutdown. K8s default terminationGracePeriodSeconds=30.
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+
   datasource:
-    url: jdbc:postgresql://localhost:5432/agentcook_business
-    username: agentcook
-    password: agentcook_dev
+    # Default values point at the host (IDEA Run / mvn spring-boot:run friendly):
+    # postgres-business is exposed on host port 5433 (5432 is pgvector).
+    # The docker profile (application-docker.yml) overrides host=postgres + port=5432
+    # for in-network container access.
+    url: jdbc:postgresql://${POSTGRES_HOST:localhost}:${POSTGRES_PORT:5433}/${POSTGRES_DB:agentcook_business}
+    username: ${POSTGRES_USER:agentcook}
+    password: ${POSTGRES_PASSWORD:agentcook_dev}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 2
 
   jpa:
     hibernate:
       ddl-auto: validate
     open-in-view: false
+    show-sql: false
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          time_zone: UTC
 
   flyway:
     enabled: true
@@ -23,11 +38,17 @@ spring:
 
   data:
     redis:
-      host: localhost
-      port: 6379
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2000ms
+
+  cache:
+    type: simple
 
 server:
-  port: 8081
+  port: 8080
+  # Drain in-flight requests on SIGTERM (K8s pod termination grace).
+  shutdown: graceful
 
 springdoc:
   api-docs:
@@ -39,4 +60,27 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,metrics
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+
+# Phase 3 dev secret for HS256 JWTs. Override via env in any environment
+# beyond local dev: export AGENTCOOK_AUTH_JWT_SECRET=<32+ byte secret>.
+# Phase 4 Day 33-34 replaces this with JWKS from a real identity issuer
+# and the secret config disappears.
+grpc:
+  server:
+    port: ${GRPC_SERVER_PORT:9090}
+
+agentcook:
+  python-upstream-url: ${PYTHON_UPSTREAM_URL:http://localhost:8000}
+  auth:
+    jwt-secret: ${AGENTCOOK_AUTH_JWT_SECRET:phase3-dev-secret-not-for-prod-32bytes!!}
+    jwt-ttl-seconds: ${AGENTCOOK_AUTH_JWT_TTL_SECONDS:3600}

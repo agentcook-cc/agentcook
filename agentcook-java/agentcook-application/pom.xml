@@ -37,6 +37,12 @@
             <artifactId>mapstruct</artifactId>
         </dependency>
 
+        <!-- Jackson for plugin.json manifest parsing in RegisterPluginUseCase. -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+        </dependency>
+
         <!-- Test -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

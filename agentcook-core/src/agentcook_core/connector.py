@@ -22,8 +22,9 @@ from collections.abc import Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol, runtime_checkable
 
-from agentcook_core.protocols import ConnectorProtocol, ToolProtocol
-from agentcook_core.types import ConnectorConfig, ConnectorKind, ToolResult
+from agentcook_core.protocols import ToolProtocol
+from agentcook_core.tracing import get_tracer
+from agentcook_core.types import ConnectorConfig, ConnectorKind
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,14 @@ class BaseAdapter:
         return self._config
 
     async def close(self) -> None:
-        self._opened = False
+        with get_tracer().start_span(
+            "connector.close",
+            attributes={
+                "agentcook.connector.name": self._config.name,
+                "agentcook.connector.kind": self._config.kind.value,
+            },
+        ):
+            self._opened = False
 
     async def tools(self) -> Sequence[ToolProtocol]:
         return ()
@@ -103,17 +111,21 @@ class OAuthAdapter(BaseAdapter):
     _token_store: OAuthTokenStore | None = field(default=None, repr=False)
 
     async def open(self) -> None:
-        if self._opened:
-            return
-        if self._token_store is None:
-            raise RuntimeError(
-                f"OAuthAdapter({self._config.name!r}) requires a token store"
-            )
-        token = await self._token_store.get_token(self._config.name)
-        if token and _is_token_expired(token):
-            token = await self._refresh_token(token)
-        self._opened = True
-        logger.info("OAuthAdapter(%s) opened", self._config.name)
+        with get_tracer().start_span(
+            "connector.oauth.open",
+            attributes={"agentcook.connector.name": self._config.name},
+        ):
+            if self._opened:
+                return
+            if self._token_store is None:
+                raise RuntimeError(
+                    f"OAuthAdapter({self._config.name!r}) requires a token store"
+                )
+            token = await self._token_store.get_token(self._config.name)
+            if token and _is_token_expired(token):
+                token = await self._refresh_token(token)
+            self._opened = True
+            logger.info("OAuthAdapter(%s) opened", self._config.name)
 
     async def _refresh_token(self, token: dict[str, Any]) -> dict[str, Any]:
         """Refresh an expired OAuth token using the refresh_token grant."""
@@ -159,10 +171,14 @@ class HttpAdapter(BaseAdapter):
     _http: HttpTransport | None = field(default=None, repr=False)
 
     async def open(self) -> None:
-        if self._opened:
-            return
-        self._opened = True
-        logger.info("HttpAdapter(%s) opened", self._config.name)
+        with get_tracer().start_span(
+            "connector.http.open",
+            attributes={"agentcook.connector.name": self._config.name},
+        ):
+            if self._opened:
+                return
+            self._opened = True
+            logger.info("HttpAdapter(%s) opened", self._config.name)
 
 
 # ---------------------------------------------------------------------------
@@ -181,13 +197,18 @@ class McpAdapter(BaseAdapter):
     _mcp_tools: list[ToolProtocol] = field(default_factory=list, repr=False)
 
     async def open(self) -> None:
-        if self._opened:
-            return
-        # Phase 2 Day 20: mcp_adapter module will wire the real MCP client.
-        # For now the adapter opens successfully but exposes 0 tools until
-        # the MCP handshake is implemented.
-        self._opened = True
-        logger.info("McpAdapter(%s) opened (tools: %d)", self._config.name, len(self._mcp_tools))
+        with get_tracer().start_span(
+            "connector.mcp.open",
+            attributes={"agentcook.connector.name": self._config.name},
+        ) as span:
+            if self._opened:
+                return
+            # Phase 2 Day 20: mcp_adapter module will wire the real MCP client.
+            # For now the adapter opens successfully but exposes 0 tools until
+            # the MCP handshake is implemented.
+            self._opened = True
+            span.set_attribute("agentcook.mcp.tool_count", len(self._mcp_tools))
+            logger.info("McpAdapter(%s) opened (tools: %d)", self._config.name, len(self._mcp_tools))
 
     async def tools(self) -> Sequence[ToolProtocol]:
         return list(self._mcp_tools)
@@ -206,10 +227,14 @@ class WebhookAdapter(BaseAdapter):
     """
 
     async def open(self) -> None:
-        if self._opened:
-            return
-        self._opened = True
-        logger.info("WebhookAdapter(%s) opened", self._config.name)
+        with get_tracer().start_span(
+            "connector.webhook.open",
+            attributes={"agentcook.connector.name": self._config.name},
+        ):
+            if self._opened:
+                return
+            self._opened = True
+            logger.info("WebhookAdapter(%s) opened", self._config.name)
 
 
 # ---------------------------------------------------------------------------

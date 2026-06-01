@@ -1,0 +1,68 @@
+# OpenTelemetry Collector — staging pipeline.
+#
+# Day 43 expansion: the original collector only exported traces to
+# logging. Now it splits the OTLP stream three ways:
+#   - traces  → Jaeger (OTLP gRPC)
+#   - metrics → Prometheus (pull, on :8889)
+#   - logs    → kept on logging exporter for collector debug
+#
+# Promtail handles container-log → Loki separately; the collector does
+# not touch the log signal yet (Phase 5 may add OTLP log support).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  batch:
+    timeout: 5s
+    send_batch_size: 1024
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  resource:
+    attributes:
+      - key: deployment.environment
+        from_attribute: deployment.environment
+        action: upsert
+
+exporters:
+  # Stdout — useful for `docker logs otel-collector` debug.
+  logging:
+    loglevel: info
+    sampling_initial: 5
+    sampling_thereafter: 200
+
+  # Traces → Jaeger (OTLP gRPC).
+  otlp/jaeger:
+    endpoint: jaeger:4317
+    tls:
+      insecure: true
+
+  # Metrics → Prometheus (pull endpoint).
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    namespace: agentcook
+    send_timestamps: true
+    metric_expiration: 10m
+    resource_to_telemetry_conversion:
+      enabled: true
+
+service:
+  telemetry:
+    logs:
+      level: info
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [logging, otlp/jaeger]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch, resource]
+      exporters: [prometheus]

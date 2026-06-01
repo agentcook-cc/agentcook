@@ -1,0 +1,74 @@
+{
+  "consumer": {
+    "name": "agentcook-app"
+  },
+  "interactions": [
+    {
+      "description": "list skills for the SkillListView grid",
+      "providerStates": [
+        {
+          "name": "five mock skills are registered"
+        }
+      ],
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/skills"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "category": "memory",
+              "description": "Condense a long chat into key bullet points.",
+              "id": "summarize-conversation",
+              "name": "Summarize Conversation",
+              "updated_at": "2026-06-03T09:00:00+00:00",
+              "version": "1.0.0"
+            }
+          ],
+          "total": 1
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "execute a skill and stream chunks back",
+      "providerStates": [
+        {
+          "name": "skill 'summarize-conversation' is executable"
+        }
+      ],
+      "request": {
+        "body": {
+          "args": {
+            "max_tokens": 256
+          },
+          "input": "What did I ask earlier?"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/skills/summarize-conversation/test/stream"
+      },
+      "response": {
+        "status": 200
+      }
+    }
+  ],
+  "metadata": {
+    "pactRust": {
+      "ffi": "0.4.22",
+      "models": "1.2.3"
+    },
+    "pactSpecification": {
+      "version": "3.0.0"
+    }
+  },
+  "provider": {
+    "name": "agentcook-skills"
+  }
+}

@@ -1,0 +1,4 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+GET,GET /api/v1/users,LocustBadStatusCode(code=404),418,2026-05-21T07:25:20Z,2026-05-21T07:25:49Z
+GET,GET /api/v1/plugins,LocustBadStatusCode(code=404),133,2026-05-21T07:25:20Z,2026-05-21T07:25:49Z
+POST,POST /api/v1/auth/login,LocustBadStatusCode(code=404),25,2026-05-21T07:25:20Z,2026-05-21T07:25:24Z

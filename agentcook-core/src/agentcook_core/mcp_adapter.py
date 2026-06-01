@@ -27,6 +27,7 @@ from enum import Enum
 from typing import Any, Protocol, runtime_checkable
 
 from agentcook_core.protocols import ToolProtocol
+from agentcook_core.tracing import get_tracer
 from agentcook_core.types import ToolResult
 
 logger = logging.getLogger(__name__)
@@ -148,25 +149,34 @@ class McpToolAdapter:
 
     async def invoke(self, arguments: dict[str, Any]) -> ToolResult:
         """Call the MCP server tool and wrap the response."""
-        try:
-            raw = await self._transport.call_tool(self._schema.name, arguments)
-            return ToolResult(
-                success=True,
-                output=raw.get("content", raw),
-                metadata={"server": self._server_name, "tool": self._schema.name},
-            )
-        except Exception as exc:
-            logger.warning(
-                "MCP tool %s.%s failed: %s",
-                self._server_name,
-                self._schema.name,
-                exc,
-            )
-            return ToolResult(
-                success=False,
-                error=str(exc),
-                metadata={"server": self._server_name, "tool": self._schema.name},
-            )
+        with get_tracer().start_span(
+            "mcp.tool.invoke",
+            attributes={
+                "agentcook.tool.name": self._schema.name,
+                "agentcook.mcp.server": self._server_name,
+                "agentcook.tool.args.count": len(arguments),
+            },
+        ) as span:
+            try:
+                raw = await self._transport.call_tool(self._schema.name, arguments)
+                return ToolResult(
+                    success=True,
+                    output=raw.get("content", raw),
+                    metadata={"server": self._server_name, "tool": self._schema.name},
+                )
+            except Exception as exc:
+                span.record_exception(exc)
+                logger.warning(
+                    "MCP tool %s.%s failed: %s",
+                    self._server_name,
+                    self._schema.name,
+                    exc,
+                )
+                return ToolResult(
+                    success=False,
+                    error=str(exc),
+                    metadata={"server": self._server_name, "tool": self._schema.name},
+                )
 
 
 # Runtime check
@@ -205,17 +215,22 @@ class McpClient:
 
     async def connect(self) -> None:
         """Connect to the MCP server and discover tools."""
-        await self._transport.connect(self._config)
-        schemas = await self._transport.list_tools()
-        self._tools = [
-            McpToolAdapter(schema, self._transport, server_name=self._config.name)
-            for schema in schemas
-        ]
-        logger.info(
-            "McpClient(%s) connected — discovered %d tools",
-            self._config.name,
-            len(self._tools),
-        )
+        with get_tracer().start_span(
+            "mcp.client.connect",
+            attributes={"agentcook.mcp.server": self._config.name},
+        ) as span:
+            await self._transport.connect(self._config)
+            schemas = await self._transport.list_tools()
+            self._tools = [
+                McpToolAdapter(schema, self._transport, server_name=self._config.name)
+                for schema in schemas
+            ]
+            span.set_attribute("agentcook.mcp.tool_count", len(self._tools))
+            logger.info(
+                "McpClient(%s) connected — discovered %d tools",
+                self._config.name,
+                len(self._tools),
+            )
 
     async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> ToolResult:
         """Call a tool by name (convenience wrapper)."""

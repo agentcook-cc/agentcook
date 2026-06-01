@@ -1,0 +1,16 @@
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+httpx>=0.27.0
+grpcio>=1.60.0
+grpcio-tools>=1.60.0
+python-etcd3>=0.12.0
+pydantic>=2.5.0
+
+# Observability (Day 41 OTel auto-instrumentation)
+opentelemetry-sdk>=1.24.0
+opentelemetry-exporter-otlp-proto-grpc>=1.24.0
+opentelemetry-instrumentation-fastapi>=0.45b0
+opentelemetry-instrumentation-grpc>=0.45b0
+
+# Structured logging (Day 42)
+structlog>=24.1.0

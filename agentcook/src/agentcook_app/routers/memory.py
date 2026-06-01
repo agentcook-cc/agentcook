@@ -18,9 +18,10 @@ from __future__ import annotations
 
 import datetime as dt
 
+from agentcook_core import IdentityCard, MemoryEvent, SoulConfig
 from fastapi import APIRouter, Depends, Header, HTTPException, Path, Query, Response, status
 
-from agentcook_core import IdentityCard, MemoryEvent, SoulConfig
+from agentcook_app.observability import enrich_current_span
 from agentcook_app.schemas import (
     ErrorEnvelope,
     FlushRequest,
@@ -118,7 +119,7 @@ def _stored_event_to_resp(stored: StoredMemoryEvent) -> MemoryEventResponse:
 
 
 def _now_iso() -> str:
-    return dt.datetime.now(tz=dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(tz=dt.UTC).isoformat(timespec="seconds")
 
 
 # --------------------------------------------------------------------------
@@ -137,6 +138,7 @@ async def get_identity(
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> IdentityResponse:
+    enrich_current_span(user_id=user.user_id, agent_id=agent_id)
     card = await runtime.get_identity(agent_id)
     return _identity_card_to_resp(card)
 
@@ -157,6 +159,7 @@ async def get_soul_latest(
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> SoulResponse:
+    enrich_current_span(user_id=user.user_id, agent_id=agent_id)
     version = await runtime.get_soul_latest(agent_id)
     return _soul_to_resp(version.config)
 

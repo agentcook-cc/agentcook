@@ -1,0 +1,17 @@
+apiVersion: 1
+
+# Auto-discover JSON dashboards mounted at /var/lib/grafana/dashboards/
+# (set in docker-compose.staging.yml). Grafana reloads every 30s, so
+# editing a dashboard JSON during dev is immediately visible.
+
+providers:
+  - name: agentcook
+    orgId: 1
+    folder: agentcook
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

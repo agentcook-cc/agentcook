@@ -75,9 +75,25 @@ def setup_telemetry(app: FastAPI) -> None:
 
     FastAPIInstrumentor.instrument_app(
         app,
-        excluded_urls="healthz,openapi.json,docs",
+        # /healthz was renamed to /health + /health/ready in Day 20 (C);
+        # the regex still excludes both. openapi.json and docs are noisy.
+        excluded_urls="health,openapi.json,docs",
         tracer_provider=provider,
     )
+
+    # Bridge OTel into agentcook-core so multi_agent / model_router /
+    # memory / compaction / pruning / connector / hook spans show up in
+    # the same trace tree as the FastAPI request span.
+    try:
+        from agentcook_app.otel_tracer_adapter import install as _install_core_tracer
+
+        _install_core_tracer(service_name=SERVICE_NAME)
+    except Exception:  # noqa: BLE001 — telemetry must never break the app
+        import logging as _logging
+
+        _logging.getLogger(__name__).warning(
+            "Failed to install OTel adapter into agentcook-core", exc_info=True
+        )
 
 
 def get_tracer(name: str = __name__) -> trace.Tracer:
@@ -90,3 +106,19 @@ def get_tracer(name: str = __name__) -> trace.Tracer:
 
         return _trace.get_tracer(name)
     return trace.get_tracer(name)
+
+
+def enrich_current_span(**attributes: str | int | float | bool) -> None:
+    """Add custom attributes to the current active span.
+
+    Gracefully no-ops when OTel is not available or no span is active.
+    Use in route handlers to attach business context::
+
+        enrich_current_span(user_id=ctx.user_id, agent_id=agent_id)
+    """
+    if not _OTEL_AVAILABLE:
+        return
+    span = trace.get_current_span()
+    if span and span.is_recording():
+        for key, value in attributes.items():
+            span.set_attribute(f"agentcook.{key}", value)

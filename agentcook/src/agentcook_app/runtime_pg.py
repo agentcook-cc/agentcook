@@ -27,6 +27,7 @@ from agentcook_core import (
     SoulConfig,
 )
 from agentcook_storage import Embedder, PgVectorMemoryStore, PostgresStore
+
 from agentcook_app.services import (
     AgentNotFoundError,
     FlushResult,
@@ -37,7 +38,7 @@ from agentcook_app.services import (
 
 
 def _now_iso() -> str:
-    return dt.datetime.now(tz=dt.timezone.utc).isoformat(timespec="seconds")
+    return dt.datetime.now(tz=dt.UTC).isoformat(timespec="seconds")
 
 
 class PgAgentRuntime:

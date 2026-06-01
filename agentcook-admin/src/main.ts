@@ -7,11 +7,14 @@ import "element-plus/theme-chalk/dark/css-vars.css";
 import "@agentcook-cc/design-tokens/dist/css/variables.css";
 import App from "./App.vue";
 import router from "./router";
+import { i18n } from "./i18n";
+import { installWebVitals } from "./observability/web-vitals";
 
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.use(ElementPlus);
+app.use(i18n);
 
 for (const [name, component] of Object.entries(ElementPlusIcons)) {
   app.component(name, component);
@@ -34,3 +37,5 @@ app.config.warnHandler = (msg, instance, trace) => {
 };
 
 app.mount("#app");
+
+installWebVitals({ surface: "admin" });

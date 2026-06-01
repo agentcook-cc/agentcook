@@ -6,7 +6,16 @@ interface SseChatOptions {
   onDone: (finalContent: string) => void;
   onError: (errorMessage: string) => void;
   maxRetries?: number;
+  /** SSE endpoint URL. Defaults to Python backend's /api/v1/chat/stream */
+  endpoint?: string;
+  /** Additional body fields merged into the request (e.g. session_id, plugins) */
+  extraBody?: Record<string, unknown>;
 }
+
+const PYTHON_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_PYTHON_API_BASE_URL) ||
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
+  "http://localhost:8000";
 
 const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;
@@ -48,7 +57,14 @@ function parseSseLines(raw: string): { content: string; done: boolean; remainder
   return { content, done, remainder };
 }
 
-export function useSseChat({ onChunk, onDone, onError, maxRetries = 3 }: SseChatOptions) {
+export function useSseChat({
+  onChunk,
+  onDone,
+  onError,
+  maxRetries = 3,
+  endpoint = "/api/v1/chat/stream",
+  extraBody = {},
+}: SseChatOptions) {
   const abortRef = useRef<AbortController | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -75,13 +91,14 @@ export function useSseChat({ onChunk, onDone, onError, maxRetries = 3 }: SseChat
     while (attempt <= maxRetries) {
       try {
         const token = useAuthStore.getState().accessToken;
-        const response = await fetch("/api/v1/agent/chat", {
+        const url = endpoint.startsWith("http") ? endpoint : `${PYTHON_BASE}${endpoint}`;
+        const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ message }),
+          body: JSON.stringify({ message, ...extraBody }),
           signal: controller.signal,
         });
 

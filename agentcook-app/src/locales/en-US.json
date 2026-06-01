@@ -1,0 +1,47 @@
+{
+  "common": {
+    "send": "Send",
+    "cancel": "Cancel",
+    "retry": "Retry",
+    "close": "Close",
+    "copy": "Copy",
+    "share": "Share",
+    "edit": "Edit",
+    "delete": "Delete",
+    "loading": "Loading..."
+  },
+  "chat": {
+    "newChat": "New chat",
+    "placeholder": "Type a message...",
+    "thinking": "Thinking...",
+    "streamError": "Connection interrupted — please retry",
+    "noSession": "Pick a session on the left or start a new one",
+    "tokensUsed": "{count} tokens used"
+  },
+  "session": {
+    "title": "Sessions",
+    "rename": "Rename",
+    "exportMarkdown": "Export Markdown",
+    "exportPdf": "Export PDF",
+    "delete": "Delete session",
+    "deleteConfirm": "Delete session \"{title}\"? This cannot be undone."
+  },
+  "plugin": {
+    "selector": "Select plugin",
+    "active": "Active",
+    "inactive": "Inactive",
+    "noPlugins": "No plugins available"
+  },
+  "skill": {
+    "callPending": "Running",
+    "callSuccess": "Success",
+    "callError": "Failed",
+    "expand": "Expand details",
+    "collapse": "Collapse"
+  },
+  "auth": {
+    "signedIn": "Signed in",
+    "signOut": "Sign out",
+    "sessionExpired": "Session expired — please sign in again"
+  }
+}

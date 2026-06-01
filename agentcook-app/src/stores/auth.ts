@@ -42,32 +42,44 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   async login(username: string, password: string) {
-    const response = await fetch("/api/v1/auth/login", {
+    const javaBase =
+      (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
+      "http://localhost:8080";
+    const response = await fetch(`${javaBase}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
     if (!response.ok) throw new Error("Login failed");
     const data = await response.json();
-    get().setTokens(data.access_token, data.refresh_token);
-    set({ user: data.user });
+    const accessToken = data.access_token ?? data.accessToken;
+    const refreshTokenValue = data.refresh_token ?? data.refreshToken;
+    get().setTokens(accessToken, refreshTokenValue);
+    if (data.user) {
+      set({ user: data.user });
+    }
   },
 
   async refreshAccessToken(): Promise<boolean> {
     const { refreshToken, clearAuth, setTokens } = get();
     if (!refreshToken) return false;
     try {
-      const response = await fetch("/api/v1/auth/refresh", {
+      const javaBase =
+        (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
+        "http://localhost:8080";
+      const response = await fetch(`${javaBase}/api/v1/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: refreshToken }),
+        body: JSON.stringify({ refresh_token: refreshToken, refreshToken }),
       });
       if (!response.ok) {
         clearAuth();
         return false;
       }
       const data = await response.json();
-      setTokens(data.access_token, data.refresh_token);
+      const accessToken = data.access_token ?? data.accessToken;
+      const refreshTokenValue = data.refresh_token ?? data.refreshToken;
+      setTokens(accessToken, refreshTokenValue);
       return true;
     } catch {
       clearAuth();
@@ -78,13 +90,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async fetchUserInfo() {
     const { accessToken, refreshAccessToken, clearAuth } = get();
     if (!accessToken) return;
-    const response = await fetch("/api/v1/users/me", {
+    const javaBase =
+      (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
+      "http://localhost:8080";
+    const response = await fetch(`${javaBase}/api/v1/users/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });
     if (response.status === 401) {
       const refreshed = await refreshAccessToken();
       if (!refreshed) return;
-      const retryResponse = await fetch("/api/v1/users/me", {
+      const retryResponse = await fetch(`${javaBase}/api/v1/users/me`, {
         headers: { Authorization: `Bearer ${get().accessToken}` },
       });
       if (retryResponse.ok) set({ user: await retryResponse.json() });

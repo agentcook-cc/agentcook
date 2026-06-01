@@ -2,6 +2,7 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import axios from "axios";
 
 const router = useRouter();
 const route = useRoute();
@@ -10,6 +11,23 @@ const authStore = useAuthStore();
 const form = ref({ username: "", password: "" });
 const loading = ref(false);
 const errorMessage = ref("");
+
+function describeError(err: unknown): string {
+  if (axios.isAxiosError(err)) {
+    const status = err.response?.status;
+    const serverMessage =
+      (err.response?.data as { message?: string } | undefined)?.message;
+    if (status === 401) return serverMessage || "Invalid username or password.";
+    if (status === 403) return serverMessage || "Account disabled. Contact admin.";
+    if (status === 400) return serverMessage || "Bad request. Check your inputs.";
+    if (status && status >= 500) return `Server error (${status}). Try again later.`;
+    if (err.code === "ERR_NETWORK" || !err.response) {
+      return "Cannot reach Java backend. Is it running on http://localhost:8080?";
+    }
+    return serverMessage || err.message;
+  }
+  return err instanceof Error ? err.message : "Unknown error during login.";
+}
 
 async function handleLogin() {
   if (!form.value.username || !form.value.password) {
@@ -22,8 +40,8 @@ async function handleLogin() {
     await authStore.login(form.value.username, form.value.password);
     const redirect = (route.query.redirect as string) || "/dashboard";
     router.push(redirect);
-  } catch {
-    errorMessage.value = "Invalid credentials. Please try again.";
+  } catch (err) {
+    errorMessage.value = describeError(err);
   } finally {
     loading.value = false;
   }
@@ -43,6 +61,7 @@ async function handleLogin() {
         show-icon
         closable
         style="margin-bottom: 16px"
+        @close="errorMessage = ''"
       />
 
       <el-form @submit.prevent="handleLogin" label-position="top">
@@ -52,6 +71,7 @@ async function handleLogin() {
             placeholder="Enter username"
             size="large"
             :disabled="loading"
+            autocomplete="username"
           />
         </el-form-item>
         <el-form-item label="Password">
@@ -62,6 +82,7 @@ async function handleLogin() {
             size="large"
             show-password
             :disabled="loading"
+            autocomplete="current-password"
           />
         </el-form-item>
         <el-button

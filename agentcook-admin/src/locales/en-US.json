@@ -1,0 +1,66 @@
+{
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "reload": "Reload",
+    "search": "Search",
+    "close": "Close",
+    "loading": "Loading...",
+    "noData": "No data",
+    "yes": "Yes",
+    "no": "No"
+  },
+  "nav": {
+    "dashboard": "Dashboard",
+    "agents": "Agents",
+    "skills": "Skills",
+    "plugins": "Plugins",
+    "connectors": "Connectors",
+    "users": "Users & Roles",
+    "permissions": "Permissions",
+    "monitoring": "Monitoring",
+    "observability": "Traces & Metrics",
+    "logs": "Log Stream"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "username": "Username",
+    "password": "Password",
+    "logout": "Log out",
+    "invalidCredentials": "Invalid username or password"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "welcome": "Welcome back, {name}",
+    "stats": {
+      "users": "Users",
+      "agents": "Agents",
+      "plugins": "Plugins",
+      "sessions": "Sessions"
+    },
+    "trend": "Request trend (7 days)",
+    "distribution": "Resource distribution"
+  },
+  "plugin": {
+    "title": "Plugin Management",
+    "create": "Create Plugin",
+    "uploadHint": "Drop the plugin zip here, or click to browse",
+    "status": {
+      "PUBLISHED": "Published",
+      "DRAFT": "Draft",
+      "DISABLED": "Disabled"
+    }
+  },
+  "user": {
+    "title": "User Management",
+    "status": {
+      "ACTIVE": "Active",
+      "SUSPENDED": "Suspended",
+      "DELETED": "Deleted"
+    }
+  }
+}

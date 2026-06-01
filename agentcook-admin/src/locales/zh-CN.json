@@ -1,0 +1,66 @@
+{
+  "common": {
+    "save": "保存",
+    "cancel": "取消",
+    "confirm": "确认",
+    "delete": "删除",
+    "edit": "编辑",
+    "create": "创建",
+    "reload": "刷新",
+    "search": "搜索",
+    "close": "关闭",
+    "loading": "加载中...",
+    "noData": "暂无数据",
+    "yes": "是",
+    "no": "否"
+  },
+  "nav": {
+    "dashboard": "仪表板",
+    "agents": "Agent 管理",
+    "skills": "Skill 库",
+    "plugins": "插件管理",
+    "connectors": "连接器",
+    "users": "用户与权限",
+    "permissions": "权限管理",
+    "monitoring": "监控",
+    "observability": "链路与指标",
+    "logs": "日志流"
+  },
+  "auth": {
+    "signIn": "登录",
+    "username": "用户名",
+    "password": "密码",
+    "logout": "退出登录",
+    "invalidCredentials": "用户名或密码错误"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "welcome": "欢迎回来,{name}",
+    "stats": {
+      "users": "用户数",
+      "agents": "Agent 数",
+      "plugins": "插件数",
+      "sessions": "会话数"
+    },
+    "trend": "请求趋势(7 天)",
+    "distribution": "资源分布"
+  },
+  "plugin": {
+    "title": "插件管理",
+    "create": "创建插件",
+    "uploadHint": "拖拽 .zip 文件到此处,或点击选择文件",
+    "status": {
+      "PUBLISHED": "已发布",
+      "DRAFT": "草稿",
+      "DISABLED": "已停用"
+    }
+  },
+  "user": {
+    "title": "用户管理",
+    "status": {
+      "ACTIVE": "活跃",
+      "SUSPENDED": "已暂停",
+      "DELETED": "已删除"
+    }
+  }
+}

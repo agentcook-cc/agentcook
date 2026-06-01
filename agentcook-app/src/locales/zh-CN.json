@@ -1,0 +1,47 @@
+{
+  "common": {
+    "send": "发送",
+    "cancel": "取消",
+    "retry": "重试",
+    "close": "关闭",
+    "copy": "复制",
+    "share": "分享",
+    "edit": "编辑",
+    "delete": "删除",
+    "loading": "加载中..."
+  },
+  "chat": {
+    "newChat": "新建对话",
+    "placeholder": "输入消息...",
+    "thinking": "思考中...",
+    "streamError": "网络中断,请重试",
+    "noSession": "选择左侧会话或新建一个开始聊天",
+    "tokensUsed": "已使用 {count} tokens"
+  },
+  "session": {
+    "title": "会话",
+    "rename": "重命名",
+    "exportMarkdown": "导出 Markdown",
+    "exportPdf": "导出 PDF",
+    "delete": "删除会话",
+    "deleteConfirm": "确认删除会话「{title}」?此操作无法恢复。"
+  },
+  "plugin": {
+    "selector": "选择插件",
+    "active": "已激活",
+    "inactive": "未激活",
+    "noPlugins": "暂无可用插件"
+  },
+  "skill": {
+    "callPending": "执行中",
+    "callSuccess": "完成",
+    "callError": "失败",
+    "expand": "展开详情",
+    "collapse": "收起"
+  },
+  "auth": {
+    "signedIn": "已登录",
+    "signOut": "退出登录",
+    "sessionExpired": "登录已过期,请重新登录"
+  }
+}

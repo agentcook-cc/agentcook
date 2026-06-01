@@ -48,9 +48,19 @@ export const menuConfig: MenuItem[] = [
     roles: ["admin"],
   },
   {
+    path: "/permissions",
+    title: "Permissions",
+    icon: "Lock",
+    roles: ["admin"],
+  },
+  {
     path: "/monitoring",
     title: "Monitoring",
     icon: "DataLine",
     roles: ["admin"],
+    children: [
+      { path: "/observability", title: "Traces & Metrics", icon: "DataAnalysis" },
+      { path: "/logs", title: "Log Stream", icon: "Document" },
+    ],
   },
 ];

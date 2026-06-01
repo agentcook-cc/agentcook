@@ -27,6 +27,36 @@ const routes: RouteRecordRaw[] = [
         name: "Plugins",
         component: () => import("@/views/PluginListView.vue"),
       },
+      {
+        path: "skills",
+        name: "Skills",
+        component: () => import("@/views/SkillListView.vue"),
+      },
+      {
+        path: "connectors",
+        name: "Connectors",
+        component: () => import("@/views/ConnectorListView.vue"),
+      },
+      {
+        path: "users",
+        name: "Users",
+        component: () => import("@/views/UserListView.vue"),
+      },
+      {
+        path: "permissions",
+        name: "Permissions",
+        component: () => import("@/views/PermissionGroupView.vue"),
+      },
+      {
+        path: "observability",
+        name: "Observability",
+        component: () => import("@/views/ObservabilityView.vue"),
+      },
+      {
+        path: "logs",
+        name: "Logs",
+        component: () => import("@/views/LogStreamView.vue"),
+      },
     ],
   },
   {

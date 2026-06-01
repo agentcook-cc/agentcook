@@ -2,10 +2,6 @@ import { defineConfig } from "vite";
 import vue from "@vitejs/plugin-vue";
 import { fileURLToPath, URL } from "node:url";
 
-// frontend-conventions.md §7.7 — dev mode dual API base.
-// Python `agentcook` (Agent / Memory / Skill / Plugin) on :8000.
-// Java `agentcook-java` (Users / Sessions / Auth / Connectors) on :8080.
-// Production uses Cloudflare Workers path-based routing → no proxy needed.
 const PY_API = "http://localhost:8000";
 const JAVA_API = "http://localhost:8080";
 
@@ -15,6 +11,19 @@ export default defineConfig({
     alias: {
       "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vue-vendor": ["vue", "vue-router", "pinia"],
+          "element-plus": ["element-plus"],
+          echarts: ["echarts", "vue-echarts"],
+          axios: ["axios"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
   },
   server: {
     port: 5173,

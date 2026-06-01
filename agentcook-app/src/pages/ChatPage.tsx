@@ -2,9 +2,11 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 import { useSseChat } from "@/hooks/useSseChat";
-import MessageBubble from "@/components/MessageBubble";
+import { useSession } from "@/hooks/useSession";
+import VirtualMessageList from "@/components/VirtualMessageList";
 import ChatInput from "@/components/ChatInput";
-import SessionSidebar, { type SessionItem } from "@/components/SessionSidebar";
+import ChatPluginPicker from "@/components/ChatPluginPicker";
+import SessionSidebar from "@/components/SessionSidebar";
 
 interface Message {
   id: string;
@@ -14,13 +16,6 @@ interface Message {
   isError?: boolean;
 }
 
-// Mock sessions for now — will be replaced with API call after Day 24
-const MOCK_SESSIONS: SessionItem[] = [
-  { id: "s1", title: "Help me write a Python script", updatedAt: Date.now() - 3_600_000 },
-  { id: "s2", title: "Explain DDD aggregates", updatedAt: Date.now() - 86_400_000 },
-  { id: "s3", title: "Review my PR", updatedAt: Date.now() - 172_800_000 },
-];
-
 export default function ChatPage() {
   const { sessionId } = useParams<{ sessionId?: string }>();
   const navigate = useNavigate();
@@ -28,10 +23,13 @@ export default function ChatPage() {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const logout = useAuthStore((state) => state.clearAuth);
 
+  const { sessions, createSession, loadSessionMessages } = useSession();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
+  const [connectionError, setConnectionError] = useState<string | null>(null);
   const activeAssistantIdRef = useRef<string>("");
+  const lastMessageRef = useRef<string>("");
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -40,9 +38,18 @@ export default function ChatPage() {
     }
   }, [isAuthenticated, navigate]);
 
+  // Load session messages when sessionId changes
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!sessionId) {
+      setMessages([]);
+      return;
+    }
+    loadSessionMessages(sessionId).then((history) => {
+      if (history.length > 0) {
+        setMessages(history);
+      }
+    });
+  }, [sessionId, loadSessionMessages]);
 
   const updateAssistantMessage = useCallback(
     (content: string, isError = false) => {
@@ -58,7 +65,10 @@ export default function ChatPage() {
   );
 
   const { send, cancel } = useSseChat({
-    onChunk: (accumulated) => updateAssistantMessage(accumulated),
+    onChunk: (accumulated) => {
+      setConnectionError(null);
+      updateAssistantMessage(accumulated);
+    },
     onDone: (finalContent) => {
       updateAssistantMessage(finalContent);
       setIsStreaming(false);
@@ -66,8 +76,13 @@ export default function ChatPage() {
     onError: (errorMessage) => {
       updateAssistantMessage(`Error: ${errorMessage}`, true);
       setIsStreaming(false);
+      setConnectionError(errorMessage);
     },
     maxRetries: 3,
+    extraBody: {
+      session_id: sessionId,
+      plugins: selectedPlugins.length > 0 ? selectedPlugins : undefined,
+    },
   });
 
   const handleLogout = useCallback(() => {
@@ -79,6 +94,16 @@ export default function ChatPage() {
   const handleSend = useCallback(
     async (text: string) => {
       if (isStreaming) return;
+      setConnectionError(null);
+      lastMessageRef.current = text;
+
+      // Auto-create session if none active
+      if (!sessionId) {
+        const newId = await createSession(text.slice(0, 50));
+        if (newId) {
+          navigate(`/chat/${newId}`, { replace: true });
+        }
+      }
 
       const userMessage: Message = {
         id: crypto.randomUUID(),
@@ -102,8 +127,29 @@ export default function ChatPage() {
 
       await send(text);
     },
-    [isStreaming, send],
+    [isStreaming, send, sessionId, createSession, navigate],
   );
+
+  const handleRetry = useCallback(async () => {
+    if (!lastMessageRef.current || isStreaming) return;
+    setConnectionError(null);
+
+    // Remove the last failed assistant message
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      return last?.isError ? prev.slice(0, -1) : prev;
+    });
+
+    const assistantId = crypto.randomUUID();
+    activeAssistantIdRef.current = assistantId;
+
+    setMessages((prev) => [
+      ...prev,
+      { id: assistantId, role: "assistant", content: "", timestamp: Date.now() },
+    ]);
+    setIsStreaming(true);
+    await send(lastMessageRef.current);
+  }, [isStreaming, send]);
 
   const handleSelectSession = useCallback(
     (id: string) => {
@@ -112,7 +158,7 @@ export default function ChatPage() {
     [navigate],
   );
 
-  const handleNewChat = useCallback(() => {
+  const handleNewChat = useCallback(async () => {
     setMessages([]);
     navigate("/chat");
   }, [navigate]);
@@ -120,7 +166,7 @@ export default function ChatPage() {
   return (
     <div className="flex h-screen bg-white">
       <SessionSidebar
-        sessions={MOCK_SESSIONS}
+        sessions={sessions}
         activeSessionId={sessionId}
         onSelect={handleSelectSession}
         onNewChat={handleNewChat}
@@ -140,26 +186,25 @@ export default function ChatPage() {
           </div>
         </header>
 
-        <main className="flex-1 overflow-y-auto px-4 py-6">
-          <div className="mx-auto max-w-2xl space-y-1">
-            {messages.length === 0 && (
-              <div className="py-20 text-center text-gray-400">
-                <p className="text-2xl font-medium">Hello!</p>
-                <p className="mt-2">How can I help you today?</p>
-              </div>
-            )}
-            {messages.map((msg) => (
-              <MessageBubble
-                key={msg.id}
-                variant={msg.role === "user" ? "user" : msg.content === "" ? "loading" : "assistant"}
-                content={msg.isError ? `⚠️ ${msg.content}` : msg.content}
-                timestamp={msg.timestamp}
-              />
-            ))}
-            <div ref={messagesEndRef} />
-          </div>
-        </main>
+        <VirtualMessageList messages={messages} />
 
+        {connectionError && !isStreaming && (
+          <div className="flex items-center justify-between border-t border-red-100 bg-red-50 px-4 py-2">
+            <span className="text-xs text-red-600">
+              Connection lost: {connectionError}
+            </span>
+            <button
+              onClick={handleRetry}
+              className="rounded-md bg-red-600 px-3 py-1 text-xs font-medium text-white transition hover:bg-red-700"
+            >
+              Retry
+            </button>
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-1.5">
+          <ChatPluginPicker selectedIds={selectedPlugins} onChange={setSelectedPlugins} />
+        </div>
         <ChatInput onSend={handleSend} disabled={isStreaming} />
       </div>
     </div>

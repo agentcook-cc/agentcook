@@ -15,7 +15,7 @@ from agentcook_core import LLMProviderProtocol
 _DEFAULT_MODELS: dict[str, str] = {
     "openai": "gpt-4o-mini",
     "anthropic": "claude-sonnet-4-6",
-    "qwen": "qwen-plus",
+    "qwen": "qwen-turbo",
     "zhipu": "glm-4-flash",
     "echo": "echo-v0",
 }

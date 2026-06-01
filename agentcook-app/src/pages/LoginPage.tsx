@@ -1,12 +1,21 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/chat", { replace: true });
+    }
+  }, [isAuthenticated, navigate]);
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
@@ -17,7 +26,6 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      // login() 调用 zustand setTokens → isAuthenticated 变为 true → App 自动重渲染切到 ChatPage
       await login(username, password);
     } catch {
       setError("Invalid credentials. Please try again.");

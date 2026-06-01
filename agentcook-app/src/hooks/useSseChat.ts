@@ -15,7 +15,7 @@ interface SseChatOptions {
 const PYTHON_BASE =
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_PYTHON_API_BASE_URL) ||
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE_URL) ||
-  "http://localhost:8000";
+  "";
 
 const BASE_DELAY_MS = 1000;
 const MAX_DELAY_MS = 30_000;

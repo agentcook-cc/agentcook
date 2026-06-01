@@ -12,10 +12,10 @@ import { useAuthStore } from "@/stores/auth";
 const PYTHON_BASE_URL =
   import.meta.env.VITE_PYTHON_API_BASE_URL ||
   import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:8000";
+  "";
 
 const JAVA_BASE_URL =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+  import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 interface ClientFlavor {
   name: "python" | "java";

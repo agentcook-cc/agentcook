@@ -44,7 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   async login(username: string, password: string) {
     const javaBase =
       (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
-      "http://localhost:8080";
+      "";
     const response = await fetch(`${javaBase}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -66,7 +66,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       const javaBase =
         (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
-        "http://localhost:8080";
+        "";
       const response = await fetch(`${javaBase}/api/v1/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     if (!accessToken) return;
     const javaBase =
       (typeof import.meta !== "undefined" && import.meta.env?.VITE_JAVA_API_BASE_URL) ||
-      "http://localhost:8080";
+      "";
     const response = await fetch(`${javaBase}/api/v1/users/me`, {
       headers: { Authorization: `Bearer ${accessToken}` },
     });

@@ -33,19 +33,20 @@ jobs:
           # Mirror push needs the full history; default fetch-depth is 1.
           fetch-depth: 0
 
-      - name: Configure Gitee SSH key
+      - name: Configure Gitee credentials (HTTPS + token via extraheader)
         env:
-          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+          GITEE_USERNAME: ${{ secrets.GITEE_USERNAME }}
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
         run: |
-          mkdir -p ~/.ssh
-          echo "$GITEE_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
-          chmod 600 ~/.ssh/id_ed25519
-          ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts
+          # Gitee deploy keys are read-only; personal access token is required for push.
+          # extraheader keeps the token out of the remote URL (and out of `git remote -v` logs).
+          AUTH=$(printf '%s:%s' "$GITEE_USERNAME" "$GITEE_TOKEN" | base64 -w 0)
+          git config --global http.https://gitee.com/.extraheader "Authorization: basic $AUTH"
 
       - name: Add Gitee remote
         run: |
-          git remote add gitee git@gitee.com:agentcook-cc/agentcook.git || true
-          git remote set-url gitee git@gitee.com:agentcook-cc/agentcook.git
+          git remote add gitee https://gitee.com/agentcook-cc/agentcook.git 2>/dev/null \
+            || git remote set-url gitee https://gitee.com/agentcook-cc/agentcook.git
 
       - name: Mirror push (branches + tags)
         run: |

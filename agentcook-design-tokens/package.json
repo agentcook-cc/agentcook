@@ -1,6 +1,6 @@
 {
   "name": "@agentcook-cc/design-tokens",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Shared design tokens for agentcook admin and app — single source of truth for colors, typography, spacing, radius, shadow, motion",
   "private": true,
   "main": "dist/index.js",

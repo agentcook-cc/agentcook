@@ -1,0 +1,810 @@
+openapi: 3.0.1
+info:
+  title: agentcook Java Business API
+  description: "Java business backend (ADR-013): User / Session / Plugin / Connector\
+    \ / Permission. Memory / Soul / Identity APIs live in the Python runtime and are\
+    \ documented in docs/api/v1.yaml (maintained by Agent A)."
+  contact:
+    name: agentcook
+    url: https://agentcook.cc
+  license:
+    name: Apache-2.0
+  version: 1.0.0
+  x-source: springdoc-openapi (auto-generated from controllers)
+  x-scope: java-business
+  x-frozen: 2026-05-31
+servers:
+- url: http://localhost
+  description: Generated server url
+tags:
+- name: Permissions
+  description: Permission CRUD (RBAC building blocks).
+- name: Plugins
+  description: Plugin registry and activation.
+- name: Connectors-OAuth
+  description: OAuth callback for IM provider authorization (Phase 3 dev dummy).
+- name: Users
+  description: User aggregate lifecycle.
+- name: Auth
+  description: Authentication. Phase 3 dev mode returns dummy bearer tokens.
+- name: Sessions
+  description: Conversation session lifecycle.
+- name: Connectors
+  description: Connector lifecycle (admin path).
+paths:
+  /api/v1/connectors/{id}/config:
+    put:
+      tags:
+      - Connectors
+      summary: Update a Connector's configuration JSON.
+      operationId: updateConfig
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateConnectorConfigRequest'
+        required: true
+      responses:
+        "200":
+          description: Config updated.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConnectorResponse'
+        "404":
+          description: Connector not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/users:
+    get:
+      tags:
+      - Users
+      summary: "List users, optionally filtered by status."
+      operationId: listUsers
+      parameters:
+      - name: status
+        in: query
+        description: Optional status filter (ACTIVE/SUSPENDED/DELETED).
+        required: false
+        schema:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DELETED
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserResponse'
+    post:
+      tags:
+      - Users
+      summary: Register a new user.
+      operationId: createUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserRequest'
+        required: true
+      responses:
+        "409":
+          description: Email already exists.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "201":
+          description: User created.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+  /api/v1/users/{userId}/permissions:
+    get:
+      tags:
+      - Permissions
+      summary: List a user's permissions.
+      operationId: listForUser
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PermissionResponse'
+    post:
+      tags:
+      - Permissions
+      summary: Grant or deny a permission to the user.
+      operationId: grantForUser
+      parameters:
+      - name: userId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GrantPermissionRequest'
+        required: true
+      responses:
+        "201":
+          description: Permission created.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PermissionResponse'
+  /api/v1/sessions:
+    post:
+      tags:
+      - Sessions
+      summary: Open a new conversation session for an existing user.
+      operationId: createSession
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSessionRequest'
+        required: true
+      responses:
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "201":
+          description: Session created.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/plugins:
+    get:
+      tags:
+      - Plugins
+      summary: "List plugins, optionally filtered by status."
+      operationId: listPlugins
+      parameters:
+      - name: status
+        in: query
+        description: Optional status filter (DRAFT/PUBLISHED/DEPRECATED).
+        required: false
+        schema:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - DEPRECATED
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PluginResponse'
+    post:
+      tags:
+      - Plugins
+      summary: Upload a plugin .zip package and register the plugin metadata.
+      description: The zip must contain a plugin.json with name / version / kind /
+        description. Sandbox loading + execution lives in the Python runtime per ADR-013
+        â this endpoint only registers metadata.
+      operationId: uploadPlugin
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              required:
+              - file
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "201":
+          description: Plugin registered.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/PluginResponse'
+        "400":
+          description: Zip is missing plugin.json or has invalid manifest.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "409":
+          description: Plugin name + version already registered.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/plugins/{id}/activate:
+    post:
+      tags:
+      - Plugins
+      summary: Activate a plugin for a user â establishes a Connector.
+      operationId: activate
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ActivatePluginRequest'
+        required: true
+      responses:
+        "200":
+          description: Connector established.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConnectorResponse'
+        "403":
+          description: User lacks activate permission.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "404":
+          description: Plugin not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/connectors:
+    get:
+      tags:
+      - Connectors
+      summary: List connectors for a given plugin.
+      operationId: listConnectors
+      parameters:
+      - name: pluginId
+        in: query
+        description: Plugin id (uuid).
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConnectorResponse'
+    post:
+      tags:
+      - Connectors
+      summary: Create (establish) a Connector for an existing Plugin.
+      operationId: createConnector
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateConnectorRequest'
+        required: true
+      responses:
+        "201":
+          description: Connector established.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConnectorResponse'
+        "404":
+          description: Plugin not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/connectors/{id}/ping:
+    post:
+      tags:
+      - Connectors
+      summary: Ping the Connector and record a health check.
+      description: Phase 3 returns mock latency; Phase 4 swaps in real upstream IM
+        SDK probes.
+      operationId: pingConnector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: Ping completed.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConnectorPingResponse'
+        "404":
+          description: Connector not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/connectors/oauth/callback:
+    post:
+      tags:
+      - Connectors-OAuth
+      summary: Receive an OAuth authorization-code callback. Phase 3 returns a dummy
+        bearer token.
+      operationId: callback
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthCallbackRequest'
+        required: true
+      responses:
+        "400":
+          description: Unsupported provider or malformed payload.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "200":
+          description: Token issued.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/OAuthCallbackResponse'
+  /api/v1/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Phase 3 dev login. Returns a dummy bearer token.
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        "200":
+          description: Login accepted.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        "400":
+          description: Empty username or password.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Fetch a user by id.
+      operationId: getUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "200":
+          description: User found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+  /api/v1/sessions/{id}:
+    get:
+      tags:
+      - Sessions
+      summary: Fetch a session by id.
+      operationId: getSession
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/SessionResponse'
+  /api/v1/connectors/{id}:
+    get:
+      tags:
+      - Connectors
+      summary: Fetch a connector by id.
+      operationId: getConnector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: OK
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ConnectorResponse'
+    delete:
+      tags:
+      - Connectors
+      summary: Delete a Connector.
+      operationId: deleteConnector
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "204":
+          description: Connector deleted.
+        "404":
+          description: Connector not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /api/v1/permissions/{permissionId}:
+    delete:
+      tags:
+      - Permissions
+      summary: Revoke (delete) a permission by id.
+      operationId: revoke
+      parameters:
+      - name: permissionId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: Permission not found.
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        "204":
+          description: Permission revoked.
+components:
+  schemas:
+    UpdateConnectorConfigRequest:
+      type: object
+      properties:
+        config:
+          type: string
+          example: "{\"webhook_url\":\"https://example.com/v2\"}"
+      description: Updates a Connector's configuration JSON without changing its status.
+    ConnectorResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pluginId:
+          type: string
+          format: uuid
+        status:
+          type: string
+      description: Connector aggregate snapshot returned by activate-plugin.
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: DUPLICATE_EMAIL
+        message:
+          type: string
+          example: "User already exists with email: alice@example.com"
+      description: Flat error envelope. Field names match frontend-conventions Â§7.6
+        (B canonical).
+    CreateUserRequest:
+      required:
+      - email
+      type: object
+      properties:
+        email:
+          type: string
+          example: alice@example.com
+        nickname:
+          type: string
+          example: Alice
+      description: Payload to register a new user.
+    UserResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        nickname:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DELETED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: User aggregate snapshot.
+    GrantPermissionRequest:
+      required:
+      - action
+      - effect
+      - resource
+      type: object
+      properties:
+        resource:
+          type: string
+          example: plugin:dingtalk
+        action:
+          type: string
+          example: activate
+        effect:
+          type: string
+          example: ALLOW
+          enum:
+          - ALLOW
+          - DENY
+      description: Payload to grant or deny a permission to a user.
+    PermissionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        resource:
+          type: string
+        action:
+          type: string
+        effect:
+          type: string
+          enum:
+          - ALLOW
+          - DENY
+        createdAt:
+          type: string
+          format: date-time
+      description: Permission aggregate snapshot.
+    CreateSessionRequest:
+      required:
+      - userId
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+        title:
+          type: string
+          example: Trip planning
+      description: Payload to open a conversation session for an existing user.
+    SessionResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - ARCHIVED
+          - DELETED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: Session aggregate snapshot.
+    PluginResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+          enum:
+          - MCP
+          - HTTP
+          - OAUTH
+          - WEBHOOK
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - DEPRECATED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: Plugin aggregate snapshot.
+    ActivatePluginRequest:
+      required:
+      - userId
+      type: object
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+        connectorConfig:
+          type: string
+          example: "{\"webhook_url\":\"https://example.com/webhook\"}"
+      description: "Payload to activate a plugin for a user, establishing a Connector."
+    CreateConnectorRequest:
+      required:
+      - pluginId
+      type: object
+      properties:
+        pluginId:
+          type: string
+          format: uuid
+          example: 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+        connectorConfig:
+          type: string
+          example: "{\"webhook_url\":\"https://example.com\"}"
+      description: Admin payload to directly establish a Connector for an existing
+        Plugin (bypasses end-user permission check).
+    ConnectorPingResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: CONNECTED
+        latencyMs:
+          type: integer
+          format: int64
+          example: 42
+      description: Result of a Connector ping. Phase 3 returns mock latency; Phase
+        4 swaps in real upstream IM SDK calls.
+    OAuthCallbackRequest:
+      required:
+      - code
+      - provider
+      type: object
+      properties:
+        provider:
+          type: string
+          description: IM provider id (dingtalk/feishu/telegram/discord/slack).
+          example: dingtalk
+        code:
+          type: string
+          example: auth-code-from-provider
+        state:
+          type: string
+          description: CSRF state token echoed back by the provider.
+          example: csrf-state-token
+      description: OAuth callback payload posted by the IM provider after user authorization.
+        Phase 3 dev profile only â Phase 4 hooks real provider SDKs.
+    OAuthCallbackResponse:
+      type: object
+      properties:
+        provider:
+          type: string
+          example: dingtalk
+        accessToken:
+          type: string
+          example: dev-dingtalk-8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+        tokenType:
+          type: string
+          example: Bearer
+          default: Bearer
+        expiresIn:
+          type: integer
+          format: int64
+          example: 3600
+      description: OAuth callback result. Phase 3 dev mode returns a dummy access
+        token; Phase 4 swaps in a real one issued by the IM provider.
+    LoginRequest:
+      required:
+      - password
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+          example: alice
+        password:
+          type: string
+          example: dev
+      description: Phase 3 dev login payload (Phase 4 Day 31-32 replaces with OAuth2
+        / B3 tokens).
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: dev-token-alice
+        tokenType:
+          type: string
+          example: Bearer
+          default: Bearer
+        expiresIn:
+          type: integer
+          description: Seconds until the token is no longer accepted.
+          format: int64
+          example: 3600
+      description: OAuth2-shaped token envelope. Phase 3 returns a dev dummy token;
+        Phase 4 Day 31-32 swaps it for a signed JWT.

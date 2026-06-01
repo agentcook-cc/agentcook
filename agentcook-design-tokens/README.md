@@ -1,79 +1,145 @@
-# agentcook-design-tokens
+# @agentcook-cc/design-tokens
 
-> 共享设计系统 — admin (Vue 3 + Element Plus) 与 app (React + Tailwind + shadcn/ui) 双栈视觉一致性的单一信源。
+> Shared design system for agentcook — single source of truth for color,
+> typography, spacing, radius, shadow, and motion across the Vue 3 admin
+> and the React 19 chat app.
 
-## 目录
+**Status: v1.0.0** — frozen for Phase 4 release. Tokens, build pipeline,
+and Storybook coverage are stable; new tokens land via the proposal flow
+in [Contributing](#contributing).
+
+## What this package gives you
+
+- 6 token domains in `tokens/*.json` — atomic + semantic + dark-mode
+- Compiled outputs for 4 consumers via Style Dictionary:
+  - **CSS variables** (`dist/css/variables.css`) — admin + app shared
+  - **Element Plus theme** (`dist/element-plus/`) — admin
+  - **Tailwind preset** (`dist/tailwind/preset.js`) — app
+  - **Figma tokens** (`dist/figma/tokens.json`) — design hand-off
+- Storybook 8 explorer covering every token + a few component
+  previews, runnable locally with `pnpm storybook`
+
+## Layout
 
 ```
 agentcook-design-tokens/
-├── tokens/                    ← 6 类 token JSON(单一信源)
-│   ├── color.json
-│   ├── typography.json
-│   ├── spacing.json
-│   ├── radius.json
-│   ├── shadow.json
-│   └── motion.json
-├── style-dictionary.config.js ← 4 端编译配置(css / element-plus / tailwind / figma)
-├── .storybook/                ← Storybook 8 + html-vite 配置
-├── stories/                   ← 6 类 token 故事(数据驱动展示)
-├── legacy-html-showcase/      ← Phase 0 旧版静态展示(已退役,见目录内 README)
-└── dist/                      ← Style Dictionary 编译产物(运行 `pnpm build` 生成)
+├── tokens/
+│   ├── color.json            ← atomic palette (10 shades × 6 hues)
+│   ├── color.dark.json       ← dark-mode overrides
+│   ├── color.semantic.json   ← text.primary / bg.surface / border.subtle
+│   ├── typography.json       ← font families, sizes, weights, line heights
+│   ├── spacing.json          ← 4px-based scale, 0–96
+│   ├── radius.json           ← sm/md/lg/full
+│   ├── shadow.json           ← elevation 1–5
+│   └── motion.json           ← duration + easing
+├── stories/                  ← Storybook stories (data-driven from tokens)
+├── style-dictionary.config.mjs
+├── .storybook/
+└── dist/                     ← build output (committed for CDN serving)
 ```
 
-## 使用
+## Variable cheat-sheet
 
-### 在 admin / app 内消费
+The full list is in `dist/css/variables.css`. Highlights:
+
+| Domain | Examples |
+|--------|----------|
+| Color (atomic) | `--color-primary-500`, `--color-neutral-900`, `--color-success-50` |
+| Color (semantic) | `--color-text-primary`, `--color-bg-surface`, `--color-border-subtle` |
+| Typography | `--font-family-sans`, `--font-size-md`, `--font-weight-bold`, `--line-height-tight` |
+| Spacing | `--space-1` (4px) … `--space-24` (96px) |
+| Radius | `--radius-sm` (2px) / `--radius-md` (4px) / `--radius-lg` (8px) / `--radius-full` (9999px) |
+| Shadow | `--shadow-1` … `--shadow-5` (Material-style elevation) |
+| Motion | `--duration-fast` (150ms) / `--easing-standard` (cubic-bezier) |
+
+Both admin and app are guaranteed to render the same pixel values for
+the same token — verified by Storybook visual diffs.
+
+## Usage
+
+### Admin (Vue 3 + Element Plus)
 
 ```ts
-// admin (Vue 3) 或 app (React) 的入口
-import '@agentcook-cc/design-tokens/dist/css/variables.css';
-
-// 或在 Tailwind preset 里
-import preset from '@agentcook-cc/design-tokens/dist/tailwind/preset.js';
+// src/main.ts
+import "@agentcook-cc/design-tokens/dist/css/variables.css";
+import "@agentcook-cc/design-tokens/dist/element-plus/index.css"; // optional theme override
 ```
 
-### 修改 token
+```vue
+<style scoped>
+.card { color: var(--color-text-primary); padding: var(--space-4); }
+</style>
+```
 
-只改 `tokens/*.json` → 跑 `pnpm build` → 4 端产物自动同步。
+### App (React 19 + Tailwind)
 
-### 浏览所有 token + 组件示例
+```ts
+// src/main.tsx
+import "@agentcook-cc/design-tokens/dist/css/variables.css";
+```
+
+```js
+// tailwind.config.js
+import preset from "@agentcook-cc/design-tokens/dist/tailwind/preset.js";
+export default { presets: [preset], content: ["./src/**/*.{ts,tsx}"] };
+```
+
+### Modifying tokens
 
 ```bash
-# monorepo 根目录
-pnpm install
-
-# 启 Storybook(端口 6006)
-pnpm --filter @agentcook-cc/design-tokens storybook
-
-# 编译 token 到 4 端产物
+# 1. Edit tokens/*.json
+# 2. Rebuild outputs
 pnpm --filter @agentcook-cc/design-tokens build
-
-# 类型检查
-pnpm --filter @agentcook-cc/design-tokens typecheck
+# 3. Commit dist/ alongside the source change so consumers don't need to build
 ```
 
-## 当前阶段(Phase 1 Day 7,2026-05-17)
+## Local development
 
-- ✅ 6 类 token JSON 骨架就位
-- ✅ Style Dictionary 4 端编译配置(CSS variables 直接可用;Element Plus / Tailwind / Figma 三端 adapter Day 14-15 完善)
-- ✅ Storybook 8 + html-vite 框架就绪
-- ✅ 6 类 token 数据驱动 stories 初版(`Foundation/*`)
-- 🚧 token 缺补清单 — 见 `tutorial/_internal/progress/agent-b-day-6-tokens-review.md`,Day 14-15 / Phase 2 Day 22-23 分批补
-- 🚧 Vue / React 双栈组件 stories(Day 8 加 Element Plus Button + shadcn/ui Button 并排展示)
+```bash
+pnpm install                                                    # install workspace
+pnpm --filter @agentcook-cc/design-tokens storybook            # explorer on :6006
+pnpm --filter @agentcook-cc/design-tokens build                # regenerate dist/
+pnpm --filter @agentcook-cc/design-tokens build-storybook      # static export
+pnpm --filter @agentcook-cc/design-tokens typecheck            # tsc --noEmit
+pnpm --filter @agentcook-cc/design-tokens test                 # vitest
+```
 
-## 双栈策略
+## Design principles
 
-Storybook 8 单实例配置为 `@storybook/html-vite` framework,token 故事用纯 HTML 渲染(从 JSON 读)。Day 8 起 Vue / React 组件 stories 以 `render()` 函数手动 mount(`createApp` / `createRoot`),实现一站展示双栈 — 不拆 storybook-vue / storybook-react 双实例,降低维护成本。
+1. **Atomic → Semantic → Component three layers.** Components consume
+   semantic tokens (`--color-text-primary`), semantic tokens map to
+   atomic ones (`--color-neutral-900`). Never hard-code atomic tokens
+   in component code.
+2. **Single source of truth.** Token edits happen only in
+   `tokens/*.json`. CSS / Element Plus / Tailwind / Figma outputs
+   regenerate from there.
+3. **Dark mode is a token concern.** `color.dark.json` overrides ship
+   the dark palette; consumers toggle by adding a `.theme-dark` class on
+   `<html>`.
+4. **Zero cognitive cost across stacks.** Vue and React surfaces look
+   identical for the same token because they read from the same CSS
+   variables file.
 
-## 设计原则
+## Versioning
 
-1. **Atomic → Semantic → Component 三层** — 当前 atomic 完整,Phase 1 末补 semantic(`text.primary` / `bg.surface` / `border.subtle`)
-2. **单一信源** — token 改动只发生在 `tokens/*.json`,展示与消费方都从此处派生
-3. **dark mode 是 token concern** — Phase 2 Day 22-23 引入 dark token 集 + Storybook 主题切换
-4. **双栈零认知差** — admin / app 同一 token 出同一像素值
+This package follows SemVer. v1.0.0 freezes the public token names — any
+rename is a breaking change. Adding new tokens or shades is a minor
+release. Fixing computed values (e.g. dark-mode contrast adjustments)
+that don't break consumers is a patch release.
 
-## 参考
+## Contributing
 
-- ADR-003(`tutorial/_internal/L3-strategy/v6-architecture-rationale.md`)
-- 接手 review:`tutorial/_internal/progress/agent-b-day-6-tokens-review.md`
-- docs 工具决策:`tutorial/_internal/progress/agent-b-day-6-docs-tooling-decision.md`
+To propose a new token:
+
+1. Open an issue describing the use-case and proposed name (must follow
+   the existing `domain-role-shade` convention).
+2. Add the JSON entry, regenerate `dist/`, update Storybook coverage.
+3. Open a PR that references the issue. At least one designer + one
+   frontend engineer must sign off.
+
+Larger restructurings (e.g. introducing a new color hue) need an ADR
+under `docs/adr/`.
+
+## License
+
+Apache-2.0. See repository LICENSE.

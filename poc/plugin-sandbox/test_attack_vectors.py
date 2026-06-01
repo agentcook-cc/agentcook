@@ -9,6 +9,7 @@ Run:
 
 import os
 import unittest
+
 from sandbox_runner import run_plugin_script
 
 PLUGIN_DIR = os.path.join(os.path.dirname(__file__), "example-plugin")

@@ -1,0 +1,35 @@
+syntax = "proto3";
+
+package cc.agentcook.grpc;
+
+option java_multiple_files = true;
+option java_package = "cc.agentcook.grpc";
+option java_outer_classname = "AgentcookProto";
+
+service ChatService {
+  rpc StreamChat(ChatRequest) returns (stream ChatFrame);
+}
+
+message ChatRequest {
+  string session_id = 1;
+  string message = 2;
+  repeated string plugin_ids = 3;
+  string model = 4;
+  float temperature = 5;
+  int32 max_tokens = 6;
+}
+
+message ChatFrame {
+  string role = 1;
+  string content = 2;
+  bool done = 3;
+  ChatMetadata metadata = 4;
+}
+
+message ChatMetadata {
+  string model = 1;
+  int32 prompt_tokens = 2;
+  int32 completion_tokens = 3;
+  string request_id = 4;
+  int64 duration_ms = 5;
+}

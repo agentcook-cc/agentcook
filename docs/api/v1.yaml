@@ -1,5 +1,102 @@
 components:
   schemas:
+    DelegationEdge:
+      additionalProperties: false
+      description: A single delegation event from ``from_id`` to ``to_id`` (a reactflow edge).
+      properties:
+        completed_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: ISO-8601 UTC; null while in-flight.
+          title: Completed At
+        from_id:
+          description: Delegator agent id.
+          title: From Id
+          type: string
+        id:
+          description: Stable edge identifier.
+          title: Id
+          type: string
+        started_at:
+          description: ISO-8601 UTC timestamp.
+          title: Started At
+          type: string
+        status:
+          description: Lifecycle state of the delegation.
+          enum:
+          - pending
+          - running
+          - succeeded
+          - failed
+          - cancelled
+          title: Status
+          type: string
+        task:
+          description: Short description of the delegated task.
+          title: Task
+          type: string
+        to_id:
+          description: Delegate agent id.
+          title: To Id
+          type: string
+      required:
+      - id
+      - from_id
+      - to_id
+      - task
+      - status
+      - started_at
+      title: DelegationEdge
+      type: object
+    DelegationGraphResponse:
+      additionalProperties: false
+      description: '``GET /api/v1/agents/{agent_id}/delegations`` envelope.'
+      properties:
+        agent_id:
+          description: Root agent the graph is centred on.
+          title: Agent Id
+          type: string
+        edges:
+          description: Delegation events, oldest first.
+          items:
+            $ref: '#/components/schemas/DelegationEdge'
+          title: Edges
+          type: array
+        nodes:
+          description: All agents that participated.
+          items:
+            $ref: '#/components/schemas/DelegationNode'
+          title: Nodes
+          type: array
+      required:
+      - agent_id
+      - nodes
+      - edges
+      title: DelegationGraphResponse
+      type: object
+    DelegationNode:
+      additionalProperties: false
+      description: One agent in the delegation graph (a reactflow node).
+      properties:
+        id:
+          description: Stable agent identifier within this graph.
+          title: Id
+          type: string
+        name:
+          description: Display label.
+          title: Name
+          type: string
+        role:
+          description: Agent role (planner / coder / reviewer / ...).
+          title: Role
+          type: string
+      required:
+      - id
+      - name
+      - role
+      title: DelegationNode
+      type: object
     ErrorEnvelope:
       additionalProperties: false
       description: Flat error shape — matches frontend-conventions §7.6 (B canonical).
@@ -57,6 +154,15 @@ components:
       - identity_preserved
       - soul_preserved
       title: FlushResponse
+      type: object
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          title: Detail
+          type: array
+      title: HTTPValidationError
       type: object
     IdentityResponse:
       additionalProperties: false
@@ -245,6 +351,132 @@ components:
       - query
       title: SearchResponse
       type: object
+    SkillDetailResponse:
+      additionalProperties: false
+      description: '``GET /api/v1/skills/{id}`` — adds the skill body (markdown + frontmatter).'
+      properties:
+        body:
+          description: Raw skill body (markdown). Empty for placeholder skills.
+          title: Body
+          type: string
+        category:
+          description: Loose grouping (memory / nlp / chat / ...).
+          title: Category
+          type: string
+        description:
+          description: One-line summary.
+          title: Description
+          type: string
+        id:
+          description: Stable skill identifier (kebab-case).
+          title: Id
+          type: string
+        name:
+          description: Display name.
+          title: Name
+          type: string
+        updated_at:
+          description: ISO-8601 UTC timestamp of last edit.
+          title: Updated At
+          type: string
+        version:
+          description: Semver string from the skill manifest.
+          title: Version
+          type: string
+      required:
+      - id
+      - name
+      - description
+      - version
+      - category
+      - updated_at
+      - body
+      title: SkillDetailResponse
+      type: object
+    SkillListResponse:
+      additionalProperties: false
+      description: Envelope for the skill list endpoint.
+      properties:
+        items:
+          description: Skills, ordered as the registry yields them.
+          items:
+            $ref: '#/components/schemas/SkillSummary'
+          title: Items
+          type: array
+        total:
+          description: Total count — equals ``len(items)`` until pagination lands.
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      title: SkillListResponse
+      type: object
+    SkillSummary:
+      additionalProperties: false
+      description: One row in ``GET /api/v1/skills`` — what B's SkillListView shows.
+      properties:
+        category:
+          description: Loose grouping (memory / nlp / chat / ...).
+          title: Category
+          type: string
+        description:
+          description: One-line summary.
+          title: Description
+          type: string
+        id:
+          description: Stable skill identifier (kebab-case).
+          title: Id
+          type: string
+        name:
+          description: Display name.
+          title: Name
+          type: string
+        updated_at:
+          description: ISO-8601 UTC timestamp of last edit.
+          title: Updated At
+          type: string
+        version:
+          description: Semver string from the skill manifest.
+          title: Version
+          type: string
+      required:
+      - id
+      - name
+      - description
+      - version
+      - category
+      - updated_at
+      title: SkillSummary
+      type: object
+    SkillTestRequest:
+      additionalProperties: false
+      description: 'Body for ``POST /api/v1/skills/{id}/test/stream``.
+
+
+        The ``input`` is whatever the SkillTestDialog''s textarea contains;
+
+        structured ``args`` may be added later (Phase 5 once real skill
+
+        schemas are loaded). Today the SSE mock ignores ``args`` and just
+
+        echoes ``input`` back through the streamed chunks.'
+      properties:
+        args:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          description: Optional structured args (Phase 5).
+          title: Args
+        input:
+          description: Free-form test input the skill will receive.
+          title: Input
+          type: string
+      required:
+      - input
+      title: SkillTestRequest
+      type: object
     SoulConfigBody:
       additionalProperties: false
       properties:
@@ -321,13 +553,80 @@ components:
       - config
       title: SoulVersionResponse
       type: object
+    ValidationError:
+      properties:
+        ctx:
+          title: Context
+          type: object
+        input:
+          title: Input
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          title: Location
+          type: array
+        msg:
+          title: Message
+          type: string
+        type:
+          title: Error Type
+          type: string
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+      type: object
 info:
   description: Agent runtime + Memory API. JWT verification only — token issuance lives in agentcook-java (ADR-013). Wire
     format conforms to frontend-conventions §7.6.
   title: agentcook runtime
-  version: 0.1.0
+  version: 1.2.0
+  x-changelog: docs/api/CHANGELOG.md
+  x-frozen: '2026-06-07'
+  x-paired-spec: docs/api/java-v1.yaml
+  x-scope: python-runtime
 openapi: 3.1.0
 paths:
+  /api/v1/agents/{agent_id}/delegations:
+    get:
+      description: 'Today: returns a fixed 3-node / 2-edge demo graph for any agent_id.
+
+
+        Phase 5: reads from a live ``MultiAgentOrchestrator.snapshot()`` so
+
+        B''s reactflow component shows the actual runtime topology.'
+      operationId: get_delegations_api_v1_agents__agent_id__delegations_get
+      parameters:
+      - description: Root agent id
+        in: path
+        name: agent_id
+        required: true
+        schema:
+          description: Root agent id
+          pattern: ^[a-zA-Z0-9_-]+$
+          title: Agent Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DelegationGraphResponse'
+          description: Successful Response
+        '404':
+          description: Agent not found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Fetch the delegation graph rooted at an agent
+      tags:
+      - delegations
   /api/v1/agents/{agent_id}/identity:
     get:
       operationId: get_identity_api_v1_agents__agent_id__identity_get
@@ -998,3 +1297,118 @@ paths:
       summary: List all SoulConfig versions (oldest → newest), capped.
       tags:
       - memory
+  /api/v1/logs/stream:
+    get:
+      operationId: stream_logs_api_v1_logs_stream_get
+      parameters:
+      - description: How many frames to emit before closing the stream.
+        in: query
+        name: limit
+        required: false
+        schema:
+          default: 30
+          description: How many frames to emit before closing the stream.
+          maximum: 200
+          minimum: 1
+          title: Limit
+          type: integer
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+            text/event-stream: {}
+          description: SSE stream of log frames.
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Stream recent log frames as Server-Sent Events
+      tags:
+      - logs
+  /api/v1/skills:
+    get:
+      description: 'Return all registered skills (no pagination today — B''s Day 28
+
+        view caps at < 100 items; revisit when that no longer holds).'
+      operationId: list_skills_api_v1_skills_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillListResponse'
+          description: Successful Response
+      summary: List available skills
+      tags:
+      - skills
+  /api/v1/skills/{skill_id}:
+    get:
+      operationId: get_skill_api_v1_skills__skill_id__get
+      parameters:
+      - description: Skill identifier
+        in: path
+        name: skill_id
+        required: true
+        schema:
+          description: Skill identifier
+          pattern: ^[a-z0-9-]+$
+          title: Skill Id
+          type: string
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SkillDetailResponse'
+          description: Successful Response
+        '404':
+          description: Skill not found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Fetch a single skill's manifest + body
+      tags:
+      - skills
+  /api/v1/skills/{skill_id}/test/stream:
+    post:
+      operationId: test_skill_stream_api_v1_skills__skill_id__test_stream_post
+      parameters:
+      - description: Skill identifier
+        in: path
+        name: skill_id
+        required: true
+        schema:
+          description: Skill identifier
+          pattern: ^[a-z0-9-]+$
+          title: Skill Id
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SkillTestRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+            text/event-stream: {}
+          description: SSE stream of skill execution chunks.
+        '404':
+          description: Skill not found
+        '422':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+          description: Validation Error
+      summary: Execute a skill with test input and stream the result via SSE
+      tags:
+      - skills

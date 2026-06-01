@@ -2,3 +2,4 @@ packages:
   - "agentcook-admin"
   - "agentcook-app"
   - "agentcook-design-tokens"
+  - "docs-site"

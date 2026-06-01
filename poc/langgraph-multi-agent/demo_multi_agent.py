@@ -6,7 +6,9 @@ Run:
 """
 
 import os
-from config_compiler import compile_router_config, AgentState
+
+from config_compiler import AgentState, compile_router_config
+
 
 def main():
     config_path = os.path.join(os.path.dirname(__file__), "router_config.yaml")

@@ -3,9 +3,7 @@ Plugin Sandbox Runner - 启动 ephemeral Docker container 执行插件脚本
 """
 
 import subprocess
-import json
 from dataclasses import dataclass
-from typing import Optional, List
 
 
 @dataclass
@@ -20,7 +18,7 @@ class SandboxResult:
 def run_plugin_script(
     plugin_dir: str,
     script_name: str,
-    allowed_domains: Optional[List[str]] = None,
+    allowed_domains: list[str] | None = None,
     timeout: int = 30,
     cpu_limit: float = 0.5,
     memory_limit: str = "512m"

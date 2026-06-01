@@ -18,3 +18,8 @@ target/
 .DS_Store
 coverage/
 htmlcov/
+.coverage
+coverage.xml
+test-results/
+playwright-report/
+storybook-static/

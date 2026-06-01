@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from pathlib import Path
-from typing import Any, TypedDict
+from typing import TypedDict
 
 import yaml
+
 
 class AgentState(TypedDict):
     """State shared across all agents in the graph."""
@@ -83,7 +83,7 @@ def compile_router_config(config_path: str):
     
     This is the core of agentcook's declarative multi-agent system.
     """
-    from langgraph.graph import StateGraph, START, END
+    from langgraph.graph import END, START, StateGraph
 
     agents, routing_strategy = load_config(config_path)
 

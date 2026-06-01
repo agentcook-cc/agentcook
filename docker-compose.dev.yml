@@ -166,63 +166,109 @@ services:
       retries: 12
       start_period: 30s
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # Phase 2 Day 20 — agentcook Python runtime (Agent C).
+  # Currently runs on host via `uv run uvicorn`. This draft is for
+  # future containerized deployment (Phase 3+). Uncomment when Dockerfile ready.
+  # ──────────────────────────────────────────────────────────────────────────
+  #
+  # agentcook-python:
+  #   build:
+  #     context: .
+  #     dockerfile: agentcook/Dockerfile
+  #   container_name: agentcook-python
+  #   ports:
+  #     - "8000:8000"
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #     jaeger:
+  #       condition: service_healthy
+  #   environment:
+  #     AGENTCOOK_DATABASE_URL: "postgresql://agentcook:agentcook@postgres:5432/agentcook"
+  #     AGENTCOOK_REDIS_URL: "redis://redis:6379/0"
+  #     OTEL_EXPORTER_OTLP_ENDPOINT: "http://jaeger:4317"
+  #     AGENTCOOK_JWT_SECRET: "dev-only-do-not-use-in-prod"
+  #     AGENTCOOK_LOG_LEVEL: "INFO"
+  #   deploy:
+  #     resources:
+  #       limits:
+  #         memory: 512M
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8000/health || exit 1"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 10
+  #     start_period: 15s
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # Phase 2 Day 23 — ADR-013 Java business service + dedicated postgres-business
+  # (Python pgvector `postgres` above stays for the memory store; users /
+  # sessions / plugins / connectors / permissions go to a separate plain-PG
+  # instance so the two backends can be sized / backed up independently).
+  # D delivered Dockerfile + application*.yml on Day 23 morning; C wires up
+  # the compose service definition here.
+  # ──────────────────────────────────────────────────────────────────────────
+
+  agentcook-java:
+    build:
+      context: ./agentcook-java
+    container_name: agentcook-java
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres-business:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      # application-docker.yml hardcodes `jdbc:postgresql://postgres:5432/...`,
+      # which would land on the Python pgvector container. Spring property
+      # precedence (env > profile yaml) lets us override here without
+      # asking D to edit the just-shipped YAML.
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-business:5432/agentcook_business
+      SPRING_DATASOURCE_USERNAME: agentcook
+      SPRING_DATASOURCE_PASSWORD: agentcook_dev
+      SPRING_DATA_REDIS_HOST: redis
+      SPRING_DATA_REDIS_PORT: "6379"
+    deploy:
+      resources:
+        limits:
+          memory: 768M   # JVM heap 512M + overhead
+    healthcheck:
+      # actuator/health returns 200 even when downstream is degraded — grep
+      # for `"status":"UP"` so a degraded broker doesn't pass as healthy.
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8080/actuator/health | grep -q '\"status\":\"UP\"' || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 12
+      start_period: 60s   # Spring Boot + Flyway V1 migration
+
+  postgres-business:
+    # Independent from `postgres` above (which is pgvector for memory).
+    # Business data doesn't need vectors → plain alpine.
+    image: postgres:16-alpine
+    container_name: agentcook-postgres-business
+    environment:
+      POSTGRES_USER: agentcook
+      POSTGRES_PASSWORD: agentcook_dev
+      POSTGRES_DB: agentcook_business
+    ports:
+      - "5433:5432"   # host 5433 (5432 is taken by the pgvector `postgres`)
+    volumes:
+      - postgres-business-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agentcook"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   postgres-data:
   redis-data:
   pact-broker-db-data:
   prometheus-data:
-  # Phase 2 ADR-013 — uncomment when Agent D fills java-app + postgres-business below.
-  # postgres-business-data:
-
-# ──────────────────────────────────────────────────────────────────────────
-# Phase 2 ADR-013 — Spring Boot business logic service (Agent D, Day 16+).
-# Draft only. Day 22 D fills concrete config + uncomments. C reviews PR.
-# ──────────────────────────────────────────────────────────────────────────
-#
-# services:
-#   java-app:
-#     build:
-#       context: ./agentcook-java
-#       # Multi-stage Dockerfile written by D in agentcook-java/Dockerfile.
-#     container_name: agentcook-java
-#     ports:
-#       - "8080:8080"
-#     depends_on:
-#       postgres-business:
-#         condition: service_healthy
-#       redis:
-#         condition: service_healthy
-#     environment:
-#       SPRING_PROFILES_ACTIVE: dev
-#       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-business:5432/agentcook_business
-#       SPRING_DATASOURCE_USERNAME: agentcook_business
-#       SPRING_DATASOURCE_PASSWORD: agentcook_business
-#       SPRING_DATA_REDIS_HOST: redis
-#       SPRING_DATA_REDIS_PORT: "6379"
-#       # JWT signing key — Day 22 D injects via Vault / sealed-secret in real env.
-#       AGENTCOOK_JWT_SECRET: dev-only-do-not-use-in-prod
-#     healthcheck:
-#       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/actuator/health || exit 1"]
-#       interval: 10s
-#       timeout: 5s
-#       retries: 12
-#       start_period: 45s
-#
-#   postgres-business:
-#     # Independent from the application `postgres` (which is pgvector for memory store).
-#     # Business data (users / agents / billing) doesn't need vector → plain alpine.
-#     image: postgres:16-alpine
-#     container_name: agentcook-postgres-business
-#     environment:
-#       POSTGRES_USER: agentcook_business
-#       POSTGRES_PASSWORD: agentcook_business
-#       POSTGRES_DB: agentcook_business
-#     ports:
-#       - "5433:5432"   # ★ host port 5433 (5432 is taken by `postgres` pgvector above)
-#     volumes:
-#       - postgres-business-data:/var/lib/postgresql/data
-#     healthcheck:
-#       test: ["CMD-SHELL", "pg_isready -U agentcook_business"]
-#       interval: 5s
-#       timeout: 3s
-#       retries: 10
+  postgres-business-data:

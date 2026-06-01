@@ -1,0 +1,596 @@
+{
+  "data": [
+    {
+      "traceID": "8dd732438fc1fe02b51a32e88a54add7",
+      "spans": [
+        {
+          "traceID": "8dd732438fc1fe02b51a32e88a54add7",
+          "spanID": "bdd50e8d38415baf",
+          "operationName": "memory.soul.write",
+          "references": [],
+          "startTime": 1779176696706791,
+          "duration": 12,
+          "tags": [
+            {
+              "key": "agentcook.memory.agent_id",
+              "type": "string",
+              "value": "probe-agent"
+            },
+            {
+              "key": "agentcook.memory.layer",
+              "type": "string",
+              "value": "soul"
+            },
+            {
+              "key": "agentcook.memory.key",
+              "type": "string",
+              "value": "probe:k1"
+            },
+            {
+              "key": "agentcook.memory.ttl",
+              "type": "int64",
+              "value": 0
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "05d79f46ac3711bda84d5412ea8cc628",
+      "spans": [
+        {
+          "traceID": "05d79f46ac3711bda84d5412ea8cc628",
+          "spanID": "7ec6d0293c5859a7",
+          "operationName": "compaction.sliding_window",
+          "references": [],
+          "startTime": 1779176696706636,
+          "duration": 44,
+          "tags": [
+            {
+              "key": "agentcook.compaction.input_count",
+              "type": "int64",
+              "value": 20
+            },
+            {
+              "key": "agentcook.compaction.window_size",
+              "type": "int64",
+              "value": 4
+            },
+            {
+              "key": "agentcook.compaction.dropped",
+              "type": "int64",
+              "value": 16
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "64a3d774ea10fa0b4564e67f5d6603ad",
+      "spans": [
+        {
+          "traceID": "64a3d774ea10fa0b4564e67f5d6603ad",
+          "spanID": "dbf2220c430b978e",
+          "operationName": "memory.soul.write",
+          "references": [],
+          "startTime": 1779176721922714,
+          "duration": 11,
+          "tags": [
+            {
+              "key": "agentcook.memory.agent_id",
+              "type": "string",
+              "value": "probe-agent"
+            },
+            {
+              "key": "agentcook.memory.layer",
+              "type": "string",
+              "value": "soul"
+            },
+            {
+              "key": "agentcook.memory.key",
+              "type": "string",
+              "value": "probe:k1"
+            },
+            {
+              "key": "agentcook.memory.ttl",
+              "type": "int64",
+              "value": 0
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "bacff33364de6505470c94b81a3d620a",
+      "spans": [
+        {
+          "traceID": "bacff33364de6505470c94b81a3d620a",
+          "spanID": "cd39a69876322752",
+          "operationName": "memory.soul.read",
+          "references": [],
+          "startTime": 1779176721922739,
+          "duration": 7,
+          "tags": [
+            {
+              "key": "agentcook.memory.agent_id",
+              "type": "string",
+              "value": "probe-agent"
+            },
+            {
+              "key": "agentcook.memory.layer",
+              "type": "string",
+              "value": "soul"
+            },
+            {
+              "key": "agentcook.memory.key",
+              "type": "string",
+              "value": "probe:k1"
+            },
+            {
+              "key": "agentcook.memory.hit",
+              "type": "bool",
+              "value": true
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "17e0a7a08dca0105113fb075fc854f69",
+      "spans": [
+        {
+          "traceID": "17e0a7a08dca0105113fb075fc854f69",
+          "spanID": "a2a7024d2bc14e92",
+          "operationName": "compaction.sliding_window",
+          "references": [],
+          "startTime": 1779176721922564,
+          "duration": 41,
+          "tags": [
+            {
+              "key": "agentcook.compaction.input_count",
+              "type": "int64",
+              "value": 20
+            },
+            {
+              "key": "agentcook.compaction.window_size",
+              "type": "int64",
+              "value": 4
+            },
+            {
+              "key": "agentcook.compaction.dropped",
+              "type": "int64",
+              "value": 16
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "c0e8b0aab87e351aacb048ebc7d1d6af",
+      "spans": [
+        {
+          "traceID": "c0e8b0aab87e351aacb048ebc7d1d6af",
+          "spanID": "7b18cd7fdea80e9b",
+          "operationName": "pruning.duplicate",
+          "references": [],
+          "startTime": 1779176721922672,
+          "duration": 16,
+          "tags": [
+            {
+              "key": "agentcook.pruning.input_count",
+              "type": "int64",
+              "value": 20
+            },
+            {
+              "key": "agentcook.pruning.protect_recent",
+              "type": "int64",
+              "value": 2
+            },
+            {
+              "key": "agentcook.pruning.dropped",
+              "type": "int64",
+              "value": 0
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "19071768713783f90662faa79bec6fe9",
+      "spans": [
+        {
+          "traceID": "19071768713783f90662faa79bec6fe9",
+          "spanID": "d2cb21730b4f0001",
+          "operationName": "pruning.duplicate",
+          "references": [],
+          "startTime": 1779176696706746,
+          "duration": 16,
+          "tags": [
+            {
+              "key": "agentcook.pruning.input_count",
+              "type": "int64",
+              "value": 20
+            },
+            {
+              "key": "agentcook.pruning.protect_recent",
+              "type": "int64",
+              "value": 2
+            },
+            {
+              "key": "agentcook.pruning.dropped",
+              "type": "int64",
+              "value": 0
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    },
+    {
+      "traceID": "6f12b0dfe4d634dc8bfcf401d26ff04d",
+      "spans": [
+        {
+          "traceID": "6f12b0dfe4d634dc8bfcf401d26ff04d",
+          "spanID": "28ef2a8defce925d",
+          "operationName": "memory.soul.read",
+          "references": [],
+          "startTime": 1779176696706817,
+          "duration": 6,
+          "tags": [
+            {
+              "key": "agentcook.memory.agent_id",
+              "type": "string",
+              "value": "probe-agent"
+            },
+            {
+              "key": "agentcook.memory.layer",
+              "type": "string",
+              "value": "soul"
+            },
+            {
+              "key": "agentcook.memory.key",
+              "type": "string",
+              "value": "probe:k1"
+            },
+            {
+              "key": "agentcook.memory.hit",
+              "type": "bool",
+              "value": true
+            },
+            {
+              "key": "span.kind",
+              "type": "string",
+              "value": "internal"
+            },
+            {
+              "key": "internal.span.format",
+              "type": "string",
+              "value": "otlp"
+            }
+          ],
+          "logs": [],
+          "processID": "p1",
+          "warnings": null
+        }
+      ],
+      "processes": {
+        "p1": {
+          "serviceName": "agentcook-python-probe",
+          "tags": [
+            {
+              "key": "otel.library.name",
+              "type": "string",
+              "value": "agentcook-python-probe"
+            },
+            {
+              "key": "telemetry.sdk.language",
+              "type": "string",
+              "value": "python"
+            },
+            {
+              "key": "telemetry.sdk.name",
+              "type": "string",
+              "value": "opentelemetry"
+            },
+            {
+              "key": "telemetry.sdk.version",
+              "type": "string",
+              "value": "1.41.1"
+            }
+          ]
+        }
+      },
+      "warnings": null
+    }
+  ],
+  "total": 0,
+  "limit": 0,
+  "offset": 0,
+  "errors": null
+}

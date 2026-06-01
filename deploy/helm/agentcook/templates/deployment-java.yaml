@@ -1,0 +1,127 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-bff
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-bff
+spec:
+  replicas: {{ .Values.adminBff.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin-bff
+  template:
+    metadata:
+      labels:
+        {{- include "agentcook.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: admin-bff
+    spec:
+      # Spring Boot graceful shutdown is configured for 30s
+      # (server.shutdown=graceful + lifecycle.timeout-per-shutdown-phase=30s in
+      # application.yml). 45s gives K8s the SIGTERM grace it needs plus a 15s
+      # buffer for slow-draining gRPC streams on port 9090.
+      terminationGracePeriodSeconds: 45
+      containers:
+        - name: admin-bff
+          image: "{{ .Values.adminBff.image.repository }}:{{ .Values.adminBff.image.tag }}"
+          imagePullPolicy: {{ .Values.adminBff.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+            # gRPC server (GrpcChatService SSE→gRPC bridge). admin-bff Service
+            # publishes 9090 so agent-core dials k8s://admin-bff:9090.
+            - name: grpc
+              containerPort: 9090
+              protocol: TCP
+          # Probe paths split per Spring Boot 2.3+ K8s convention:
+          #   /actuator/health/liveness  — JVM is alive (no downstream check)
+          #   /actuator/health/readiness — DB + Redis + agent-core reachable
+          # Aggregate /actuator/health would also work but conflates the two
+          # signals; using the split paths means a transient agent-core blip
+          # makes the pod NotReady (drained) without restarting the JVM.
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.adminBff.resources | nindent 12 }}
+          env:
+            # Activate application-k8s.yml: in-cluster DNS for postgres/redis/
+            # agent-core, etcd registration off (kube-proxy handles discovery),
+            # health-detail hidden from probes.
+            - name: SPRING_PROFILES_ACTIVE
+              value: "k8s"
+            # ── Datasource ────────────────────────────────────────────────
+            # SPRING_DATASOURCE_URL / _PASSWORD are Spring Boot canonical
+            # relaxed-binding env vars; they override anything resolved by
+            # application-k8s.yml's `${POSTGRES_HOST}…` URL composition.
+            # C's ConfigMap exposes the URL as DATABASE_URL — we adapt here
+            # rather than asking C to rename keys (cross-cutting).
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-config
+                  key: DATABASE_URL
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-secret
+                  key: DB_PASSWORD
+            # ConfigMap has no DB_USER key — hardcode the conventional
+            # postgres role here. Phase 5 backlog: add DB_USER to ConfigMap
+            # so this becomes a valueFrom mapping (flagged to C).
+            - name: SPRING_DATASOURCE_USERNAME
+              value: "postgres"
+            # ── Redis ─────────────────────────────────────────────────────
+            # SPRING_DATA_REDIS_URL is the Spring Boot 2.4+ canonical URL
+            # property (overrides spring.data.redis.host/port).
+            - name: SPRING_DATA_REDIS_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-config
+                  key: REDIS_URL
+            # ── Auth ──────────────────────────────────────────────────────
+            # JwtTokenIssuer reads agentcook.auth.jwt.secret. Relaxed binding
+            # on env vars: agentcook.auth.jwt.secret → AGENTCOOK_AUTH_JWT_SECRET.
+            # Stays HS256 in Phase 4; Phase 4 Day 33-34 will swap to JWKS.
+            - name: AGENTCOOK_AUTH_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-secret
+                  key: JWT_SECRET
+            # ── Logging ───────────────────────────────────────────────────
+            - name: LOGGING_LEVEL_ROOT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-config
+                  key: LOG_LEVEL
+                  optional: true
+            # ── Observability (OTel SDK auto-instrumentation) ────────────
+            # Aligned with `agentcook-swarm/otel-collector-config.yaml`
+            # (A Day 41) + values.yaml `observability:` block (C Day 41).
+            # Spring Boot picks up these via the JVM agent or
+            # io.opentelemetry.instrumentation.spring-boot-starter.
+            {{- if .Values.observability.enabled }}
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otelEndpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .Values.observability.otelProtocol | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.observability.serviceName.adminBff | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: {{ .Values.observability.sampler | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.samplerArg | quote }}
+            {{- end }}

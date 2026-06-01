@@ -1,0 +1,208 @@
+name: Pact Provider CI (Python)
+
+# Phase 2 Day 22 — Agent C.
+#
+# Provider-side contract verification for the Python `agentcook` FastAPI
+# runtime. Mirrors the broker setup in `docker-compose.dev.yml` so the
+# local-vs-CI behavior is identical.
+#
+# Two jobs:
+#   1. consumer-publish — runs the full pact-python suite that generates
+#      pacts/*.json and pushes them to the broker (consumer + publish).
+#   2. provider-verify — depends on (1), pulls every contract for
+#      provider=`agentcook` from the broker and replays it against a live
+#      uvicorn server booted from `agentcook_app.main:app`.
+#
+# Path-gated: fires on Python sources, contract-test changes, broker
+# infra (docker-compose.dev.yml service definition), and this file.
+# This sits alongside `python-ci.yml` (unit / integration / schemathesis)
+# rather than inside it because the broker service container only matters
+# here, and a green-on-pact failure shouldn't block fast unit feedback.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "agentcook/**"
+      - "agentcook-core/**"
+      - "agentcook-providers/**"
+      - "agentcook-storage/**"
+      - "tests/contract/**"
+      - "conftest.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "docker-compose.dev.yml"
+      - "docs/api/v1.yaml"
+      - ".github/workflows/pact-provider-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "agentcook/**"
+      - "agentcook-core/**"
+      - "agentcook-providers/**"
+      - "agentcook-storage/**"
+      - "tests/contract/**"
+      - "conftest.py"
+      - "pyproject.toml"
+      - "uv.lock"
+      - "docker-compose.dev.yml"
+      - "docs/api/v1.yaml"
+      - ".github/workflows/pact-provider-ci.yml"
+
+concurrency:
+  group: pact-provider-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consumer-publish:
+    runs-on: ubuntu-latest
+    services:
+      pact-broker-db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pact_broker
+          POSTGRES_PASSWORD: pact_broker
+          POSTGRES_DB: pact_broker
+        options: >-
+          --health-cmd "pg_isready -U pact_broker"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      pact-broker:
+        image: pactfoundation/pact-broker:latest
+        env:
+          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@pact-broker-db/pact_broker
+          PACT_BROKER_BASIC_AUTH_USERNAME: pact
+          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+          PACT_BROKER_ALLOW_PUBLIC_READ: "true"
+        ports:
+          - 9292:9292
+        options: >-
+          --health-cmd "wget -qO- http://127.0.0.1:9292/diagnostic/status/heartbeat || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
+    env:
+      PACT_BROKER_URL: http://localhost:9292
+      PACT_BROKER_USER: pact
+      PACT_BROKER_PASSWORD: pact
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Wait for Pact broker
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:9292/diagnostic/status/heartbeat; then
+              echo " ← broker up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Pact broker did not become healthy in 60s" >&2
+          exit 1
+
+      # Consumer tests + publish step share state via pacts/*.json on disk,
+      # so they must run in the same job. The publish step uses glob to pick
+      # up every consumer-emitted pact, so adding new contracts requires no
+      # workflow edits.
+      - name: Run consumer + publish (test_01_*, test_02_*)
+        run: >
+          uv run pytest
+          tests/contract/test_01_consumer_echo.py
+          tests/contract/test_01_consumer_agentcook_health.py
+          tests/contract/test_02_publish_to_broker.py
+          -v --no-cov
+
+      - name: Upload generated pacts on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pacts-${{ github.run_id }}
+          path: tests/contract/pacts/
+
+  provider-verify:
+    runs-on: ubuntu-latest
+    needs: consumer-publish
+    services:
+      pact-broker-db:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: pact_broker
+          POSTGRES_PASSWORD: pact_broker
+          POSTGRES_DB: pact_broker
+        options: >-
+          --health-cmd "pg_isready -U pact_broker"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      pact-broker:
+        image: pactfoundation/pact-broker:latest
+        env:
+          PACT_BROKER_DATABASE_URL: postgres://pact_broker:pact_broker@pact-broker-db/pact_broker
+          PACT_BROKER_BASIC_AUTH_USERNAME: pact
+          PACT_BROKER_BASIC_AUTH_PASSWORD: pact
+          PACT_BROKER_ALLOW_PUBLIC_READ: "true"
+        ports:
+          - 9292:9292
+        options: >-
+          --health-cmd "wget -qO- http://127.0.0.1:9292/diagnostic/status/heartbeat || exit 1"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 12
+          --health-start-period 30s
+    env:
+      PACT_BROKER_URL: http://localhost:9292
+      PACT_BROKER_USER: pact
+      PACT_BROKER_PASSWORD: pact
+      PACT_PROVIDER_VERSION: ${{ github.sha }}
+      # JWT secret required to import agentcook_app.main without errors;
+      # ci-only value, never used to sign real tokens.
+      AGENTCOOK_JWT_SECRET: ci-only-do-not-use-anywhere-else
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+
+      - name: Wait for Pact broker
+        run: |
+          for i in {1..30}; do
+            if curl -fs http://localhost:9292/diagnostic/status/heartbeat; then
+              echo " ← broker up"; exit 0
+            fi
+            sleep 2
+          done
+          echo "Pact broker did not become healthy in 60s" >&2
+          exit 1
+
+      # The verify jobs need consumer-published pacts in the broker. Since
+      # the broker is a fresh service container per job, we re-run the
+      # consumer + publish step before verifying. Cheap (<5s) and avoids
+      # cross-job artifact handoff that could mask publish bugs.
+      - name: Re-publish pacts to this job's broker
+        run: >
+          uv run pytest
+          tests/contract/test_01_consumer_echo.py
+          tests/contract/test_01_consumer_agentcook_health.py
+          tests/contract/test_02_publish_to_broker.py
+          -v --no-cov
+
+      - name: Run Python provider verify (test_03_*, test_04_*)
+        run: >
+          uv run pytest
+          tests/contract/test_03_provider_verify_echo.py
+          tests/contract/test_04_provider_verify_agentcook.py
+          -v --no-cov

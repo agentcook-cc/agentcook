@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-static
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-static
+spec:
+  replicas: {{ .Values.adminStatic.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin-static
+  template:
+    metadata:
+      labels:
+        {{- include "agentcook.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: admin-static
+    spec:
+      containers:
+        - name: admin-static
+          image: "{{ .Values.adminStatic.image.repository }}:{{ .Values.adminStatic.image.tag }}"
+          imagePullPolicy: {{ .Values.adminStatic.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.adminStatic.resources | nindent 12 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentcook.fullname" . }}-app-static
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app-static
+spec:
+  replicas: {{ .Values.appStatic.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: app-static
+  template:
+    metadata:
+      labels:
+        {{- include "agentcook.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: app-static
+    spec:
+      containers:
+        - name: app-static
+          image: "{{ .Values.appStatic.image.repository }}:{{ .Values.appStatic.image.tag }}"
+          imagePullPolicy: {{ .Values.appStatic.image.pullPolicy }}
+          ports:
+            - containerPort: 80
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.appStatic.resources | nindent 12 }}

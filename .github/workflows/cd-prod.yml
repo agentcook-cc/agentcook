@@ -1,0 +1,24 @@
+name: CD Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'production'
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Production
+        run: |
+          helm upgrade --install agentcook deploy/helm/agentcook \
+            -f values-prod.yaml \
+            --namespace production \
+            --wait --timeout 300s

@@ -1,0 +1,63 @@
+name: Mirror to Gitee
+
+# Push every commit on `main` (and tags) to the Gitee mirror so Chinese
+# contributors have a domestic clone. The Gitee side is read-only — all
+# development still happens on GitHub.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  schedule:
+    # Hourly safety net in case a push event was missed (e.g. workflow disabled
+    # during incidents). Off-the-:00 minute to avoid the GitHub Actions thundering
+    # herd; every-hour minutes also smooth Gitee SSH ingress load.
+    - cron: "37 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  # One mirror run at a time — concurrent pushes to the same Gitee repo
+  # cause non-fast-forward rejections.
+  group: mirror-gitee
+  cancel-in-progress: false
+
+jobs:
+  mirror:
+    name: Push to Gitee
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout (full history + tags)
+        uses: actions/checkout@v4
+        with:
+          # Mirror push needs the full history; default fetch-depth is 1.
+          fetch-depth: 0
+
+      - name: Configure Gitee SSH key
+        env:
+          GITEE_SSH_PRIVATE_KEY: ${{ secrets.GITEE_SSH_PRIVATE_KEY }}
+        run: |
+          mkdir -p ~/.ssh
+          echo "$GITEE_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -t ed25519 gitee.com >> ~/.ssh/known_hosts
+
+      - name: Add Gitee remote
+        run: |
+          git remote add gitee git@gitee.com:agentcook-cc/agentcook.git || true
+          git remote set-url gitee git@gitee.com:agentcook-cc/agentcook.git
+
+      - name: Mirror push (branches + tags)
+        run: |
+          # `push --mirror` would clobber Gitee-only refs; we only want to mirror
+          # what's on GitHub. Push branches + tags explicitly.
+          git push --force gitee refs/remotes/origin/main:refs/heads/main
+          git push --force gitee --tags
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Gitee mirror sync" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trigger: ${{ github.event_name }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Ref: ${{ github.ref }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Commit: ${{ github.sha }}" >> "$GITHUB_STEP_SUMMARY"

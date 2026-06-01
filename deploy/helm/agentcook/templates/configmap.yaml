@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "agentcook.fullname" . }}-config
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+data:
+  DATABASE_URL: {{ .Values.config.databaseUrl | quote }}
+  REDIS_URL: {{ .Values.config.redisUrl | quote }}
+  ETCD_URL: {{ .Values.config.etcdUrl | quote }}
+  LOG_LEVEL: {{ .Values.config.logLevel | default "info" | quote }}

@@ -1,0 +1,27 @@
+{{- if .Values.pdb.enabled }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agentcook.fullname" . }}-agent-core-pdb
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent-core
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-bff-pdb
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin-bff
+{{- end }}

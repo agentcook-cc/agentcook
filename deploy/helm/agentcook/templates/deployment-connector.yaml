@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agentcook.fullname" . }}-connector
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: connector
+spec:
+  replicas: {{ .Values.connector.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: connector
+  template:
+    metadata:
+      labels:
+        {{- include "agentcook.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: connector
+    spec:
+      containers:
+        - name: connector
+          image: "{{ .Values.connector.image.repository }}:{{ .Values.connector.image.tag }}"
+          imagePullPolicy: {{ .Values.connector.image.pullPolicy }}
+          ports:
+            - containerPort: 8082
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8082
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.connector.resources | nindent 12 }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "agentcook.fullname" . }}-config
+            - secretRef:
+                name: {{ include "agentcook.fullname" . }}-secret
+          {{- if .Values.observability.enabled }}
+          env:
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: {{ .Values.observability.otelEndpoint | quote }}
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: {{ .Values.observability.otelProtocol | quote }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ .Values.observability.serviceName.connector | quote }}
+            - name: OTEL_TRACES_SAMPLER
+              value: {{ .Values.observability.sampler | quote }}
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: {{ .Values.observability.samplerArg | quote }}
+          {{- end }}

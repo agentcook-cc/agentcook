@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentcook.fullname" . }}-agent-core
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-core
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8000
+      targetPort: 8000
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "agentcook.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: agent-core
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-bff
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-bff
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+    # gRPC server port — GrpcChatService (SSE → gRPC bridge) lives here.
+    # Python agent-core dials this Service on 9090 to push streamed chat.
+    - port: 9090
+      targetPort: grpc
+      protocol: TCP
+      name: grpc
+  selector:
+    {{- include "agentcook.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-bff
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentcook.fullname" . }}-connector
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: connector
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8082
+      targetPort: 8082
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "agentcook.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: connector
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-static
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-static
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "agentcook.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: admin-static
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "agentcook.fullname" . }}-app-static
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    app.kubernetes.io/component: app-static
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: 80
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "agentcook.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: app-static

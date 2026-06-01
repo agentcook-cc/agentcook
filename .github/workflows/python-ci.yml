@@ -46,8 +46,10 @@ jobs:
           enable-cache: true
       - name: Install dependencies
         run: uv sync --group dev
-      - name: Run ruff
+      - name: Ruff lint
         run: uv run ruff check .
+      - name: Ruff format check
+        run: uv run ruff format --check .
       - name: Run mypy
         run: uv run mypy . || true   # Day 14: A 还在补 mypy 注解,先 non-blocking
 

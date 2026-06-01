@@ -1,0 +1,144 @@
+# Global configuration
+global:
+  domain: agentcook.cc
+  tls: false
+  etcdUrl: "etcd://etcd-server:2379"
+
+# Secrets — placeholders only. Real values come from CD pipeline
+# `--set secret.dbPassword=...` or a SealedSecret / ExternalSecret.
+# Block must exist so `.Values.secret.dbPassword` is addressable
+# (nil parent objects break `| default` in templates/secret.yaml).
+secret:
+  dbPassword: ""
+  jwtSecret: ""
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: agentcook.cc
+      paths:
+        - path: /
+          pathType: Prefix
+
+# HPA configuration
+hpa:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 5
+  targetCPU: 80
+
+# PodDisruptionBudget — only enabled in staging/prod overrides.
+pdb:
+  enabled: false
+  minAvailable: 1
+
+# Shared app config — injected as ConfigMap, mounted as envFrom on every
+# Deployment. Real URLs come from values-staging.yaml / values-prod.yaml.
+config:
+  databaseUrl: "postgresql://postgres:postgres@postgres:5432/agentcook"
+  redisUrl: "redis://redis:6379/0"
+  etcdUrl: "etcd://etcd-server:2379"
+  logLevel: "info"
+
+# Observability — aligned with `agentcook-swarm/otel-collector-config.yaml`
+# (A Day 41). Each service template injects OTEL_EXPORTER_OTLP_ENDPOINT +
+# OTEL_SERVICE_NAME into its container's env from this block. The collector
+# is expected to run in the same namespace so the in-cluster DNS name
+# `otel-collector:4317` resolves; values-staging / values-prod override
+# the endpoint when the collector lives in a sidecar or central namespace.
+observability:
+  enabled: true
+  otelEndpoint: "http://otel-collector:4317"
+  otelProtocol: "grpc"
+  # Per-service `service.name` resource attribute — Jaeger / Prometheus
+  # group by this label, so it must match what A registers on each
+  # Python / Java SDK boot.
+  serviceName:
+    agentCore: "agent-core"
+    adminBff: "admin-bff"
+    connector: "connector"
+  # 100% sampling in dev/staging; values-prod.yaml drops to 0.1 ratio.
+  sampler: "parentbased_traceidratio"
+  samplerArg: "1.0"
+
+# Agent Core service (Python FastAPI)
+agentCore:
+  image:
+    repository: agentcook/agent-core
+    tag: latest
+  replicaCount: 1
+  port: 8000
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env: {}
+
+# Admin BFF service (Java Spring Boot)
+adminBff:
+  image:
+    repository: agentcook/admin-bff
+    tag: latest
+  replicaCount: 1
+  port: 8080
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env: {}
+
+# Connector service (Python FastAPI)
+connector:
+  image:
+    repository: agentcook/connector
+    tag: latest
+  replicaCount: 1
+  port: 8082
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env: {}
+
+# Admin Static (Nginx)
+adminStatic:
+  image:
+    repository: agentcook/admin-static
+    tag: latest
+  replicaCount: 1
+  port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  env: {}
+
+# App Static (Nginx)
+appStatic:
+  image:
+    repository: agentcook/app-static
+    tag: latest
+  replicaCount: 1
+  port: 80
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  env: {}

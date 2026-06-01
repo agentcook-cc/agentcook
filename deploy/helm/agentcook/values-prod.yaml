@@ -1,0 +1,68 @@
+# Production environment overrides
+global:
+  domain: agentcook.cc
+  tls: true
+
+hpa:
+  enabled: true
+
+# PDB on in prod — multi-replica services tolerate 1 voluntary disruption.
+pdb:
+  enabled: true
+  minAvailable: 1
+
+# Drop trace sampling to 10% in prod (base values says "values-prod drops
+# to 0.1" — that override was missing until Day 45-47).
+observability:
+  enabled: true
+  samplerArg: "0.1"
+
+agentCore:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+adminBff:
+  replicaCount: 2
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+connector:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+
+adminStatic:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+appStatic:
+  replicaCount: 1
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"

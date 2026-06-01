@@ -8,14 +8,14 @@
 
 Phase 3 Day 9 上线的 `agentcook/src/agentcook_app/routers/chat.py` 第 33-100 行的 `_stream_mock_response` 是 **mock 实现**:返回预录英文字符串("I'd be happy to help you with that!..."),不真调 LLM。
 
-原计划(roadmap Day 50)在 Phase 5 才替换为真 provider 调用。但 2026-06-01 P1 MVP 验证暴露**真 chat 必要性**:
+原计划在 Phase 5 模糊承诺(`chat.py` 第 7-12 行注释 "Phase 5 replaces the mock LLM with real provider calls"),**roadmap 未明确具体 Day**(roadmap Day 50 是 locust 性能测试,不是 chat 接真 LLM)。但 2026-06-01 P1 MVP 验证暴露**真 chat 必要性**:
 
 - agentcook-app 前端 chat 界面已经跑通(http://localhost:5174/chat)
 - 作者倾向"先用免费域名 + 暂不真上线 + 等教程完成再换真域名"路线
 - **如果 chat 还是 mock,demo 对外演示价值大打折扣**(任何访客测一下就知道是假的)
 - ADR-016 已经把默认 Provider 切到 Qwen qwen-turbo(免费额度内),`OpenAIProvider.stream_chat()` 接口完整 ready,**改造成本极低**(~2 h)
 
-按"立刻干"原则,**Phase 4.6 提前 Phase 5 Day 50 的"chat 接真 LLM"任务**,作为 P1 验证后第一件事。
+按"立刻干"原则,**Phase 4.6 提前 chat.py 注释承诺的 Phase 5 "chat 接真 LLM"任务**,作为 P1 验证后第一件事。(原 2026-06-01 草稿本段误写 "roadmap Day 50",已修正)
 
 ## Decision
 

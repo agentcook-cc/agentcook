@@ -101,3 +101,54 @@ and assert what core would have reported — no SDK install needed.
 - **No engine lock-in**: LangGraph / google-adk / custom engines adapt to these protocols.
 - **Frozen value types**: All dataclasses are `frozen=True` for thread safety.
 - **Security-by-default**: Sandbox executor defaults to no-network, read-only rootfs, memory caps.
+
+## ADR References
+
+The protocol shapes and module boundaries in this package are governed
+by the following Architecture Decision Records (`docs/adr/` in the
+monorepo). Read the ADR before changing any public surface:
+
+| ADR | Topic | Affects |
+|-----|-------|---------|
+| ADR-001 | Single Python source of truth for plugin spec | `plugin_loader`, `skill_loader` |
+| ADR-002 | Frontmatter-based skill bundle parsing | `skill_loader` |
+| ADR-003 | Connector four-adapter framework (OAuth / HTTP / MCP / Webhook) | `connector` |
+| ADR-005 | OTel-shaped tracing surface with NoOp default | `tracing`, `hook_runtime` |
+| ADR-008 | Four-layer memory (Identity / Soul / Memory / Diary) | `memory` |
+| ADR-009 | MCP protocol as first-class tool adapter | `mcp_adapter` |
+| ADR-011 | Sandbox executor Protocol; Docker is one implementation | `sandbox_runner` |
+| ADR-012 | Context compaction strategies + token budget pruning | `compaction`, `pruning` |
+| ADR-013 | agentcook runtime is JWT verifier only (issuer lives in Java) | (downstream `agentcook` package, but `langfuse_hook` reports per-token cost) |
+| ADR-014 | gRPC bridge between Python core and Java gateway | (downstream `agentcook-swarm`; core stays transport-agnostic) |
+| ADR-016 | Default LLM provider = Qwen (qwen-turbo) | `model_router` defaults (provider lives in `agentcook-providers`) |
+
+When in doubt, check the ADR first — names in this package are chosen
+to match ADR vocabulary verbatim, and renames require an ADR amendment.
+
+## Version Compatibility
+
+`agentcook-core` follows **SemVer** with the following compatibility guarantees:
+
+| Layer | Stability | Allowed change in MINOR | Allowed change in MAJOR |
+|-------|-----------|-------------------------|-------------------------|
+| `protocols.*` Protocol classes | 🟢 strict | Add new optional methods | Rename / remove / change parameter types |
+| `types.*` frozen dataclasses | 🟢 strict | Add new optional fields (with defaults) | Rename / remove / change field types |
+| Module-level functions (`set_tracer`, `get_tracer`, factory helpers) | 🟢 strict | Add optional kwargs | Rename / change signature |
+| Internal helpers (`_NullIdentityProvider`, private classes) | 🟡 best-effort | Free to change | Free to remove |
+| Default behavior of `NoOpTracer` / `NoOpHook` / `HeuristicTokenCounter` | 🟡 best-effort | Tightening defaults allowed | — |
+
+**Downstream packages tracked for compatibility**:
+
+| Package | Tracks | Notes |
+|---------|--------|-------|
+| `agentcook` (main shell) | `core ^N.x` (current N=0 — pre-1.0 pinned to exact MINOR) | Pre-1.0 we treat MINOR as breaking-allowed; downstream pins exact MINOR until 1.0 cut. |
+| `agentcook-providers` | `core ^N.x` (same) | Reuses `LLMProviderProtocol`, `Message`, `ChatChunk` shapes. |
+| `agentcook-storage` | `core ^N.x` | Implements `MemoryStore` Protocol. |
+| `agentcook-swarm/services/agent-core` | `core ^N.x` | Installs OTel + Langfuse adapters into core surfaces. |
+
+**Python**: requires `python>=3.12` (uses PEP 695 type aliases + frozen
+slots dataclasses). Tested on CPython 3.12 and 3.13.
+
+**Test seam stability**: `Recording*` helpers in `tests/test_*.py` files
+are part of the documented public API for downstream test suites —
+their constructor signatures stay backward compatible inside a MAJOR.

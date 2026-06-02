@@ -15,7 +15,9 @@ public class UserEntityMapper {
                 user.getNickname(),
                 user.getStatus(),
                 user.getCreatedAt(),
-                user.getUpdatedAt());
+                user.getUpdatedAt(),
+                user.getFreeQuestionsUsed(),
+                user.getFreeQuestionsQuota());
     }
 
     public User toDomain(UserEntity entity) {
@@ -25,6 +27,8 @@ public class UserEntityMapper {
                 entity.getNickname(),
                 entity.getStatus(),
                 entity.getCreatedAt(),
-                entity.getUpdatedAt());
+                entity.getUpdatedAt(),
+                entity.getFreeQuestionsUsed(),
+                entity.getFreeQuestionsQuota());
     }
 }

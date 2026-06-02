@@ -90,4 +90,80 @@ class UserTest {
         user.clearDomainEvents();
         assertTrue(user.getDomainEvents().isEmpty());
     }
+
+    // --- ADR-018 quota tests ---
+
+    @Test
+    void createUser_shouldInitialiseQuotaToV1Default() {
+        User user = User.create("quota@example.com", "Q");
+        assertEquals(0, user.getFreeQuestionsUsed());
+        assertEquals(User.DEFAULT_FREE_QUOTA, user.getFreeQuestionsQuota());
+        assertEquals(User.DEFAULT_FREE_QUOTA, user.remainingFreeQuestions());
+    }
+
+    @Test
+    void consumeFreeQuestion_underQuota_shouldIncrementAndReturnRemaining() {
+        User user = User.create("q1@example.com", "Q1");
+        int remaining = user.consumeFreeQuestion();
+        assertEquals(1, user.getFreeQuestionsUsed());
+        assertEquals(User.DEFAULT_FREE_QUOTA - 1, remaining);
+    }
+
+    @Test
+    void consumeFreeQuestion_atQuotaCeiling_shouldThrow() {
+        User user = User.create("q2@example.com", "Q2");
+        // Consume DEFAULT_FREE_QUOTA (= 2 in v1) — the last successful
+        // call returns 0 remaining; the next must throw, NOT silently
+        // succeed at -1.
+        for (int i = 0; i < User.DEFAULT_FREE_QUOTA; i++) {
+            user.consumeFreeQuestion();
+        }
+        assertEquals(0, user.remainingFreeQuestions());
+        QuotaExhaustedException ex = assertThrows(
+                QuotaExhaustedException.class, user::consumeFreeQuestion);
+        assertEquals(user.getId(), ex.getUserId());
+        assertEquals(User.DEFAULT_FREE_QUOTA, ex.getQuota());
+        // Verify no silent increment past the ceiling.
+        assertEquals(User.DEFAULT_FREE_QUOTA, user.getFreeQuestionsUsed());
+    }
+
+    @Test
+    void consumeFreeQuestion_suspendedUser_shouldThrowIllegalState() {
+        User user = User.create("q3@example.com", "Q3");
+        user.suspend();
+        assertThrows(IllegalStateException.class, user::consumeFreeQuestion);
+        // Counter unchanged on rejected attempt.
+        assertEquals(0, user.getFreeQuestionsUsed());
+    }
+
+    @Test
+    void consumeFreeQuestion_deletedUser_shouldThrowIllegalState() {
+        User user = User.create("q4@example.com", "Q4");
+        user.markDeleted();
+        assertThrows(IllegalStateException.class, user::consumeFreeQuestion);
+    }
+
+    @Test
+    void reconstituteWithQuota_shouldCarryStoredCounters() {
+        UserId id = UserId.generate();
+        java.time.Instant now = java.time.Instant.now();
+        User user = User.reconstitute(id, "stored@example.com", "S", UserStatus.ACTIVE,
+                now, now, /*used=*/ 1, /*quota=*/ 5);
+        assertEquals(1, user.getFreeQuestionsUsed());
+        assertEquals(5, user.getFreeQuestionsQuota());
+        assertEquals(4, user.remainingFreeQuestions());
+        // Reconstitute must NOT raise events (DB load isn't a creation).
+        assertTrue(user.getDomainEvents().isEmpty());
+    }
+
+    @Test
+    void reconstitute_legacy6ArgOverload_appliesDefaultQuota() {
+        // Pre-ADR-018 fixtures use the 6-arg overload — they must land
+        // in the same state V4's column defaults give a fresh row.
+        UserId id = UserId.generate();
+        java.time.Instant now = java.time.Instant.now();
+        User user = User.reconstitute(id, "legacy@example.com", "L", UserStatus.ACTIVE, now, now);
+        assertEquals(0, user.getFreeQuestionsUsed());
+        assertEquals(User.DEFAULT_FREE_QUOTA, user.getFreeQuestionsQuota());
+    }
 }

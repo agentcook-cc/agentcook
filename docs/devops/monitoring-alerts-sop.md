@@ -81,44 +81,29 @@
 
 ## 4. 7 关键告警阈值
 
-| #   | 告警                 | promql                                                                                                                                              | 阈值                                | 严重度 | 联动                        |
-| --- | -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------- | ------ | --------------------------- |
-| 1   | **HTTP 5xx 突增**    | `sum(rate(http_requests_total{status=~"5.."}[5m])) / sum(rate(http_requests_total[5m]))`                                                            | > 1% 持续 5m                        | 🔴 P1  | runbook §6                  |
-| 2   | **p99 latency 退化** | `histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket[5m])) by (le))`                                                             | > 2500ms 持续 10m(基线 2300ms +10%) | 🟡 P2  | Day 50 perf 对照            |
-| 3   | **Pod 重启**         | `increase(kube_pod_container_status_restarts_total[15m])`                                                                                           | > 3 次/15min                        | 🔴 P1  | runbook §1-2                |
-| 4   | **OOM kill**         | `increase(container_oom_events_total[15m])`                                                                                                         | ≥ 1                                 | 🔴 P1  | runbook §2 / §5             |
-| 5   | **CPU 持续 > 80%**   | `sum(rate(container_cpu_usage_seconds_total{pod=~"agentcook-.*"}[5m])) by (pod) / sum(kube_pod_container_resource_limits{resource="cpu"}) by (pod)` | > 0.8 持续 10m                      | 🟡 P2  | HPA 应自动扩,看 §runbook §8 |
-| 6   | **Token cost 突增**  | Langfuse 24h 累计 cost USD                                                                                                                          | > 80% 月预算                        | 🟡 P2  | 切 fallback / 限流          |
-| 7   | **chat fail rate**   | `rate(chat_requests_total{outcome="error"}[5m]) / rate(chat_requests_total[5m])`                                                                    | > 5% 持续 10m                       | 🔴 P1  | runbook §6                  |
+每条 alert 在 `deploy/helm/agentcook/templates/prometheusrule.yaml`(Day 53 C 已落)有真定义。Grafana UnifiedAlerting 通过 Prometheus 数据源自动 sync 这些 rule(避免重复定义);Grafana 这一侧只配 receiver + routing(`agentcook-swarm/grafana/provisioning/alerting/`,Day 55 C)。
 
-### 4.1 PrometheusRule 模板(Day 53-54 待落)
+| #   | alert name(prometheusrule.yaml)    | 告警                 | 阈值                            | 严重度         | 联动                                       |
+| --- | ---------------------------------- | -------------------- | ------------------------------- | -------------- | ------------------------------------------ |
+| 1   | `AgentcookHTTP5xxSpike`            | HTTP 5xx 突增        | > 1% 持续 5m                    | 🔴 P1 critical | runbook §6 / Grafana critical channel      |
+| 2   | `AgentcookP99LatencyDegraded`      | p99 latency 退化     | > 2.5s 持续 10m(基线 2.3s +10%) | 🟡 P2 warning  | Day 50 perf 对照 / Grafana default channel |
+| 3   | `AgentcookPodRestartingFrequently` | Pod 重启             | > 3 次/15min                    | 🔴 P1 critical | runbook §1-2 / Grafana critical channel    |
+| 4   | `AgentcookPodOOMKilled`            | OOM kill             | ≥ 1 次/15min                    | 🔴 P1 critical | runbook §2 + §5 / Grafana critical channel |
+| 5   | `AgentcookCPUHigh`                 | CPU 持续 > 80% limit | > 0.8 持续 10m                  | 🟡 P2 warning  | HPA 应自动扩,见 runbook §8                 |
+| 6   | `AgentcookLLMTokenCostSpike`       | Token cost 突增      | > $50/24h(可调)                 | 🟡 P2 warning  | 切 fallback / Grafana llm-cost channel     |
+| 7   | `AgentcookChatFailRateHigh`        | chat fail rate       | > 5% 持续 10m                   | 🔴 P1 critical | runbook §6 / Grafana critical channel      |
 
-```yaml
-# deploy/helm/agentcook/templates/prometheusrule.yaml(待新增)
-apiVersion: monitoring.coreos.com/v1
-kind: PrometheusRule
-metadata:
-  name: {{ include "agentcook.fullname" . }}-alerts
-  labels:
-    {{- include "agentcook.labels" . | nindent 4 }}
-spec:
-  groups:
-    - name: agentcook.rules
-      rules:
-        - alert: HTTP5xxSpike
-          expr: |
-            sum(rate(http_requests_total{status=~"5.."}[5m]))
-              / sum(rate(http_requests_total[5m])) > 0.01
-          for: 5m
-          labels:
-            severity: critical
-          annotations:
-            summary: "HTTP 5xx error rate > 1% on {{ "{{" }} $labels.service {{ "}}" }}"
-            runbook_url: "https://github.com/.../docs/devops/troubleshooting-runbook.md#6"
-        # ... 其余 6 条同结构
-```
+**完整 promql 见 `deploy/helm/agentcook/templates/prometheusrule.yaml`**(每条带 runbook_url 链回本项目)。
 
-**注**:本项目当前 AlertManager rules **未落地**(Phase 5 backlog #D6 / Day 51 audit §4 deferred)。Day 53-54 C 落 prometheusrule.yaml,接 AlertManager → Slack/钉钉 webhook。
+### 4.1 落地状态(Day 55 C 校准)
+
+- ✅ `deploy/helm/agentcook/templates/prometheusrule.yaml`(100 行 / 1 资源 / 3 group / 7 alerts)— **Day 53 已落 + push**(commit `dabe982`)
+- ✅ `agentcook-swarm/grafana/provisioning/alerting/contact-points.yml`(3 receiver:default / critical / llm-cost)— Day 55 C 落
+- ✅ `agentcook-swarm/grafana/provisioning/alerting/notification-policies.yml`(severity-based routing)— Day 55 C 落
+- 📅 真 webhook URL(Slack / 钉钉 robot URL)填入 Grafana env var:`GRAFANA_WEBHOOK_URL_DEFAULT/CRITICAL/LLM_COST` — 留作者首发后填,Phase 5 buffer
+- 📅 cluster 真装 kube-prometheus-stack(prod 实跑)— Phase 5 backlog,首发后
+
+**重复定义防御**:Grafana UnifiedAlerting 通过 Prometheus 数据源自动 sync alert,**不在 Grafana 这边重复写 alert rule** — Prometheus rules 是单一来源。Grafana 只管路由 + 通知通道。
 
 ---
 

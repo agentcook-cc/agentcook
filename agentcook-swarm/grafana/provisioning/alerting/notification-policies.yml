@@ -1,0 +1,32 @@
+# Grafana UnifiedAlerting — notification policies (Day 55 C)
+#
+# 路由策略:按 severity label 分流到不同 contact point。
+# alert label severity 由 prometheusrule.yaml 定义(critical / warning)。
+apiVersion: 1
+
+policies:
+  - orgId: 1
+    receiver: agentcook-default
+    group_by: [grafana_folder, alertname]
+    group_wait: 30s
+    group_interval: 5m
+    repeat_interval: 4h
+
+    routes:
+      # P1 高优:5xx / 重启 / OOM / chat fail → critical channel
+      - receiver: agentcook-critical
+        object_matchers:
+          - [severity, =, critical]
+        group_wait: 10s
+        repeat_interval: 1h
+        continue: false
+
+      # LLM cost 类(token 突增)→ 产品邮件 channel,4h 重复一次
+      - receiver: agentcook-llm-cost
+        object_matchers:
+          - [alertname, =~, "AgentcookLLMTokenCostSpike|.*Cost.*"]
+        repeat_interval: 6h
+        continue: false
+
+      # 默认 P2 warning(p99 / CPU)走 default
+      # (兜底,不需显式 match)

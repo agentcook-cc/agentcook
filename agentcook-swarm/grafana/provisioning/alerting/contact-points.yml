@@ -1,0 +1,48 @@
+# Grafana UnifiedAlerting — contact points (Day 55 C)
+#
+# 7 alerts 的真定义在 deploy/helm/agentcook/templates/prometheusrule.yaml
+# (Day 53 C),Prometheus 是 source of truth。本文件仅配 receiver — 如果
+# Grafana 通过 Prometheus 数据源自动 sync alert rules,触发时按下方策略
+# 路由到 Slack / 钉钉 / Email。
+#
+# 真生产环境填实际 webhook URL(本机占位用 mailhog 或 pastebin)。
+apiVersion: 1
+
+contactPoints:
+  - orgId: 1
+    name: agentcook-default
+    receivers:
+      # webhook 占位 — 真 prod 填 Slack incoming webhook 或钉钉 robot URL
+      - uid: agentcook-default-webhook
+        type: webhook
+        settings:
+          url: ${GRAFANA_WEBHOOK_URL_DEFAULT:-http://example.invalid/webhook}
+          httpMethod: POST
+          maxAlerts: 10
+        disableResolveMessage: false
+
+  - orgId: 1
+    name: agentcook-critical
+    receivers:
+      # 高优 P1 alerts(HTTP 5xx / Pod 重启 / OOM / chat fail)走独立 channel
+      - uid: agentcook-critical-webhook
+        type: webhook
+        settings:
+          url: ${GRAFANA_WEBHOOK_URL_CRITICAL:-http://example.invalid/critical}
+          httpMethod: POST
+          maxAlerts: 5
+        disableResolveMessage: false
+        # 严重告警立刻发送,不缓冲
+        sendResolved: true
+
+  - orgId: 1
+    name: agentcook-llm-cost
+    receivers:
+      # LLM cost / token 配额预警 — 走产品邮件,不打扰 on-call
+      - uid: agentcook-llm-cost-webhook
+        type: webhook
+        settings:
+          url: ${GRAFANA_WEBHOOK_URL_LLM_COST:-http://example.invalid/llm-cost}
+          httpMethod: POST
+          maxAlerts: 3
+        disableResolveMessage: false

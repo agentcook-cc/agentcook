@@ -39,7 +39,7 @@ import random
 import time
 from typing import Any
 
-from locust import FastHttpUser, User, between, tag, task
+from locust import FastHttpUser, HttpUser, User, between, tag, task
 
 JAVA_BASE = os.environ.get("LOCUST_JAVA_BASE", "http://127.0.0.1:8080")
 PYTHON_BASE = os.environ.get("LOCUST_PYTHON_BASE", "http://127.0.0.1:8000")
@@ -216,6 +216,103 @@ class SwarmGatewayUser(FastHttpUser):
                 resp.failure("no SSE chunks received")
             else:
                 resp.success()
+
+
+@tag("chat")
+class ChatUser(FastHttpUser):
+    """End-user chat against Python :8000 directly (Phase 5 Day 50).
+
+    Phase 4.6 wired chat.py to a real Qwen provider via
+    ``_stream_real_response``. This shape lets us hit the full SSE
+    pipeline (verify_access_token → ChatStreamRequest validation →
+    provider.stream_chat → SSE framing) under load.
+
+    Mode is controlled at the *server* via ``AGENTCOOK_CHAT_MOCK=true``
+    or by leaving ``QWEN_API_KEY`` unset (chat.py:46-65). The Day 50
+    plan runs 100u against real Qwen for latency truth, then flips the
+    server to mock for 200u/500u to find system bottlenecks without
+    burning the free Qwen quota.
+
+    Streaming-vs-buffered tradeoff:
+        Initial Day 50 attempt used ``HttpUser`` (requests-backed) with
+        ``stream=True`` + ``iter_lines()``. Five concurrent VUs hung
+        at 0 reqs/s — even though five parallel curls completed in
+        1.3-1.5s. Suspected cause: requests' streaming reader doesn't
+        cooperate with locust's gevent loop the way FastHttp does.
+        Five parallel curls all returned `metadata.source=provider` +
+        `duration_ms` 658-1082ms, so the server is fine; the client is
+        the bottleneck.
+    Workaround: FastHttpUser + buffered read (no ``stream=True``).
+        ``geventhttpclient`` keeps the body in memory and returns when
+        the SSE stream closes. Latency recorded by locust is therefore
+        **wall-clock to last byte**, not first-byte. That's a fair
+        proxy for end-user perceived latency on a one-shot prompt; we
+        lose first-token-latency truth but gain reliable concurrency.
+        First-byte truth is recoverable with a hand-rolled SSE client
+        (Day 51+ backlog if Phase 5 review demands it).
+    Tail end of the buffered body is parsed for the terminal
+    ``done:true`` frame so partial / truncated responses fail loudly.
+
+    Why the SwarmGatewayUser chat_stream task isn't reused: it routes
+    through Traefik :80 (Phase 4.5 staging gateway, not running locally)
+    and posts ``input`` instead of ``message`` (mismatched with
+    schemas_chat.ChatStreamRequest:16, would 422 even if gateway were
+    up). Day 50 backlog: B/C reconcile that task once gateway is live.
+    """
+
+    host = PYTHON_BASE
+    # Chat is heavier than skills/list endpoints — give the server a
+    # breather between iterations so a single VU doesn't pin a worker.
+    wait_time = between(1.0, 3.0)
+    access_token: str | None = None
+    user_id: int = 0
+
+    def on_start(self) -> None:
+        # Java :8080 issues the dev token; Python :8000 uses
+        # `verify_access_token` (Day 48 e2e flagged this is currently a
+        # cross-language gap — token format works in dev mode but the
+        # JWT secret isn't shared yet, so /memory/* returns 401).
+        # /api/v1/chat/stream is permissive in dev: the auth dependency
+        # accepts any non-empty Bearer in mock mode and the dev-issued
+        # token in real mode (chat.py:233-264).
+        self.user_id = random.randint(1, 1_000_000)
+        resp = self.client.post(
+            JAVA_BASE + "/api/v1/auth/login",
+            json={"username": f"chat-{self.user_id}", "password": "dev"},
+            name="POST /api/v1/auth/login (chat)",
+        )
+        if resp.status_code == 200:
+            body: dict[str, Any] = resp.json()
+            self.access_token = body.get("accessToken") or body.get("access_token")
+
+    @task(2)
+    def chat_stream(self) -> None:
+        """POST + read whole body (buffered) — see class docstring.
+
+        ``self.client.post`` on FastHttpUser does *not* expose
+        ``stream`` — it always reads the body. We get back the raw
+        SSE-framed bytes via ``resp.text`` and scan for the terminal
+        frame to validate the response wasn't truncated.
+        """
+        headers = {"Authorization": f"Bearer {self.access_token}"} if self.access_token else {}
+        with self.client.post(
+            "/api/v1/chat/stream",
+            json={
+                "session_id": f"perf-{self.user_id}",
+                "message": "用一句话介绍 AI agent",
+            },
+            headers=headers,
+            name="POST /api/v1/chat/stream",
+            catch_response=True,
+        ) as resp:
+            if resp.status_code != 200:
+                resp.failure(f"non-200: {resp.status_code}")
+                return
+            body = resp.text or ""
+            if '"done":true' not in body and '"done": true' not in body:
+                resp.failure(f"no terminal done frame in {len(body)}-byte body")
+                return
+            resp.success()
 
 
 @tag("grpc")

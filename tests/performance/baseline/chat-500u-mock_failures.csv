@@ -1,0 +1,2 @@
+Method,Name,Error,Occurrences,First Seen,Last Seen
+POST,POST /api/v1/auth/login (chat),"ConnectionResetError(54, 'Connection reset by peer')",20,2026-06-02T06:41:55Z,2026-06-02T06:41:55Z

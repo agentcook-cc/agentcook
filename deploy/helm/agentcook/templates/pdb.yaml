@@ -24,4 +24,17 @@ spec:
     matchLabels:
       {{- include "agentcook.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: admin-bff
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "agentcook.fullname" . }}-connector-pdb
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  minAvailable: {{ .Values.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: connector
 {{- end }}

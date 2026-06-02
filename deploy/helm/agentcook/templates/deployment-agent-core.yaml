@@ -21,6 +21,13 @@ spec:
         - name: agent-core
           image: "{{ .Values.agentCore.image.repository }}:{{ .Values.agentCore.image.tag }}"
           imagePullPolicy: {{ .Values.agentCore.image.pullPolicy }}
+          {{- with .Values.agentCore.extraArgs }}
+          # Day 50 perf tuning: prod overrides uvicorn workers via
+          # `agentCore.extraArgs: ["--workers", "4"]`. Image's default
+          # CMD already invokes uvicorn; these flags are appended.
+          args:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
           ports:
             - containerPort: 8000
               protocol: TCP

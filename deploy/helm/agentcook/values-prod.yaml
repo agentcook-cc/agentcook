@@ -5,11 +5,27 @@ global:
 
 hpa:
   enabled: true
+  # min/max/target inherit from values.yaml (1/5/80). Override per
+  # service if prod traffic baseline diverges.
 
 # PDB on in prod — multi-replica services tolerate 1 voluntary disruption.
 pdb:
   enabled: true
   minAvailable: 1
+
+# NetworkPolicy on in prod — cluster CNI must support enforcement
+# (Calico / Cilium / kube-router). Default-deny baseline + per-service
+# allow rules wired in templates/networkpolicy.yaml.
+networkPolicy:
+  enabled: true
+  ingressNamespace: ingress-nginx
+
+# PrometheusRule on in prod — assumes kube-prometheus-stack CRD installed.
+# 7 alerts: HTTP 5xx, p99 latency, pod restarts, OOM, CPU high, LLM cost,
+# chat fail rate. See `docs/devops/monitoring-alerts-sop.md` §4.
+prometheusRule:
+  enabled: true
+  tokenCostThresholdUsd: 50
 
 # Drop trace sampling to 10% in prod (base values says "values-prod drops
 # to 0.1" — that override was missing until Day 45-47).
@@ -19,6 +35,14 @@ observability:
 
 agentCore:
   replicaCount: 2
+  # Day 50 perf tuning (C ping A, Day 50 §4 bottleneck #1):
+  # uvicorn 1 → 4 workers cut login p95 -47% / login fail -95% (詳
+  # `audit/phase5-day50-performance-report.md`). Code unchanged, pure
+  # startup config. Helm chart picks this up via the deployment template's
+  # `args` field.
+  extraArgs:
+    - "--workers"
+    - "4"
   resources:
     requests:
       memory: "256Mi"
@@ -27,15 +51,28 @@ agentCore:
       memory: "512Mi"
       cpu: "500m"
 
+# admin-bff resources — base values.yaml already sets limits.memory=1Gi
+# (D Day 50 ea0c5cb, JVM needs ~768Mi heap + 256Mi native headroom).
+# Prior to Day 53 this block override that back to 512Mi by accident,
+# unwinding D's tuning. The override is now removed; values.yaml is
+# the single source of truth for memory limits.
 adminBff:
   replicaCount: 2
   resources:
     requests:
-      memory: "256Mi"
+      memory: "512Mi"
       cpu: "250m"
     limits:
-      memory: "512Mi"
+      memory: "1Gi"
       cpu: "500m"
+  # Day 51 D Tomcat / HikariCP tuning (D 7f320c4, application.yml).
+  # Surface as env so the prod profile picks them up without rebuilding
+  # the Java image. 200 → 400 / 10 → 30 per Day 50 §4 bottleneck #2.
+  env:
+    SERVER_TOMCAT_THREADS_MAX: "400"
+    SERVER_TOMCAT_ACCEPT_COUNT: "200"
+    SPRING_DATASOURCE_HIKARI_MAXIMUM_POOL_SIZE: "30"
+    SPRING_DATASOURCE_HIKARI_MINIMUM_IDLE: "5"
 
 connector:
   replicaCount: 1

@@ -1,0 +1,100 @@
+{{- if .Values.prometheusRule.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "agentcook.fullname" . }}-alerts
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+    {{- with .Values.prometheusRule.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: agentcook.http
+      rules:
+        - alert: AgentcookHTTP5xxSpike
+          expr: |
+            sum by (service) (rate(http_requests_total{status=~"5.."}[5m]))
+              / sum by (service) (rate(http_requests_total[5m])) > 0.01
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "HTTP 5xx > 1% on {{ "{{" }} $labels.service {{ "}}" }}"
+            description: "agentcook 5xx error rate > 1% for 5min — see runbook §6"
+            runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#6-chat-5xx-突增跨语言链路诊断"
+
+        - alert: AgentcookP99LatencyDegraded
+          expr: |
+            histogram_quantile(0.99,
+              sum by (le, service) (rate(http_request_duration_seconds_bucket[5m]))
+            ) > 2.5
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "p99 latency > 2.5s on {{ "{{" }} $labels.service {{ "}}" }}"
+            description: "Day 50 baseline 2.3s; +10% threshold breached. Check qwen upstream / DB / pod count."
+
+    - name: agentcook.pod
+      rules:
+        - alert: AgentcookPodRestartingFrequently
+          expr: |
+            increase(kube_pod_container_status_restarts_total{namespace=~"agentcook-.*"}[15m]) > 3
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Pod {{ "{{" }} $labels.pod {{ "}}" }} restarted > 3 times in 15min"
+            description: "See runbook §1 CrashLoopBackOff diagnosis"
+            runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#1-crashloopbackoff"
+
+        - alert: AgentcookPodOOMKilled
+          expr: |
+            increase(container_oom_events_total{namespace=~"agentcook-.*"}[15m]) >= 1
+          for: 0m
+          labels:
+            severity: critical
+          annotations:
+            summary: "OOMKilled detected on pod {{ "{{" }} $labels.pod {{ "}}" }}"
+            description: "See runbook §2 OOMKilled — Java goes to 1Gi (D Day 50), Python 512Mi"
+            runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#2-oomkilled"
+
+        - alert: AgentcookCPUHigh
+          expr: |
+            sum by (pod) (rate(container_cpu_usage_seconds_total{namespace=~"agentcook-.*"}[5m]))
+              / sum by (pod) (kube_pod_container_resource_limits{namespace=~"agentcook-.*",resource="cpu"}) > 0.8
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "CPU > 80% of limit on pod {{ "{{" }} $labels.pod {{ "}}" }}"
+            description: "HPA should auto-scale; if not, see runbook §8 HPA not scaling"
+            runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#8-hpa-不伸缩"
+
+    - name: agentcook.llm
+      rules:
+        - alert: AgentcookLLMTokenCostSpike
+          # Note: requires Langfuse → Prometheus exporter (Phase 5 backlog).
+          # Stub metric name: `agentcook_llm_cost_usd_total{period="24h"}`
+          expr: |
+            agentcook_llm_cost_usd_total{period="24h"} > {{ .Values.prometheusRule.tokenCostThresholdUsd | default 50 }}
+          for: 0m
+          labels:
+            severity: warning
+          annotations:
+            summary: "LLM 24h cost > ${{ "{{" }} $value {{ "}}" }} USD"
+            description: "Trigger fallback chain (qwen-turbo → glm-4-flash → echo) per ADR-016 §3"
+
+        - alert: AgentcookChatFailRateHigh
+          expr: |
+            rate(chat_requests_total{outcome="error"}[5m])
+              / rate(chat_requests_total[5m]) > 0.05
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "chat fail rate > 5% over 10min"
+            description: "Check qwen API key / rate limit; emergency fallback: AGENTCOOK_CHAT_PROVIDER_DEFAULT=echo"
+            runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#6-chat-5xx-突增跨语言链路诊断"
+{{- end }}

@@ -125,3 +125,11 @@ spec:
             - name: OTEL_TRACES_SAMPLER_ARG
               value: {{ .Values.observability.samplerArg | quote }}
             {{- end }}
+            # ── Per-env extra env (Day 51-53 Tomcat/HikariCP tuning) ──────
+            # values-prod.yaml `adminBff.env:` map populates Spring relaxed-
+            # binding env vars (SERVER_TOMCAT_THREADS_MAX etc) without rebuilding
+            # the Java image. Empty in base/staging.
+            {{- range $key, $value := .Values.adminBff.env }}
+            - name: {{ $key }}
+              value: {{ $value | quote }}
+            {{- end }}

@@ -1,0 +1,159 @@
+{{- if .Values.networkPolicy.enabled }}
+# Default deny — drops all ingress + egress unless an explicit policy
+# below allows it. Belt-and-braces with the per-service allow rules.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-default-deny
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+---
+# agent-core (Python :8000) — accept ingress from Ingress controller
+# and from admin-bff (gRPC fan-in is admin-bff -> agent-core SSE bridge).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-agent-core-ingress
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: agent-core
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+        - podSelector:
+            matchLabels:
+              {{- include "agentcook.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: admin-bff
+      ports:
+        - protocol: TCP
+          port: 8000
+---
+# admin-bff (Java :8080 HTTP / :9090 gRPC) — ingress from Ingress + from
+# agent-core (gRPC chat bridge dials :9090).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-admin-bff-ingress
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: admin-bff
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+        - podSelector:
+            matchLabels:
+              {{- include "agentcook.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: agent-core
+      ports:
+        - protocol: TCP
+          port: 8080
+        - protocol: TCP
+          port: 9090
+---
+# connector (Python :8082) — only agent-core dials it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-connector-ingress
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "agentcook.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: connector
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              {{- include "agentcook.selectorLabels" . | nindent 14 }}
+              app.kubernetes.io/component: agent-core
+      ports:
+        - protocol: TCP
+          port: 8082
+---
+# Static frontends (admin-static / app-static) — only Ingress.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-static-frontends-ingress
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [admin-static, app-static]
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace | default "ingress-nginx" }}
+      ports:
+        - protocol: TCP
+          port: 80
+---
+# Egress — agentcook services need DNS + cluster API + outbound HTTPS
+# (qwen / langfuse / external connectors). Outbound to anywhere on 443
+# is allowed; lock down via DNS allowlist with a sidecar (Day 53-54+ buffer).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "agentcook.fullname" . }}-egress-allow
+  labels:
+    {{- include "agentcook.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchExpressions:
+      - key: app.kubernetes.io/component
+        operator: In
+        values: [agent-core, admin-bff, connector]
+  policyTypes:
+    - Egress
+  egress:
+    # DNS (kube-system / coredns)
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+    # Intra-cluster (postgres, redis, etcd, otel-collector, sibling services)
+    - to:
+        - podSelector: {}
+    # Outbound HTTPS (qwen / Langfuse / OAuth providers)
+    - ports:
+        - protocol: TCP
+          port: 443
+        - protocol: TCP
+          port: 80
+{{- end }}

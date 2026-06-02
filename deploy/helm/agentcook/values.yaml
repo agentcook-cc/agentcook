@@ -34,6 +34,23 @@ pdb:
   enabled: false
   minAvailable: 1
 
+# NetworkPolicy — default-deny + per-service allow. Off in dev (k3d/kind
+# usually skip CNI policy enforcement), on in prod (cluster CNI must
+# support NetworkPolicy: Calico / Cilium / kube-router).
+networkPolicy:
+  enabled: false
+  # Namespace label selector for Ingress controller (override if you run
+  # ingress-nginx in a different ns).
+  ingressNamespace: ingress-nginx
+
+# PrometheusRule — requires kube-prometheus-stack CRD installed.
+# 7 alerts cover HTTP/p99/restarts/OOM/CPU/LLM cost/chat fail. Token cost
+# threshold is in USD per 24h window (default 50; raise per real budget).
+prometheusRule:
+  enabled: false
+  tokenCostThresholdUsd: 50
+  additionalLabels: {}
+
 # Shared app config — injected as ConfigMap, mounted as envFrom on every
 # Deployment. Real URLs come from values-staging.yaml / values-prod.yaml.
 config:

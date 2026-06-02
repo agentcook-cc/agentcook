@@ -113,40 +113,29 @@ def run_plugin_script(
     )
 
 
-def _check_oom_status() -> bool:
+def _check_oom_status(container_name: str) -> bool:
     """
-    检查最近运行的容器是否因 OOM 被杀掉
-    
-    Returns:
-        True 如果最后一个容器因 OOM 被杀掉
+    检查指定容器是否因 OOM 被杀掉
+
+    Day 51 (Agent C): Phase 0 遗留 bug — caller 在 sandbox_runner.py:86 传了
+    `container_name` 但定义之前是 0 参数 → TypeError。Day 6 接手时已 flag
+    给协调员,Day 51 OWASP 合规验证阻塞后修通。
     """
     try:
-        # 获取最近退出的容器状态
-        result = subprocess.run(
-            ["docker", "ps", "-a", "--latest", "--format", "{{.ID}}"],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-        
-        if result.returncode != 0 or not result.stdout.strip():
-            return False
-        
-        container_id = result.stdout.strip()
-        
-        # 检查 OOMKilled 状态
+        # 按名字直接 inspect — 比 `docker ps --latest` 更准确(并发场景下
+        # `--latest` 可能拿到别的容器)
         inspect_result = subprocess.run(
-            ["docker", "inspect", container_id, "--format", "{{.State.OOMKilled}}"],
+            ["docker", "inspect", container_name, "--format", "{{.State.OOMKilled}}"],
             capture_output=True,
             text=True,
-            timeout=5
+            timeout=5,
         )
-        
+
         if inspect_result.returncode == 0:
             return inspect_result.stdout.strip().lower() == "true"
-        
+
         return False
-    
+
     except Exception:
         return False
 

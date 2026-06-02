@@ -129,3 +129,154 @@ When the 6-month timer is up:
    `v2.yaml` "what changed" section)
 4. Bump the spec major version: `v1.yaml` → `v2.yaml`
 5. The old `v1.yaml` stays in repo as a frozen artifact for archeology
+
+---
+
+## Minor bump vs major bump — decision tree
+
+When you've made a change and the question is "do I need to cut a new
+major or can I just bump minor?", run this tree top-down. Stop at the
+first `yes`.
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  Does any existing client that worked against v1.N break against │
+│  this server, with zero code change on the client?               │
+└────────────────┬─────────────────────────┬───────────────────────┘
+                 │ yes                     │ no
+                 ▼                         ▼
+       ┌─────────────────┐    ┌─────────────────────────────────────┐
+       │  MAJOR bump     │    │  Is the change visible in the spec  │
+       │  (cut v2.yaml,  │    │  (paths, schemas, params, headers)? │
+       │   6-month       │    └─────────┬───────────────────────┬───┘
+       │   deprecation)  │              │ yes                   │ no
+       └─────────────────┘              ▼                       ▼
+                                 ┌──────────────┐      ┌──────────────────┐
+                                 │  MINOR bump  │      │  PATCH bump      │
+                                 │  (rewrite    │      │  (prose only —   │
+                                 │   v1.yaml,   │      │   descriptions,  │
+                                 │   1.X+1.0)   │      │   examples)      │
+                                 └──────────────┘      └──────────────────┘
+```
+
+### Common edge cases
+
+| Change | Bump | Why |
+|---|---|---|
+| Add `?include=…` query param with default `false` | MINOR | additive — old clients keep their old behavior |
+| Add field `created_by` to `UserResponse` | MINOR | response widening — JSON clients ignore unknown fields |
+| Rename `created_by` → `creator_id` in response | **MAJOR** | rename = remove + add; old clients reading `created_by` break |
+| Change `email` field validation `length<=128` → `length<=255` | MINOR | loosening = old valid input is still valid |
+| Change `email` field validation `length<=255` → `length<=128` | **MAJOR** | tightening = previously valid input now 422 |
+| Change `500 Internal Server Error` → `503 Service Unavailable` for upstream timeouts | **MAJOR** | client retry logic typically keys off status code |
+| Add example to schema description | PATCH | no shape change |
+| Reorder fields in response body | MINOR | JSON object ordering is not significant per RFC 8259, but tools that snapshot bytes (Pact, golden tests) see a diff; document in CHANGELOG |
+| Add new error code under existing 4xx status | MINOR | new enum value on `ApiError.code`; old clients fall through generic handling |
+| Change response from list-of-objects to paginated object `{data: […], total: N}` | **MAJOR** | client iteration code breaks |
+
+### Specific to dual-spec setup
+
+Because Python and Java specs version independently (ADR-013), the
+decision tree runs **per spec**. A change that bumps Python v1 → v2
+does not require Java to bump, and vice versa.
+
+But: if a cross-cutting change spans both specs (e.g. shared `ApiError`
+schema rename), both specs bump on the same day in lock-step — track it
+as one entry under each spec's CHANGELOG section.
+
+---
+
+## v1 → v2 migration path
+
+When the moment comes to actually cut v2 (six months after the first
+breaking change is announced), this is the runbook. We've never had to
+do it in production — but having the steps written down means we won't
+panic when we do.
+
+### Phase 1 — `v2` lives next to `v1` (sunset clock T0 → T+6mo)
+
+```
+agentcook-cc/docs/api/
+├── v1.yaml              # active, info.version: 1.x.y
+├── v2.yaml              # NEW, info.version: 2.0.0, info.x-frozen: T+6mo
+└── migration-v1-to-v2.md  # NEW, per-endpoint diff table
+```
+
+Server changes:
+
+| Step | Java | Python |
+|---|---|---|
+| 1 | Add v2 controllers under `cc.agentcook.api.v2` (sibling to existing `controller` pkg) | Add v2 routers under `agentcook/src/agentcook_app/routers/v2/` |
+| 2 | Mount under `@RequestMapping("/api/v2")` on each v2 controller | `app.include_router(v2_router, prefix="/api/v2")` |
+| 3 | Springdoc auto-generates `/v3/api-docs/v2` group; configure `GroupedOpenApi` so `/v3/api-docs/v1` stays pinned to the v1 controllers | FastAPI: separate `OpenAPI` schema per router group |
+| 4 | Both `/api/v1` and `/api/v2` serve traffic simultaneously | Same |
+| 5 | `/api/v1` responses keep the deprecation headers from `DEPRECATION-POLICY.md` §"Response headers" | Same |
+
+### Phase 2 — `v1` sunset (T+6mo)
+
+Per the sunset checklist above. Specifically for the v1→v2 cut:
+
+1. Run `scripts/check-v1-traffic.sh` — must show <0.1% traffic on
+   `/api/v1/**` over the prior 7 days. If not, extend sunset.
+2. Replace `/api/v1/**` controller bodies with `410 Gone` returns
+   carrying the migration `Link` header. Keep the routes mapped for
+   2 weeks so good actors still get a useful error.
+3. After 2 weeks, delete the v1 controller package outright. Update
+   the springdoc `GroupedOpenApi` to drop the v1 group.
+4. Mark `v1.yaml` with `info.deprecated: true` at the spec root and
+   keep the file in repo — it's the canonical archeological record.
+5. CHANGELOG entry under v2.0.0 reads `### Removed — see v1 → v2
+   migration guide`.
+
+### Phase 3 — `v2` is sole live surface (T+6mo + 2 weeks onwards)
+
+The dual-spec setup makes this cleaner than monolithic versioning: if
+only the **Python** spec is doing a v1→v2 cut, the Java `/api/v1/**`
+surface is untouched — Java clients don't need to know v2 happened.
+
+### Migration guide template
+
+When v2 first appears (Phase 1, step 0), create
+`docs/api/migration-v1-to-v2.md` from this template:
+
+```markdown
+# v1 → v2 migration guide
+
+**Sunset date**: <ISO date>
+**Breaking changes**: <count>
+
+## Per-endpoint diff
+
+| v1 path | v2 path | What changed | Client action |
+|---|---|---|---|
+| ... | ... | ... | ... |
+
+## Per-schema diff
+
+| v1 schema | v2 schema | What changed |
+|---|---|---|
+
+## SDK release notes
+
+- Python `agentcook-py-client` 1.x → 2.0
+- JS/TS `@agentcook/openapi-typescript` 1.x → 2.0
+- Java `agentcook-java-client` (Gradle) 1.x → 2.0
+```
+
+The guide goes live in `docs-site` under
+`https://agentcook.cc/docs/api/migration-v1-to-v2` — that URL is the
+target of every deprecated response's `Link: …; rel="deprecation"`
+header, so it MUST exist before the first deprecation is announced.
+
+---
+
+## Cross-references
+
+- `docs/api/VERSIONING-POLICY.md` — when/how to bump (this is the
+  prequel to the present doc; deprecation is the sequel to a version
+  cut)
+- `docs/api/CHANGELOG.md` — record of every frozen version
+- `docs/adr/ADR-006-blue-green-deployment.md` — deployment slot
+  mapping during a v1→v2 cutover
+- `docs/adr/ADR-013-java-business-backend.md` — why two specs evolve
+  independently

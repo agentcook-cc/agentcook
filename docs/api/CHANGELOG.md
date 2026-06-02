@@ -217,6 +217,120 @@ v2 instead of mutating v1.
 
 ---
 
+## java-v1.yaml — Phase 4 + Phase 5 additive entries
+
+The Java spec `info.version` stays at `1.0.0` through Phase 4 + Phase 5
+because all of the changes below are additive at the wire-shape level
+(no removed fields, no renamed paths, no tightened validation). The
+`info.x-frozen` date stamp re-rolls on each entry; downstream consumers
+re-run `openapi-typescript` after each.
+
+### 2026-06-13 (Phase 4 Day 31-32) — auth scheme upgrade (additive)
+
+`POST /api/v1/auth/login` keeps the same wire shape
+(`LoginRequest` → `LoginResponse`) but the returned token graduates
+from the Phase 3 dummy `dev-token-<username>` to a real HS256-signed
+JWT issued by `JwtTokenIssuer`. All other endpoints under `/api/v1/**`
+now require a valid Bearer token (Spring Security
+`oauth2ResourceServer().jwt()` chain wired in `SecurityConfig`).
+
+Spec-level effect:
+- Adds `securitySchemes.bearerAuth` (HTTP Bearer / JWT) at the
+  components root
+- Adds `security: [bearerAuth: []]` defaults at the operation level
+  for every endpoint except `POST /api/v1/auth/login`, which carries
+  `security: []` (per Springdoc `@SecurityRequirements({})`)
+- No request or response shape changes
+
+Client action: same login flow; any subsequent call must carry
+`Authorization: Bearer <token>`. The login endpoint stays open.
+B regenerates `types.java.gen.ts` (the security overlay propagates).
+
+### 2026-06-21 (Phase 4 Day 41-44) — health probes split + Swagger groups (additive)
+
+K8s-aware liveness / readiness probe paths land as additional
+operations alongside the aggregated `/actuator/health`:
+
+| Method | Path | Purpose |
+|---|---|---|
+| GET | `/actuator/health/liveness` | JVM-alive check; never includes downstream state |
+| GET | `/actuator/health/readiness` | DB + Redis + agent-core reachability; flips pod to NotReady on transient downstream blip without restarting the JVM |
+
+Probes are public (no Bearer needed) per Spring Boot
+`management.endpoint.health.probes.enabled=true` defaults.
+
+Springdoc `GroupedOpenApi` reshapes `/v3/api-docs` from one
+monolithic spec into six per-domain groups (`auth` / `users` /
+`sessions` / `plugins` / `connectors` / `permissions`). The full
+spec is still at `/v3/api-docs.yaml`; the grouped subsets are at
+`/v3/api-docs/{group}.yaml`. Downstream consumers continue to read
+the full file; the groups exist for Swagger UI navigation only.
+
+Schema-level: every `@RestController` now carries `@Operation` (the
+ad-hoc / unannotated paths from Day 26-30 retroactively get
+descriptions). No path or response-shape change.
+
+### 2026-06-26 (Phase 4 Day 45-47) — JVM probe behaviour (clarification, not spec change)
+
+`PythonUpstreamHealthIndicator` switches `Health.down` →
+`Health.unknown` for unreachable Python agent-core: aggregate
+`/actuator/health` returns 200 + `UNKNOWN` instead of 503 when only
+the Python plane is down. Java's K8s liveness/readiness probes were
+already split (Day 41-44) so pod restart behavior is unchanged. No
+spec change — same path, same response schema, different value range
+for the `status` field (now includes `UNKNOWN` alongside `UP` /
+`DOWN`).
+
+Operational impact: prod Prometheus alerts that key off the
+aggregated `/actuator/health` need to monitor Python independently
+instead of relying on Java's aggregate.
+
+### 2026-06-01 (Phase 4.6 Day 35-eq) — chat backend swap (additive metadata)
+
+The chat surface is owned by the Python runtime (`v1.yaml`,
+`POST /api/v1/chat/stream`), but the Java spec gains a related
+metadata change: `OAuthCallbackRequest.state` field is now explicitly
+documented in the Swagger schema description as "CSRF state token
+echoed back by the provider" (was undocumented). Phase 3 dummy still
+accepts any value for `state` — Phase 4 Day 33-34 introduces real
+server-side state binding per `DEPRECATION-POLICY.md` change
+classification (will be a MAJOR bump → `java-v2.yaml` when the
+required-binding lands).
+
+No wire shape change today; the description is purely additive.
+
+### 2026-07-08 (Phase 5 Day 48-49) — coverage and cross-lang test (no spec change)
+
+`agentcook-api` jacoco line coverage reaches 92.3% / branch 74.3%
+after Day 48 added GrpcServerConfig + GrpcChatService boundary tests
+and ConnectorController edge cases. `CrossLangIntegrationIT` lands
+Day 49 verifying Java-issued JWT passes through to Python
+`/api/v1/chat/stream` unchanged (the test mocks Python with a JDK
+HttpServer — real Python container variant is on Phase 5 backlog
+behind the docker-mirror unblock).
+
+No spec change. Listed here so downstream readers know `java-v1.0.0`
+has been functionally hardened even if `info.version` didn't move.
+
+### 2026-07-10 (Phase 5 Day 51) — JWT boundary contracts (no spec change)
+
+`SecurityChainTest` adds 5 boundary cases (expired / tampered
+payload / `alg:none` switch / oversized token / wrong-issuer
+secret) — all return `401`, no `500` crash on the oversized path.
+`OAuthCallbackControllerIntegrationTest` adds 4 cases documenting
+that Phase 3 dummy accepts any `state` value; converting these to
+"reject unknown state" tests is the trigger for the future
+`java-v2.yaml` bump.
+
+`mvn org.owasp:dependency-check-maven:check` lands as a plugin
+(parent pom, on-demand only). Day 51 first scan surfaces 64
+HIGH/CRITICAL CVEs across 13 transitive deps (most concentrated in
+`tomcat-embed-core 10.1.20` / `netty-transport 4.1.109`); upgrade
+path lives in `_internal/audit/phase5-day51-java-compliance-d-view.md`
+and is queued behind a Spring Boot 3.2.5 → 3.3.x major-dep spike.
+
+---
+
 ## java-v1.yaml — `java-business` v1.0.0 (frozen 2026-05-31)
 
 **Frozen by**: Agent D · Phase 2 Day 9

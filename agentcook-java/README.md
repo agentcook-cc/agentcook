@@ -187,8 +187,51 @@ agentcook-java/
 
 ## Related docs
 
+- [`docs/ddd-guide.md`](./docs/ddd-guide.md) — DDD four-layer
+  walk-through with the five aggregates as worked examples
 - [`../docs/api/CHANGELOG.md`](../docs/api/CHANGELOG.md) — spec version history
-- [`../docs/api/DEPRECATION-POLICY.md`](../docs/api/DEPRECATION-POLICY.md) — versioning + sunset rules
+- [`../docs/api/VERSIONING-POLICY.md`](../docs/api/VERSIONING-POLICY.md) — when / how to bump
+- [`../docs/api/DEPRECATION-POLICY.md`](../docs/api/DEPRECATION-POLICY.md) — sunset rules + decision tree
 - [`../docs/k8s-config-mapping.md`](../docs/k8s-config-mapping.md) — ConfigMap / Secret layout
 - [`../docs/adr/ADR-013-java-business-backend.md`](../docs/adr/ADR-013-java-business-backend.md) — why Java + DDD
 - [`CHANGELOG.md`](./CHANGELOG.md) — module-level change log
+
+## 教程深度参考
+
+This module is the running example for **教程第 03 讲 — 从用户故事到
+DDD 四层架构** (`agentcook/tutorial/chapters/03-from-user-story-to-architecture.md`).
+The chapter walks readers through:
+
+1. **From a 5-line user story to five aggregates** — how
+   `User` / `Session` / `Plugin` / `Connector` / `Permission` fall
+   out of "an end user activates a plugin to talk to a model" without
+   forcing the aggregates upfront. The mental model lives in §3 of the
+   chapter; the code lives in [`agentcook-domain/src/main/java/cc/agentcook/domain/`](agentcook-domain/src/main/java/cc/agentcook/domain/).
+2. **Why the dependency arrows all point up** — the chapter contrasts
+   this module's structure with a "service-oriented anemic domain"
+   shape, using the same five aggregates implemented both ways. The
+   layered-vs-anemic comparison sits in §5.
+3. **The hexagonal seam in practice** — the chapter uses
+   `PluginActivationService` (`agentcook-domain/src/main/java/cc/agentcook/domain/service/PluginActivationService.java`)
+   as the worked example of a domain service that needs zero
+   infrastructure to test. The matching unit test
+   (`agentcook-domain/src/test/.../PluginActivationServiceTest.java`)
+   is the first thing a reader runs.
+4. **Where infra/wiring lives** — the chapter's §7 (infrastructure
+   adapters) references this module's `agentcook-infrastructure`
+   package directly. Readers can `cmd-click` from the chapter into
+   the JPA adapter implementations.
+
+If you're reading the source first and the chapter second, the
+mapping below tells you which file to open for each chapter section:
+
+| Chapter section | Files in this module |
+|---|---|
+| §3 user story → 5 aggregates | `agentcook-domain/src/main/java/cc/agentcook/domain/{user,session,plugin,connector,permission}/` |
+| §4 value objects vs entities | `agentcook-domain/.../UserId.java`, `SessionId.java`, etc. (all `*Id.java` files) |
+| §5 layered vs anemic | full layered impl: this module; anemic counter-example is in the chapter inline |
+| §6 domain services | `agentcook-domain/.../service/PluginActivationService.java` |
+| §7 infrastructure adapters | `agentcook-infrastructure/src/main/java/cc/agentcook/infrastructure/persistence/adapter/` |
+| §8 application boundary | `agentcook-application/src/main/java/cc/agentcook/application/usecase/` |
+| §9 API layer | `agentcook-api/src/main/java/cc/agentcook/api/controller/` |
+| §10 testing the seams | `agentcook-{domain,application,api}/src/test/` (see also `docs/ddd-guide.md` for the testing-pyramid mapping) |

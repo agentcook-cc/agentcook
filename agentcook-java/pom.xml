@@ -147,11 +147,20 @@
         </pluginManagement>
 
         <plugins>
-            <!-- Test coverage; Day 28 budget bound. Run with `mvn verify` or `mvn test jacoco:report`. -->
+            <!-- Test coverage; Day 28 budget bound. Run with `mvn verify` or `mvn test jacoco:report`.
+                 Day 48: protobuf/grpc generated classes excluded from coverage —
+                 cc.agentcook.grpc.* is produced by protobuf-maven-plugin and contributes
+                 ~1240 lines of builders/stubs that no business test should be asserting on. -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.12</version>
+                <configuration>
+                    <excludes>
+                        <exclude>cc/agentcook/grpc/**</exclude>
+                        <exclude>**/AgentcookJavaApplication.class</exclude>
+                    </excludes>
+                </configuration>
                 <executions>
                     <execution>
                         <id>prepare-agent</id>

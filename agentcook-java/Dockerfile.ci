@@ -34,9 +34,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r app && useradd -r -g app app
-USER app
 
 WORKDIR /app
+RUN mkdir -p /app/logs && chown -R app:app /app
+
+USER app
 COPY --from=build /workspace/app.jar /app/agentcook-java.jar
 
 EXPOSE 8080 9090
@@ -47,7 +49,13 @@ EXPOSE 8080 9090
 #   UseG1GC                      — pause-time GC for long-lived servers
 #   UseStringDeduplication       — small RSS win for log-heavy workloads
 #   ExitOnOutOfMemoryError       — let K8s restart on OOM rather than thrash
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError" \
+# Day 50 additions (Phase 5 perf tuning):
+#   AlwaysPreTouch               — commit heap upfront so steady-state p99
+#                                  doesn't pay for lazy page faults
+#   HeapDumpOnOutOfMemoryError   — leave a .hprof postmortem when OOM trips
+#   -Xlog:gc*:file=...           — rotated GC logs (5 × 10MB) so
+#                                  before/after pause comparisons are real
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -XX:+AlwaysPreTouch -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs/heap-dump.hprof -Xlog:gc*:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=10M" \
     SPRING_PROFILES_ACTIVE=docker
 
 # Liveness probe (the K8s readiness probe hits /actuator/health/readiness;

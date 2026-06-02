@@ -25,9 +25,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r app && useradd -r -g app app
-USER app
 
 WORKDIR /app
+
+# Day 50: GC logs and heap dumps live under /app/logs (writable by the
+# `app` user). Mount as a volume in compose / k8s to retain across pod
+# restarts; otherwise they're discarded with the container, which is
+# fine for local rebuilds.
+RUN mkdir -p /app/logs && chown -R app:app /app
+
+USER app
 
 # Spring Boot fat jar — the executable artifact emitted by
 # spring-boot-maven-plugin's `repackage` goal during `mvn package`.
@@ -36,7 +43,16 @@ COPY --chown=app:app agentcook-api/target/agentcook-api-*-SNAPSHOT.jar /app/agen
 EXPOSE 8080 9090
 
 # K8s-aware JVM defaults — see Dockerfile.ci for full rationale.
-ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError" \
+# Day 50 additions (Phase 5 perf tuning, observability before optimization):
+#   AlwaysPreTouch                  — commit all heap pages at start so
+#                                     latency in the steady state isn't
+#                                     paying for lazy page faults.
+#   HeapDumpOnOutOfMemoryError      — leave a postmortem .hprof when
+#                                     ExitOnOutOfMemoryError trips.
+#   -Xlog:gc*:file=...              — capture rotated GC logs so
+#                                     "before/after p95 + GC pause" comparisons
+#                                     are real numbers, not vibes.
+ENV JAVA_OPTS="-XX:+UseContainerSupport -XX:MaxRAMPercentage=75 -XX:+UseG1GC -XX:+UseStringDeduplication -XX:+ExitOnOutOfMemoryError -XX:+AlwaysPreTouch -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/app/logs/heap-dump.hprof -Xlog:gc*:file=/app/logs/gc.log:time,uptime,level,tags:filecount=5,filesize=10M" \
     SPRING_PROFILES_ACTIVE=docker
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=40s --retries=3 \

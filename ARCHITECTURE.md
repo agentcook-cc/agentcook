@@ -2,6 +2,22 @@
 
 agentcook 是一个商业级 AI Agent 产品的完整技术栈。
 
+## Phase 5 状态（Day 52）
+
+- ✅ Phase 4 微服务架构 + Helm chart 完成
+- ✅ Phase 4.6 chat 接真 Qwen（ADR-017，2026-06-01）
+- 🟡 Phase 4.5 prod Blue-Green 切流量推迟到教程发布前（P2）
+
+## 详细架构图（Day 52-53 新增）
+
+3 张图覆盖不同视角，源文件在 [`docs/architecture/`](./docs/architecture/)：
+
+| 文件 | 视角 |
+|---|---|
+| [`01-overall-architecture.md`](./docs/architecture/01-overall-architecture.md) | L1-L4 仓库矩阵 + 协议契约 + 双后端边界 |
+| [`02-chat-realtime-dataflow.md`](./docs/architecture/02-chat-realtime-dataflow.md) | chat 真栈数据流（用户 → Vite proxy → uvicorn → providers → Qwen → SSE）|
+| [`03-k8s-deployment.md`](./docs/architecture/03-k8s-deployment.md) | K8s 部署 + Helm chart + 网络/扩缩/Blue-Green |
+
 ## 1. 仓库矩阵
 
 ```mermaid

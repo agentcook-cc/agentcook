@@ -87,6 +87,12 @@ agentCore:
     tag: latest
   replicaCount: 1
   port: 8000
+  # Day 50 C 调优 #1 实测保留 — uvicorn 1→4 workers:login p95 -47% /
+  # login fail rate -95% / chat 0 退化(详 audit/phase5-day50-performance-report.md §4
+  # 瓶颈 #1)。Day 52 A 接 C ping 待办 落 prod。
+  extraArgs:
+    - "--workers"
+    - "4"
   resources:
     requests:
       memory: "256Mi"

@@ -79,19 +79,25 @@ def create_provider(
 
         return EchoProvider(model=model or _DEFAULT_MODELS["echo"])
 
-    if provider == "anthropic":
-        raise NotImplementedError(
-            "Anthropic provider lands on Day 9 — see _internal/agent-a-day-7-providers-sketch.md"
+    if provider == "zhipu":
+        from agentcook_providers.zhipu_provider import ZhipuProvider
+
+        return ZhipuProvider(
+            model=model or _env("ZHIPU_MODEL") or _DEFAULT_MODELS["zhipu"],
+            api_key=kwargs.pop("api_key", None) or _env("ZHIPU_API_KEY"),
+            base_url=kwargs.pop("base_url", None) or _env("ZHIPU_BASE_URL"),
+            **kwargs,
         )
 
-    if provider == "zhipu":
+    if provider == "anthropic":
         raise NotImplementedError(
-            "Zhipu provider lands on Day 9-10 — see _internal/agent-a-day-7-providers-sketch.md"
+            "Anthropic provider not yet landed — Phase 6 backlog. "
+            "Use 'openai' / 'qwen' / 'zhipu' / 'echo' instead."
         )
 
     raise ValueError(
         f"Unknown LLM provider: {provider!r}. "
-        "Supported: 'openai', 'anthropic', 'qwen', 'zhipu', 'echo'."
+        "Supported: 'openai', 'qwen', 'zhipu', 'echo'."
     )
 
 

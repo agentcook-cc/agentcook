@@ -278,6 +278,32 @@ cd tests/e2e/playwright && npx playwright test --reporter=list
 
 ---
 
+## 9.4 数据库 Schema 迁移(Flyway 自动 / Day 56 评估结论)
+
+**决策(Day 56 C)**:**不需要单独的 helm post-install Job 跑 migration**。理由:
+
+1. Spring Boot admin-bff 启动时 Flyway 自动 baseline + migrate(`spring.flyway.enabled=true` 默认)— 见 `agentcook-java/agentcook-api/src/main/resources/application.yml:39`
+2. 当前 V1-V4 全是 `ALTER TABLE ADD COLUMN` 或 `CREATE TABLE` non-destructive 操作,加列带 default + nullable,**对老 row 安全**
+3. K8s 滚动更新策略:`maxSurge=1` `maxUnavailable=0` — 新版本 pod ready(Flyway migrate 完成 + healthcheck 通过)才 kill 旧 pod,migration 与流量天然解耦
+4. 多 replica 场景:Flyway 内置 `flyway_schema_history` 锁(LOCK TABLE)防并发执行,2 个 admin-bff pod 同时启动也只有一个真 migrate
+
+**何时需要 Job**(留 Phase 5 backlog):
+
+- destructive migration(DROP COLUMN / DROP TABLE / 大批量 UPDATE)— 此时要先 scale admin-bff = 0 → 跑 Job → scale 回 N
+- 数据迁移(不只 schema)— 几百万行回填,启动时长会拖慢 readiness gate
+
+**ADR-018 V4 实测**(`db/migration/V4__add_quota.sql` D Day 56 落):
+
+```sql
+ALTER TABLE users ADD COLUMN free_questions_used  INTEGER     DEFAULT 0    NOT NULL;
+ALTER TABLE users ADD COLUMN free_questions_quota INTEGER     DEFAULT 2    NOT NULL;
+ALTER TABLE users ADD COLUMN quota_reset_at       TIMESTAMPTZ DEFAULT NULL;
+```
+
+3 列全 nullable 或带 default,符合"不要 Job"的判定,Flyway 自动跑即可。
+
+---
+
 ## 10. 灾备 + 回滚
 
 ### 10.1 一键回滚

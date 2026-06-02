@@ -17,8 +17,13 @@ spring:
     password: ${POSTGRES_PASSWORD:agentcook_dev}
     driver-class-name: org.postgresql.Driver
     hikari:
-      maximum-pool-size: 10
-      minimum-idle: 2
+      # Day 51 (Phase 5 perf tuning, C ping D §2 from Day 50 perf report):
+      # 10 → 30 unblocks ~600 RPS sustained at 50ms/conn hold time vs the
+      # ~200 RPS ceiling the old pool imposed once 200u locust traffic
+      # arrived. The prod profile (application-prod.yml) keeps its own
+      # values; this default applies to dev / docker / k8s profiles.
+      maximum-pool-size: 30
+      minimum-idle: 5
 
   jpa:
     hibernate:
@@ -49,6 +54,15 @@ server:
   port: 8080
   # Drain in-flight requests on SIGTERM (K8s pod termination grace).
   shutdown: graceful
+  tomcat:
+    # Day 51: Spring Boot's default tomcat.threads.max=200 / accept-count=100
+    # capped sustained concurrency at 200 in-flight requests, so 500u locust
+    # traffic queued at the connector and saw 5-15s tail latency. Raising
+    # both is safe at our heap size (1Gi limits.memory in Helm Day 50) —
+    # Tomcat threads are NIO workers, not OS threads-per-connection.
+    threads:
+      max: 400
+    accept-count: 200
 
 springdoc:
   api-docs:

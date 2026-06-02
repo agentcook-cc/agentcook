@@ -177,6 +177,31 @@
                     </execution>
                 </executions>
             </plugin>
+
+            <!-- Day 51 (Phase 5 合规检查): OWASP dependency-check.
+                 Runs on demand only — `mvn org.owasp:dependency-check-maven:check`
+                 — never bound to a build phase. The first run downloads the
+                 full NVD CVE feed (~500 MB) and can take 5-15 minutes; a
+                 deliberate run is the right ergonomics. -->
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>10.0.4</version>
+                <configuration>
+                    <formats>
+                        <format>HTML</format>
+                        <format>JSON</format>
+                    </formats>
+                    <skipSystemScope>true</skipSystemScope>
+                    <!-- CVSS >= 7.0 (HIGH/CRITICAL) fails the build when
+                         we choose to run dependency-check in CI. -->
+                    <failBuildOnCVSS>7.0</failBuildOnCVSS>
+                    <suppressionFiles>
+                        <!-- Add a file here if a finding is reviewed and
+                             accepted; format = OWASP suppression XML. -->
+                    </suppressionFiles>
+                </configuration>
+            </plugin>
         </plugins>
     </build>
 

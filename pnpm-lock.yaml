@@ -102,9 +102,15 @@ importers:
       '@tanstack/react-query':
         specifier: ^5.28.0
         version: 5.100.10(react@19.2.6)
+      '@types/dompurify':
+        specifier: ^3.2.0
+        version: 3.2.0
       axios:
         specifier: ^1.7.0
         version: 1.16.1
+      dompurify:
+        specifier: ^3.4.7
+        version: 3.4.7
       highlight.js:
         specifier: ^11.9.0
         version: 11.11.1
@@ -2705,6 +2711,13 @@ packages:
       '@types/ms': 2.1.0
     dev: false
 
+  /@types/dompurify@3.2.0:
+    resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
+    deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
+    dependencies:
+      dompurify: 3.4.7
+    dev: false
+
   /@types/estree-jsx@1.0.5:
     resolution: {integrity: sha512-52CcUVNFyfb1A2ALocQw/Dd1BQFNmSdkuC3BkZ6iqhdMfQz7JWOFRuJFloOzjk+6WijU56m9oKXFAXc7o3Towg==}
     dependencies:
@@ -4167,8 +4180,8 @@ packages:
     resolution: {integrity: sha512-7ZgogeTnjuHbo+ct10G9Ffp0mif17idi0IyWNVA/wcwcm7NPOD/WEHVP3n7n3MhXqxoIYm8d6MuZohYWIZ4T3w==}
     dev: true
 
-  /dompurify@3.4.5:
-    resolution: {integrity: sha512-OrwIBKsdNSVEeubdJ1HBv/wNENRM9ytAVCv7YXt//A3vPdVMNuACRqK9mXCGCBW2ln7BT/A4X0jXHo2Gu89miA==}
+  /dompurify@3.4.7:
+    resolution: {integrity: sha512-2jBxDJY4RR06tQNy4w5FlFH7kfxsQZlufd0sbv+chfHCxeJwrFw2baUDsSwvBISD4K4RDbd0PTfy3uNXsR6siA==}
     optionalDependencies:
       '@types/trusted-types': 2.0.7
     dev: false
@@ -5743,7 +5756,7 @@ packages:
       d3-sankey: 0.12.3
       dagre-d3-es: 7.0.14
       dayjs: 1.11.20
-      dompurify: 3.4.5
+      dompurify: 3.4.7
       es-toolkit: 1.46.1
       katex: 0.16.47
       khroma: 2.1.0

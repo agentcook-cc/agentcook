@@ -113,15 +113,16 @@ pnpm --filter @agentcook-cc/app electron:build
 
 ---
 
-## 截图(Day 53 Agent B 落档)
+## 截图(Day 52-53 Agent B 落档)
 
-| 视图 | 截图路径 |
-|---|---|
-| Login(placeholder-only inputs) | `docs/screenshots/app-01-login.png` |
-| Chat(空会话,Plugin Picker 展开) | `docs/screenshots/app-02-chat-empty.png` |
-| Chat(流式 qwen 回复 + Markdown 渲染) | `docs/screenshots/app-03-chat-streaming.png` |
-| Chat(Mermaid 图表渲染 + DOMPurify 后) | `docs/screenshots/app-04-mermaid.png` |
-| Chat(SkillCallCard 工具调用 trace) | `docs/screenshots/app-05-skill-trace.png` |
+| 视图 | 截图路径 | 说明 |
+|---|---|---|
+| Login(placeholder-only inputs) | `docs/screenshots/app-01-login.png` | 真栈 / dev 模式 |
+| Chat(空会话,Plugin Picker 折叠) | `docs/screenshots/app-02-chat-empty.png` | 真栈 / 已登录新会话 |
+| Chat(流式 qwen 回复 + Markdown 渲染) | `docs/screenshots/app-03-chat-streaming.png` | 真栈 / DASHSCOPE qwen-turbo round-trip |
+| SkillCallCard 3 状态(pending / success / error) | `docs/screenshots/app-05-skill-trace.png` | Storybook 组件库示意 — 真组件 (`src/components/SkillCallCard.tsx`) 已落,主流 ChatPage 接入 Phase 6 backlog |
+
+> **Mermaid 渲染**:代码路径已落 (`src/components/media/MermaidBlock.tsx` 接 `DOMPurify` + `mermaid.securityLevel: 'strict'`,详 Day 51 合规 progress §2);真栈 round-trip 截图 Day 53 实测时后端 `chat/stream` SSE 200 头建但 90s 0 chunk(DASHSCOPE 上游受限),Phase 6 backend 侧修后补图。
 
 ---
 

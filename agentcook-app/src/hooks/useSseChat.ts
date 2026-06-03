@@ -80,7 +80,7 @@ export function useSseChat({
     heartbeatTimerRef.current = setTimeout(onTimeout, HEARTBEAT_TIMEOUT_MS);
   }
 
-  const send = useCallback(async (message: string): Promise<void> => {
+  const send = useCallback(async (message: string, overrideBody: Record<string, unknown> = {}): Promise<void> => {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -98,7 +98,7 @@ export function useSseChat({
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ message, ...extraBody }),
+          body: JSON.stringify({ message, ...extraBody, ...overrideBody }),
           signal: controller.signal,
         });
 

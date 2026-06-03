@@ -55,6 +55,29 @@ The full list is in `dist/css/variables.css`. Highlights:
 Both admin and app are guaranteed to render the same pixel values for
 the same token — verified by Storybook visual diffs.
 
+## Token gallery (Day 53 Storybook screenshots)
+
+Pulled from the published Storybook (`pnpm build-storybook` → `storybook-static/`),
+one screenshot per token domain. All 6 prove the dist outputs render
+identically to the source `tokens/*.json`.
+
+| Domain | Story | Screenshot |
+|--------|-------|------------|
+| Color (atomic palette + semantic) | `Foundation/Colors/Full Palette` | `docs/screenshots/tokens-01-color-palette.png` |
+| Typography (families, sizes, weights, line-heights) | `Foundation/Typography/Font Families` | `docs/screenshots/tokens-02-typography.png` |
+| Spacing (4 px ruler, 0–96) | `Foundation/Spacing/Ruler` | `docs/screenshots/tokens-03-spacing.png` |
+| Radius (sm / md / lg / full) | `Foundation/Radius/All` | `docs/screenshots/tokens-04-radius.png` |
+| Shadow (elevation 1–5) | `Foundation/Shadow/Layers` | `docs/screenshots/tokens-05-shadow.png` |
+| Motion (durations + easings) | `Foundation/Motion/Durations` | `docs/screenshots/tokens-06-motion.png` |
+
+To reproduce locally:
+
+```bash
+pnpm --filter @agentcook-cc/design-tokens build-storybook
+python3 -m http.server 6007 --directory agentcook-design-tokens/storybook-static
+# then open http://localhost:6007/iframe.html?id=foundation-colors--palette&viewMode=story
+```
+
 ## Usage
 
 ### Admin (Vue 3 + Element Plus)

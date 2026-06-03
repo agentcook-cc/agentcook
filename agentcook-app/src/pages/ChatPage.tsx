@@ -97,11 +97,16 @@ export default function ChatPage() {
       setConnectionError(null);
       lastMessageRef.current = text;
 
-      // Auto-create session if none active
+      // Auto-create session if none active. Track effective id locally —
+      // navigate() does not refresh the closure's `sessionId` before send()
+      // fires, so without the override useSseChat would POST with
+      // session_id=undefined and the backend rejects (422 missing field).
+      let effectiveSessionId = sessionId;
       if (!sessionId) {
         const newId = await createSession(text.slice(0, 50));
         if (newId) {
           navigate(`/chat/${newId}`, { replace: true });
+          effectiveSessionId = newId;
         }
       }
 
@@ -125,7 +130,7 @@ export default function ChatPage() {
       setMessages((prev) => [...prev, userMessage, assistantMessage]);
       setIsStreaming(true);
 
-      await send(text);
+      await send(text, { session_id: effectiveSessionId });
     },
     [isStreaming, send, sessionId, createSession, navigate],
   );

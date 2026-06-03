@@ -137,15 +137,26 @@ async def _stream_mock_response(
 
 async def _stream_real_response(
     request: ChatStreamRequest,
+    provider_override: str | None = None,
 ) -> AsyncIterator[bytes]:
     """Stream a real LLM response via the configured provider (default Qwen).
 
     Wraps ``provider.stream_chat()`` chunks into ``ChatStreamFrame`` SSE.
     Errors (rate limit / 5xx / timeout) emit a terminal frame with ``error``
     set so the frontend can surface them without breaking the SSE contract.
+
+    :param provider_override: ADR-018 quota resolver hook — when set, builds
+        a fresh provider via ``agentcook_providers.create_provider(name)``
+        instead of using the cached singleton. ``None`` keeps the
+        Phase 4.6 single-provider behaviour.
     """
     session_id = request.session_id
-    provider = _get_provider()
+    if provider_override:
+        from agentcook_providers.factory import create_provider as _create_provider
+
+        provider = _create_provider(provider=provider_override)
+    else:
+        provider = _get_provider()
     model_used = request.model or getattr(provider, "model_name", "unknown")
 
     # First frame: echo session_id (matches mock contract for useSseChat)

@@ -4,6 +4,7 @@ import { useAuthStore } from "@/stores/auth";
 import { useSseChat } from "@/hooks/useSseChat";
 import { useSession } from "@/hooks/useSession";
 import { useQuota } from "@/hooks/useQuota";
+import { useTurnstile } from "@/hooks/useTurnstile";
 import VirtualMessageList from "@/components/VirtualMessageList";
 import ChatInput from "@/components/ChatInput";
 import ChatPluginPicker from "@/components/ChatPluginPicker";
@@ -26,6 +27,7 @@ export default function ChatPage() {
 
   const { sessions, createSession, loadSessionMessages } = useSession();
   const quota = useQuota(isAuthenticated);
+  const turnstile = useTurnstile();
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
@@ -88,6 +90,17 @@ export default function ChatPage() {
     extraBody: {
       session_id: sessionId,
       plugins: selectedPlugins.length > 0 ? selectedPlugins : undefined,
+    },
+    // Phase 6 #24 cascade 第 4 环 — chat 端 X-Turnstile-Token. dev sentinel
+    // mode (无 VITE_TURNSTILE_SITE_KEY) 返 mock token, A Python middleware
+    // (commit 3bd7f97) AGENTCOOK_TURNSTILE_DEV_SHORT_CIRCUIT 默认开短路.
+    // 真栈生效条件: 部署 prod + AGENTCOOK_TURNSTILE_WORKER_URL 配 + B 侧设
+    // VITE_TURNSTILE_SITE_KEY → useTurnstile 渲染真 widget → 真 token.
+    resolveExtraHeaders: () => {
+      const token = turnstile.token;
+      const headers: Record<string, string> = {};
+      if (token) headers["X-Turnstile-Token"] = token;
+      return headers;
     },
   });
 

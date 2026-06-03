@@ -10,6 +10,13 @@ interface SseChatOptions {
   endpoint?: string;
   /** Additional body fields merged into the request (e.g. session_id, plugins) */
   extraBody?: Record<string, unknown>;
+  /**
+   * Phase 6 #24 (cascade 第 4 环): per-send headers — e.g.
+   * `{"X-Turnstile-Token": "..."}` resolved from useTurnstile(). Kept
+   * as a getter so the caller can recompute on every send (Turnstile
+   * tokens are single-use; the hook fires reset() after a 401).
+   */
+  resolveExtraHeaders?: () => Record<string, string>;
 }
 
 const PYTHON_BASE =
@@ -64,9 +71,15 @@ export function useSseChat({
   maxRetries = 3,
   endpoint = "/api/v1/chat/stream",
   extraBody = {},
+  resolveExtraHeaders,
 }: SseChatOptions) {
   const abortRef = useRef<AbortController | null>(null);
   const heartbeatTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Keep resolveExtraHeaders fresh without busting send's useCallback —
+  // ChatPage hands a new arrow function on every render (Turnstile token
+  // changes), and send must observe the latest value (single-use token).
+  const resolveHeadersRef = useRef(resolveExtraHeaders);
+  resolveHeadersRef.current = resolveExtraHeaders;
 
   function clearHeartbeat() {
     if (heartbeatTimerRef.current) {
@@ -92,11 +105,13 @@ export function useSseChat({
       try {
         const token = useAuthStore.getState().accessToken;
         const url = endpoint.startsWith("http") ? endpoint : `${PYTHON_BASE}${endpoint}`;
+        const extraHeaders = resolveHeadersRef.current?.() ?? {};
         const response = await fetch(url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
+            ...extraHeaders,
           },
           body: JSON.stringify({ message, ...extraBody, ...overrideBody }),
           signal: controller.signal,

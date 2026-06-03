@@ -98,3 +98,11 @@ agentcook:
   auth:
     jwt-secret: ${AGENTCOOK_AUTH_JWT_SECRET:phase3-dev-secret-not-for-prod-32bytes!!}
     jwt-ttl-seconds: ${AGENTCOOK_AUTH_JWT_TTL_SECONDS:3600}
+  # Buffer Day 62 / Phase 5 backlog #11 — Cloudflare Turnstile.
+  # Empty secret means "skip verification" (dev / test profile).
+  # Set AGENTCOOK_TURNSTILE_SECRET in any environment that needs the
+  # gate to actually run — see draft-cloudflare-turnstile-rate-limit-design.md
+  # for the cascade.
+  turnstile:
+    secret: ${AGENTCOOK_TURNSTILE_SECRET:}
+    siteverify-url: ${AGENTCOOK_TURNSTILE_SITEVERIFY_URL:https://challenges.cloudflare.com/turnstile/v0/siteverify}

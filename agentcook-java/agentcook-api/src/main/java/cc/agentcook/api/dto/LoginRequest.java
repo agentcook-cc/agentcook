@@ -12,6 +12,14 @@ public record LoginRequest(
 
         @Schema(example = "dev")
         @NotBlank
-        String password
+        String password,
+
+        @Schema(
+                example = "0.cf-turnstile-response-token",
+                description = "Cloudflare Turnstile response token (Buffer Day 62 / backlog #11). "
+                        + "Required when `agentcook.turnstile.secret` is configured; ignored in "
+                        + "dev mode when the secret is unset.",
+                nullable = true)
+        String turnstileToken
 ) {
 }

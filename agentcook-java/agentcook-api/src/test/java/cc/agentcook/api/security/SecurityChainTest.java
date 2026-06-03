@@ -1,6 +1,7 @@
 package cc.agentcook.api.security;
 
 import cc.agentcook.api.auth.JwtTokenIssuer;
+import cc.agentcook.api.auth.TurnstileVerifier;
 import cc.agentcook.api.config.SecurityConfig;
 import cc.agentcook.api.controller.AuthController;
 import io.jsonwebtoken.Jwts;
@@ -52,7 +53,7 @@ class SecurityChainTest {
      * No JPA, no Flyway, no Redis, no Testcontainers.
      */
     @Configuration
-    @Import({SecurityConfig.class, JwtTokenIssuer.class, AuthController.class})
+    @Import({SecurityConfig.class, JwtTokenIssuer.class, TurnstileVerifier.class, AuthController.class})
     @org.springframework.boot.autoconfigure.SpringBootApplication(
             exclude = {
                     org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,

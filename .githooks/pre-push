@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+# Phase 6 #28 — cross-repo verify guard (cookbook 23 sub-item #22).
+#
+# Block any push from agentcook-cc when the sibling agentcook
+# workspace repo has untracked audit/ or progress/ files. Catches the
+# recurring failure mode where Agent commits source code here but
+# leaves the matching progress/audit doc untracked in the workspace
+# repo — coordinator's `git log` then shows the work landed while
+# `git status` in the other repo silently hides the unstaged report.
+#
+# To bypass intentionally (e.g. you really do want to push source
+# before writing the progress doc), run with:
+#     git push --no-verify
+#
+# Install (once per clone):
+#     git config core.hooksPath .githooks
+# Documented in agentcook-cc/README.md "Cross-repo git hooks" section.
+
+set -u
+
+ROOT=$(git rev-parse --show-toplevel)
+
+if [[ "$ROOT" != *"agentcook-cc"* ]]; then
+  # Only fire from agentcook-cc; other repos don't have a sibling to verify.
+  exit 0
+fi
+
+# The sibling workspace repo lives next to agentcook-cc:
+#   .../workspace/accio-work/agentcook-cc
+#   .../workspace/accio-work/agentcook    <- sibling
+SIBLING="$(dirname "$ROOT")/agentcook"
+
+if [[ ! -d "$SIBLING/.git" ]]; then
+  echo "ℹ pre-push: sibling agentcook workspace not found at $SIBLING — skipping cross-repo verify" >&2
+  exit 0
+fi
+
+UNTRACKED=$(
+  cd "$SIBLING" \
+    && git status --short \
+    | grep -E '^\?\? tutorial/_internal/(audit|progress)/' || true
+)
+
+if [[ -n "$UNTRACKED" ]]; then
+  echo "🔴 pre-push BLOCKED: agentcook workspace has untracked audit/progress files." >&2
+  echo "" >&2
+  echo "Files:" >&2
+  echo "$UNTRACKED" | sed 's/^/  /' >&2
+  echo "" >&2
+  echo "Cookbook 23 sub-item #22 — every cross-repo commit pair must be" >&2
+  echo "complete before push: source in agentcook-cc + matching" >&2
+  echo "progress/audit in agentcook workspace." >&2
+  echo "" >&2
+  echo "Options:" >&2
+  echo "  1. cd $SIBLING && git add tutorial/_internal/{audit,progress}/... && git commit" >&2
+  echo "  2. git push --no-verify   (only if intentional — leaves cross-repo state out of sync)" >&2
+  exit 1
+fi
+
+exit 0

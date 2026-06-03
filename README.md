@@ -62,6 +62,24 @@ make dev
 make dev-infra   # 等同于 docker compose up -d
 ```
 
+### 跨 repo git hooks（Phase 6 #28）
+
+本仓库与作者的 `agentcook` 工作区仓平行存放（兄弟目录）。提交源码到本仓时，常常忘记把对应的 `audit/` / `progress/` 笔记 commit 到工作区仓 — 协调员 review 时看到代码已 push 但找不到对应文档（cookbook 23 子项 #22 累计教训 4 次）。
+
+仓库自带一个 `.githooks/pre-push` 守门员：检测到工作区仓的 `tutorial/_internal/audit/` 或 `tutorial/_internal/progress/` 有未提交的新文件时阻止 push。
+
+一次性启用（每个 clone 执行一次）：
+
+```bash
+git config core.hooksPath .githooks
+```
+
+故意绕过（明确就是想先推源码、稍后补文档）：
+
+```bash
+git push --no-verify
+```
+
 ### 常用命令（Makefile）
 
 ```bash

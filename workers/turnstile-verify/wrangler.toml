@@ -1,0 +1,35 @@
+name = "agentcook-turnstile-verify"
+main = "src/index.ts"
+compatibility_date = "2026-06-05"
+compatibility_flags = ["nodejs_compat"]
+
+# Cloudflare account ID(release-checklist line 10)
+account_id = "95d7125eef7f18899c645a917bf08b0e"
+
+# Production:绑定到 turnstile.agentcook.cc(待 Day 64 域名 cascade 后)
+# 或 *.workers.dev 默认子域(实测期用)
+[env.production]
+name = "agentcook-turnstile-verify-prod"
+# routes 留空 — Day 62 实测期先用 https://agentcook-turnstile-verify-prod.<account>.workers.dev
+# Day 64 域名上后改:
+# routes = [{ pattern = "turnstile.agentcook.cc/*", zone_name = "agentcook.cc" }]
+
+[env.staging]
+name = "agentcook-turnstile-verify-staging"
+# 实测期默认 *.workers.dev
+
+# secrets — wrangler secret put 注入,不写代码
+# 必须由作者 Cloudflare Dashboard 创 Turnstile site 后操作:
+#
+#   wrangler secret put TURNSTILE_SECRET --env production
+#   wrangler secret put TURNSTILE_SECRET --env staging
+#
+# dev bypass(可选):
+#   wrangler secret put TURNSTILE_BYPASS --env staging  # 输入 "true"
+
+# Observability:Worker analytics 自动开,可在 Cloudflare Dashboard 看 req count + error rate
+[observability]
+enabled = true
+head_sampling_rate = 1.0
+
+# 不需 KV / R2 / D1 / Queue —— turnstile-verify 是无状态

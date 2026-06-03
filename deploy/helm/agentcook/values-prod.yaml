@@ -27,6 +27,14 @@ prometheusRule:
   enabled: true
   tokenCostThresholdUsd: 50
 
+# Rate limit on in prod — Cloudflare Worker 是首选(workers/rate-limit/),
+# 本 ingress 注解是兜底(Worker 配额超限或 Cloudflare 短暂故障时仍能 throttle)。
+rateLimit:
+  enabled: true
+  perIpPerMin: "200"
+  perIpPerSecond: "10"
+  maxConcurrentConnections: "20"
+
 # Drop trace sampling to 10% in prod (base values says "values-prod drops
 # to 0.1" — that override was missing until Day 45-47).
 observability:

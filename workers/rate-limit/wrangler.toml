@@ -1,0 +1,45 @@
+name = "agentcook-rate-limit"
+main = "src/index.ts"
+compatibility_date = "2026-06-05"
+compatibility_flags = ["nodejs_compat"]
+
+account_id = "95d7125eef7f18899c645a917bf08b0e"
+
+# 阈值用 vars 注入(可不重 build 改)
+[vars]
+RATE_LIMIT_PER_USER_PER_MIN = "60"
+RATE_LIMIT_PER_IP_PER_MIN = "200"
+
+# Production
+[env.production]
+name = "agentcook-rate-limit-prod"
+# Day 64 域名上后改:
+# routes = [{ pattern = "agentcook.cc/api/*", zone_name = "agentcook.cc" }]
+
+[env.production.vars]
+RATE_LIMIT_PER_USER_PER_MIN = "60"
+RATE_LIMIT_PER_IP_PER_MIN = "200"
+
+# Production KV — wrangler kv:namespace create RATE_LIMIT_KV --env production
+# 创建后把返的 id 填入下方
+[[env.production.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "REPLACE_WITH_PROD_KV_ID" # 待 wrangler 真创后回填
+preview_id = "REPLACE_WITH_PROD_PREVIEW_KV_ID"
+
+# Staging
+[env.staging]
+name = "agentcook-rate-limit-staging"
+
+[env.staging.vars]
+RATE_LIMIT_PER_USER_PER_MIN = "120" # staging 双倍便于压测
+RATE_LIMIT_PER_IP_PER_MIN = "400"
+
+[[env.staging.kv_namespaces]]
+binding = "RATE_LIMIT_KV"
+id = "REPLACE_WITH_STAGING_KV_ID"
+preview_id = "REPLACE_WITH_STAGING_PREVIEW_KV_ID"
+
+[observability]
+enabled = true
+head_sampling_rate = 1.0

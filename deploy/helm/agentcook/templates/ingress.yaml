@@ -6,6 +6,18 @@ metadata:
     {{- include "agentcook.labels" . | nindent 4 }}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /
+    {{- if .Values.rateLimit.enabled }}
+    # Day 62 fallback rate limit — Cloudflare Worker 是首选,本 ingress
+    # 注解是 K8s 层兜底(若 Worker 配额超限或 Cloudflare 短暂故障)。
+    # 阈值与 workers/rate-limit/wrangler.toml 一致(60/min user / 200/min IP)。
+    # 详 design doc §2.3.3 + monitoring-alerts-sop.md §4。
+    nginx.ingress.kubernetes.io/limit-rpm: {{ .Values.rateLimit.perIpPerMin | quote }}
+    nginx.ingress.kubernetes.io/limit-rps: {{ .Values.rateLimit.perIpPerSecond | quote }}
+    nginx.ingress.kubernetes.io/limit-connections: {{ .Values.rateLimit.maxConcurrentConnections | quote }}
+    {{- with .Values.rateLimit.whitelistSourceRange }}
+    nginx.ingress.kubernetes.io/limit-whitelist: {{ . | quote }}
+    {{- end }}
+    {{- end }}
 spec:
   rules:
     - host: {{ .Values.ingress.host | quote }}

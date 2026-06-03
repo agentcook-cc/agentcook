@@ -18,5 +18,10 @@ module.exports = {
   rules: {
     // 故意宽松 — Worker 代码已 review 过,不在 Day 62 范围加严
   },
-  ignorePatterns: ["node_modules/", "dist/", ".wrangler/"],
+  // Cloudflare Worker .ts 由 wrangler 自带 esbuild + 各 Worker 内 vitest
+  // 类型检查兜底。Day 63 协调员 ESLint 触发词清理是项目层 .eslintrc.cjs
+  // 范围(agentcook-app/admin),不覆盖 workers/。本目录显式 ignore *.ts
+  // 避免 root lint-staged glob `*.{ts,tsx}` 拉走 ESLint 默认 parser
+  // 失败(没装 typescript-eslint)。
+  ignorePatterns: ["**/*.ts", "**/*.tsx", "node_modules/", "dist/", ".wrangler/"],
 };

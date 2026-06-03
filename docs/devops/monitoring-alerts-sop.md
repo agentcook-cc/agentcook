@@ -40,7 +40,9 @@
 
 ---
 
-## 3. 3 Grafana Dashboards 速查
+## 3. 4 Grafana Dashboards 速查
+
+> Day 62 加第 4 个 `Security & Rate Limit`(`security-rate-limit.json`),覆盖 Phase 5 backlog #11 落地后的边缘 + 应用层防护可视化。Day 55 之前 brief 一直说"4 dashboards"是脑补,Day 62 真补齐。
 
 ### 3.1 `agentcook · Overview`
 
@@ -77,9 +79,23 @@
 | p95 LLM latency by provider   | qwen 上游延迟(Day 50 §4 瓶颈 #3 监控)                       |
 | Top 10 longest recent calls   | 找异常长 call(可能是 timeout 边界)                          |
 
+### 3.4 `agentcook · Security & Rate Limit`(Day 62 加 / 9 panel)
+
+| 面板                                       | 用途                                                |
+| ------------------------------------------ | --------------------------------------------------- |
+| Turnstile 验证失败率(5min)                 | 阈值 > 30% 触发 alert(R1 缓解信号)                  |
+| Rate Limit 命中数(5min)                    | 429 突增信号                                        |
+| Turnstile pass / fail 趋势                 | 1m rate 二维曲线                                    |
+| Rate Limit 429 by service                  | 哪个 service 被刷最多(chat / login / API)           |
+| Top 10 被限速 IP(1h)                       | 反黑名单参考                                        |
+| chat /api/v1/chat/stream 状态码分布        | 200 / 401 / 429 / 5xx 看比                          |
+| Cloudflare Worker turnstile-verify(call/s) | 边缘验证调用量(需 Cloudflare exporter)              |
+| Cloudflare Worker rate-limit(call/s)       | 边缘 throttle 量                                    |
+| K8s ingress 兜底 throttle(daily)           | Cloudflare 全挂时 K8s nginx-ingress fallback 触发量 |
+
 ---
 
-## 4. 7 关键告警阈值
+## 4. 9 关键告警阈值(Day 62 +2 turnstile/rate-limit)
 
 每条 alert 在 `deploy/helm/agentcook/templates/prometheusrule.yaml`(Day 53 C 已落)有真定义。Grafana UnifiedAlerting 通过 Prometheus 数据源自动 sync 这些 rule(避免重复定义);Grafana 这一侧只配 receiver + routing(`agentcook-swarm/grafana/provisioning/alerting/`,Day 55 C)。
 

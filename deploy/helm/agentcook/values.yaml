@@ -51,6 +51,17 @@ prometheusRule:
   tokenCostThresholdUsd: 50
   additionalLabels: {}
 
+# Rate limit — K8s 层兜底(Cloudflare Worker 是首选 / 详 docs/adr/draft-
+# cloudflare-turnstile-rate-limit-design.md)。开 prod / staging,关 dev。
+# 阈值与 workers/rate-limit/wrangler.toml 一致。
+rateLimit:
+  enabled: false
+  perIpPerMin: "200"
+  perIpPerSecond: "10"
+  maxConcurrentConnections: "20"
+  # 白名单 CIDR(可选,逗号分隔)— 内部办公网 / CI runner IP 不限速
+  whitelistSourceRange: ""
+
 # Shared app config — injected as ConfigMap, mounted as envFrom on every
 # Deployment. Real URLs come from values-staging.yaml / values-prod.yaml.
 config:

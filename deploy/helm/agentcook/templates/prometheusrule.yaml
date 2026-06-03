@@ -97,4 +97,27 @@ spec:
             summary: "chat fail rate > 5% over 10min"
             description: "Check qwen API key / rate limit; emergency fallback: AGENTCOOK_CHAT_PROVIDER_DEFAULT=echo"
             runbook_url: "https://github.com/agentcook-cc/agentcook/blob/main/docs/devops/troubleshooting-runbook.md#6-chat-5xx-突增跨语言链路诊断"
+
+    - name: agentcook.security
+      rules:
+        - alert: AgentcookTurnstileFailRateHigh
+          expr: |
+            sum(rate(turnstile_verify_total{outcome="fail"}[5m]))
+              / clamp_min(sum(rate(turnstile_verify_total[5m])), 1) > 0.3
+          for: 10m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Turnstile 验证失败率 > 30% / 可能机器人攻击"
+            description: "Phase 5 backlog #11 / 详 docs/adr/draft-cloudflare-turnstile-rate-limit-design.md §5 R1"
+
+        - alert: AgentcookRateLimitHitSpike
+          expr: |
+            sum(rate(traefik_service_requests_total{code="429"}[5m])) > 10
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Rate Limit 触发 > 10 次/min / 可能滥用"
+            description: "Day 62 落:Cloudflare Worker (workers/rate-limit/) + K8s ingress 兜底"
 {{- end }}

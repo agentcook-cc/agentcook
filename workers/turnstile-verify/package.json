@@ -1,0 +1,19 @@
+{
+  "name": "agentcook-turnstile-verify",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Cloudflare Worker — Turnstile token verifier (Phase 5 backlog #11)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy:staging": "wrangler deploy --env staging",
+    "deploy:prod": "wrangler deploy --env production",
+    "tail:prod": "wrangler tail --env production",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240605.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "wrangler": "^3.60.0"
+  }
+}

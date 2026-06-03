@@ -187,18 +187,12 @@ def test_factory_creates_echo_provider() -> None:
     assert isinstance(p, EchoProvider)
 
 
-def test_factory_anthropic_not_implemented_yet() -> None:
-    # Phase 5 Day 54: message changed from "Day 9" placeholder to "Phase 6 backlog";
-    # Anthropic adapter remains unland — the only `NotImplementedError` left in
-    # the factory.
-    with pytest.raises(NotImplementedError, match="Phase 6 backlog"):
-        create_provider("anthropic")
-
-
 # Zhipu adapter landed on Phase 5 Day 54 (Agent A) — see
-# zhipu_provider.ZhipuProvider + agentcook-providers/tests/test_zhipu_provider.py
-# for the live coverage. The old "not implemented yet" expectation no longer
-# applies; create_provider("zhipu") now returns a ZhipuProvider instance.
+# agentcook-providers/tests/test_zhipu_provider.py for the live coverage.
+# Anthropic adapter landed on Buffer Day 59 (Agent A) — see
+# agentcook-providers/tests/test_anthropic_provider.py for the live coverage.
+# Both old "not implemented yet" expectations no longer apply; create_provider
+# now returns the corresponding provider instance for both.
 
 
 def test_factory_unknown_provider_raises() -> None:

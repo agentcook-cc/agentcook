@@ -90,14 +90,17 @@ def create_provider(
         )
 
     if provider == "anthropic":
-        raise NotImplementedError(
-            "Anthropic provider not yet landed — Phase 6 backlog. "
-            "Use 'openai' / 'qwen' / 'zhipu' / 'echo' instead."
+        from agentcook_providers.anthropic_provider import AnthropicProvider
+
+        return AnthropicProvider(
+            model=model or _env("ANTHROPIC_MODEL") or _DEFAULT_MODELS["anthropic"],
+            api_key=kwargs.pop("api_key", None) or _env("ANTHROPIC_API_KEY"),
+            **kwargs,
         )
 
     raise ValueError(
         f"Unknown LLM provider: {provider!r}. "
-        "Supported: 'openai', 'qwen', 'zhipu', 'echo'."
+        "Supported: 'openai', 'qwen', 'zhipu', 'anthropic', 'echo'."
     )
 
 

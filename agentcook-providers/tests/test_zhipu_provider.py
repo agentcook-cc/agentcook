@@ -213,14 +213,11 @@ class TestFactoryDispatch:
         )
         assert provider.model_name == "glm-4-long"
 
-    def test_anthropic_still_raises_not_implemented(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
-        # Verify the cleanup of NotImplementedError messages didn't accidentally
-        # remove Anthropic's placeholder.
-        monkeypatch.setenv("AGENTCOOK_LLM_PROVIDER", "anthropic")
-        with pytest.raises(NotImplementedError, match="Phase 6 backlog"):
-            create_provider()
+    # Note: This class previously asserted Anthropic still raised
+    # NotImplementedError. Buffer Day 59 (Agent A) landed AnthropicProvider
+    # — see agentcook-providers/tests/test_anthropic_provider.py for the
+    # live coverage. The factory.py "Supported:" string update keeps the
+    # ValueError branch test below in test_unknown_provider_raises honest.
 
 
 # ---------------------------------------------------------------------------

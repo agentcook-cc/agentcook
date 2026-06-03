@@ -18,9 +18,11 @@ import uuid
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, Header, HTTPException, status
 from fastapi.responses import StreamingResponse
 
+from agentcook_app.middleware.turnstile import get_turnstile_verifier
+from agentcook_app.schemas import ErrorEnvelope
 from agentcook_app.schemas_chat import ChatStreamFrame, ChatStreamRequest
 from agentcook_core.types import Message
 
@@ -230,6 +232,28 @@ async def _stream_real_response(
 # --------------------------------------------------------------------------
 
 
+def _turnstile_enforced() -> bool:
+    """True when the chat endpoint should require a Turnstile token.
+
+    Default False so every existing test + Phase 5 dev path keeps
+    running without Cloudflare configured. Production sets
+    ``AGENTCOOK_TURNSTILE_ENFORCE=true`` once the Worker is wrangler-
+    deployed and the front-end widget is plumbed to send the header
+    (Phase 6 backlog #20 cascade — front-end side is the third hop).
+
+    Mock path (``AGENTCOOK_CHAT_MOCK=true``) intentionally never
+    enforces — contract tests + offline dev should keep working
+    without a Cloudflare account.
+    """
+    if _use_mock():
+        return False
+    return os.environ.get("AGENTCOOK_TURNSTILE_ENFORCE", "").strip().lower() in (
+        "true",
+        "1",
+        "yes",
+    )
+
+
 @router.post(
     "/stream",
     responses={
@@ -238,10 +262,15 @@ async def _stream_real_response(
             "content": {"text/event-stream": {}},
         },
         400: {"description": "Invalid request body."},
+        401: {"description": "Turnstile token missing or rejected (when enforce mode is on)."},
     },
     summary="Stream a chat response as Server-Sent Events",
 )
-async def chat_stream(request: ChatStreamRequest) -> StreamingResponse:
+async def chat_stream(
+    request: ChatStreamRequest,
+    x_turnstile_token: str | None = Header(default=None, alias="X-Turnstile-Token"),
+    x_forwarded_for: str | None = Header(default=None, alias="X-Forwarded-For"),
+) -> StreamingResponse:
     """Stream an assistant response for the given user message.
 
     Accepts session_id + message + optional plugin_ids/model override.
@@ -250,12 +279,42 @@ async def chat_stream(request: ChatStreamRequest) -> StreamingResponse:
 
     Phase 5: integrates real LLM provider via model_router + hook_runtime
     pre/post hooks + sandbox_runner for tool execution.
+
+    Phase 6 (Buffer Day 68, backlog #20): when
+    ``AGENTCOOK_TURNSTILE_ENFORCE=true`` and the path is not on the
+    mock branch, the ``X-Turnstile-Token`` header is verified via the
+    middleware before any LLM call. Missing / rejected tokens get a
+    401 with the cloudflare error_codes pass-through so the front-end
+    can decide whether to re-challenge or surface a polite error.
     """
     if not request.session_id.strip():
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="session_id must not be empty",
         )
+
+    if _turnstile_enforced():
+        # Take the first IP in the X-Forwarded-For chain if a proxy
+        # appended several; ignore the rest because Cloudflare only
+        # ever cares about the originating client.
+        remote_ip = (
+            x_forwarded_for.split(",")[0].strip() if x_forwarded_for else None
+        )
+        decision = await get_turnstile_verifier().verify(
+            x_turnstile_token, remote_ip=remote_ip
+        )
+        if not decision.verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail=ErrorEnvelope(
+                    code="TURNSTILE_REJECTED",
+                    message=f"Turnstile verification failed: {decision.reason}",
+                    detail={
+                        "reason": decision.reason,
+                        "error_codes": list(decision.error_codes),
+                    },
+                ).model_dump(),
+            )
 
     generator = _stream_mock_response(request) if _use_mock() else _stream_real_response(request)
 

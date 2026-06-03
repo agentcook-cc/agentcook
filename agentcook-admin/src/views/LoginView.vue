@@ -2,25 +2,36 @@
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
+import { useTurnstile } from "@/composables/useTurnstile";
 import axios from "axios";
 
 const router = useRouter();
 const route = useRoute();
 const authStore = useAuthStore();
+const turnstile = useTurnstile();
 
 const form = ref({ username: "", password: "" });
 const loading = ref(false);
 const errorMessage = ref("");
+function setTurnstileContainer(el: unknown) {
+  if (el instanceof HTMLDivElement) {
+    turnstile.attach(el);
+  }
+}
 
 function describeError(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
-    const serverMessage =
-      (err.response?.data as { message?: string } | undefined)?.message;
+    const serverMessage = (
+      err.response?.data as { message?: string } | undefined
+    )?.message;
     if (status === 401) return serverMessage || "Invalid username or password.";
-    if (status === 403) return serverMessage || "Account disabled. Contact admin.";
-    if (status === 400) return serverMessage || "Bad request. Check your inputs.";
-    if (status && status >= 500) return `Server error (${status}). Try again later.`;
+    if (status === 403)
+      return serverMessage || "Account disabled. Contact admin.";
+    if (status === 400)
+      return serverMessage || "Bad request. Check your inputs.";
+    if (status && status >= 500)
+      return `Server error (${status}). Try again later.`;
     if (err.code === "ERR_NETWORK" || !err.response) {
       return "Cannot reach Java backend. Is it running on http://localhost:8080?";
     }
@@ -34,14 +45,24 @@ async function handleLogin() {
     errorMessage.value = "Please enter username and password";
     return;
   }
+  if (!turnstile.token.value) {
+    errorMessage.value =
+      "Please complete the Turnstile challenge before signing in";
+    return;
+  }
   loading.value = true;
   errorMessage.value = "";
   try {
-    await authStore.login(form.value.username, form.value.password);
+    await authStore.login(
+      form.value.username,
+      form.value.password,
+      turnstile.token.value,
+    );
     const redirect = (route.query.redirect as string) || "/dashboard";
     router.push(redirect);
   } catch (err) {
     errorMessage.value = describeError(err);
+    turnstile.reset();
   } finally {
     loading.value = false;
   }
@@ -85,11 +106,27 @@ async function handleLogin() {
             autocomplete="current-password"
           />
         </el-form-item>
+        <div
+          :ref="setTurnstileContainer"
+          data-testid="turnstile-container"
+          style="margin: 12px 0"
+        ></div>
+        <el-alert
+          v-if="turnstile.error.value"
+          :title="turnstile.error.value"
+          type="warning"
+          show-icon
+          :closable="false"
+          style="margin-bottom: 12px"
+        />
+
         <el-button
           type="primary"
           size="large"
           native-type="submit"
           :loading="loading"
+          :disabled="!turnstile.token.value"
+          data-testid="login-submit"
           style="width: 100%; margin-top: 8px"
         >
           Sign In

@@ -55,7 +55,9 @@ type UserResponseDto = components["schemas"]["UserResponse"];
 
 export const useAuthStore = defineStore("auth", () => {
   const accessToken = ref<string | null>(localStorage.getItem("access_token"));
-  const refreshToken = ref<string | null>(localStorage.getItem("refresh_token"));
+  const refreshToken = ref<string | null>(
+    localStorage.getItem("refresh_token"),
+  );
   const tokenExpiresAt = ref<number | null>(
     Number(localStorage.getItem("token_expires_at")) || null,
   );
@@ -64,7 +66,11 @@ export const useAuthStore = defineStore("auth", () => {
   const isAuthenticated = computed(() => !!accessToken.value);
   const hasRole = (role: string) => user.value?.roles.includes(role) ?? false;
 
-  function setTokens(access: string, refresh: string | undefined, expiresIn: number) {
+  function setTokens(
+    access: string,
+    refresh: string | undefined,
+    expiresIn: number,
+  ) {
     accessToken.value = access;
     localStorage.setItem("access_token", access);
     if (refresh) {
@@ -86,10 +92,15 @@ export const useAuthStore = defineStore("auth", () => {
     localStorage.removeItem("token_expires_at");
   }
 
-  async function login(username: string, password: string) {
+  async function login(
+    username: string,
+    password: string,
+    turnstileToken?: string | null,
+  ) {
     const data = await javaClient.post<LoginResponse>("/api/v1/auth/login", {
       username,
       password,
+      turnstileToken: turnstileToken ?? undefined,
     });
     const { access, refresh, expiresIn } = normaliseTokens(data);
     setTokens(access, refresh, expiresIn);
@@ -123,12 +134,17 @@ export const useAuthStore = defineStore("auth", () => {
     if (!accessToken.value) return;
     try {
       const data = await javaClient.get<
-        UserResponseDto & { username?: string; displayName?: string; roles?: string[] }
+        UserResponseDto & {
+          username?: string;
+          displayName?: string;
+          roles?: string[];
+        }
       >("/api/v1/users/me");
       user.value = {
         id: String(data.id ?? "unknown"),
         username: data.username ?? data.email ?? "unknown",
-        displayName: data.displayName ?? data.nickname ?? data.username ?? "User",
+        displayName:
+          data.displayName ?? data.nickname ?? data.username ?? "User",
         roles: data.roles ?? [],
       };
     } catch {

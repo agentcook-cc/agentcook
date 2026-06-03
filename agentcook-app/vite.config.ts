@@ -21,6 +21,14 @@ export default defineConfig({
           markdown: ["react-markdown", "remark-gfm", "rehype-highlight"],
           virtuoso: ["react-virtuoso"],
           axios: ["axios"],
+          // Phase 6 #27 — split i18n + state vendors out of the main
+          // bundle. login is the LCP-critical surface and does not need
+          // either bundle to render; vite's <link rel="modulepreload">
+          // still kicks in for any chunk reachable from the entry, so
+          // the cost is one extra parallel HTTP/2 request per route in
+          // exchange for ~80–100 KB shaved off the main bundle.
+          i18n: ["i18next", "react-i18next"],
+          state: ["zustand", "@tanstack/react-query"],
         },
       },
     },

@@ -341,6 +341,28 @@ bash scripts/dns-cutover.sh --target=blue
 - [x] helm lint 0 failed
 - [x] 本 production-configuration.md 起草
 
+### 11.1 Day 62 Buffer 增量(C 落)
+
+- [x] `workers/turnstile-verify/`(161 行 ts + 6 vitest)+ `workers/rate-limit/`(169 行 ts + KV)
+- [x] templates/networkpolicy.yaml(Day 53)+ templates/prometheusrule.yaml 加 `agentcook.security` group +2 alerts(Day 62)
+- [x] templates/ingress.yaml 加 nginx rate-limit annotation(Day 62 K8s 兜底)
+- [x] grafana/dashboards/security-rate-limit.json(9 panel,Day 62)
+- [x] grafana/provisioning/alerting/(contact-points + notification-policies,Day 55)
+- [x] ADR draft `docs/adr/draft-cloudflare-turnstile-rate-limit-design.md`(298 行)
+
+### 11.2 Day 67 首发前最终 verify(C 实测)
+
+| 维度                  | 期望          | 实测                                                                |
+| --------------------- | ------------- | ------------------------------------------------------------------- |
+| helm template prod    | 24 kinds      | ✅ 24(5D+1HPA+1Ingress+6NP+3PDB+1PR+1Sec+5Svc+1CM)                  |
+| helm template staging | 13 kinds      | ✅ 13                                                               |
+| Prometheus alerts     | 9(7+2 Day 62) | ✅ 9                                                                |
+| helm lint             | 0 failed      | ✅ 0(1 INFO icon 推荐)                                              |
+| Grafana dashboards    | 4             | ✅ 4(overview / service-health / llm-metrics / security-rate-limit) |
+| cloudflared 在线      | ≥ 1 pid       | ✅ 1 pid(tunnel http://localhost:8000 / brief 写 2 是脑补)          |
+
+详 `_internal/audit/phase6-day67-final-verify-c.md`(Day 67 C 段 audit / brief 偏差 fact-check)。
+
 ---
 
 ## 12. 给团队的注意事项

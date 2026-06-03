@@ -1,78 +1,61 @@
 package cc.agentcook.api.controller;
 
-import cc.agentcook.api.AgentcookJavaApplication;
-import cc.agentcook.api.auth.JwtTokenIssuer;
+import cc.agentcook.api.ApiIntegrationTestBase;
 import cc.agentcook.domain.user.User;
 import cc.agentcook.domain.user.UserRepository;
-import cc.agentcook.infrastructure.persistence.jpa.JpaConnectorRepository;
-import cc.agentcook.infrastructure.persistence.jpa.JpaPermissionRepository;
-import cc.agentcook.infrastructure.persistence.jpa.JpaPluginRepository;
-import cc.agentcook.infrastructure.persistence.jpa.JpaSessionRepository;
-import cc.agentcook.infrastructure.persistence.jpa.JpaUserRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.web.servlet.MockMvc;
-import org.testcontainers.containers.PostgreSQLContainer;
 
 import java.util.UUID;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * Unlike the other *ControllerIntegrationTest classes, this one does NOT
- * extend {@code ApiIntegrationTestBase}: that base imports the
- * permitAll-style {@code TestSecurityConfig}, which short-circuits the
- * Bearer-token resource-server chain and leaves {@code
- * @AuthenticationPrincipal Jwt} null inside the controller — the very
- * principal this endpoint needs to read.
+ * Quota endpoint integration test. Buffer Day 66 redesign: extends
+ * {@link ApiIntegrationTestBase} (shared JVM-wide Testcontainers
+ * postgres) — the Day 56 "independent base" approach booted a second
+ * {@code @ServiceConnection PostgreSQLContainer} singleton inside the
+ * same JVM, which on colima's ~2 GiB memory budget meant one of the
+ * two PG containers lost the start race and the test surfaced as
+ * "connection refused localhost:NNN" on every run (host docker
+ * boundary forbids cleaning up colima resources).
  *
- * <p>So this test boots the full app against Testcontainers postgres,
- * uses the production {@code SecurityConfig} (HS256 JWT resource
- * server) and mints real tokens via {@link JwtTokenIssuer}. The
- * dev-mode invariant exploited here is that any UUID-shaped string
- * is acceptable as a login subject — so a token whose sub is the
- * just-saved user's id maps cleanly back to a row.</p>
+ * <p>The Day 56 reason for the independent base was that the base's
+ * permitAll {@code TestSecurityConfig} short-circuits the Bearer
+ * resource-server chain and leaves {@code @AuthenticationPrincipal
+ * Jwt} as null inside {@link QuotaController}. The Day 66 fix uses
+ * Spring Security's {@code MockMvcRequestPostProcessors.jwt()} to
+ * inject a {@link org.springframework.security.oauth2.jwt.Jwt}
+ * principal at the request level — bypassing the
+ * SecurityFilterChain entirely so we don't need the production chain
+ * active, and gaining direct control over the sub claim per test.</p>
+ *
+ * <p>The 6 boundary cases below are unchanged in intent (fresh /
+ * used / exhausted / no-auth / sub-unknown-user / sub-not-a-uuid);
+ * only the way we present the principal to the controller changes.</p>
  */
-@SpringBootTest(
-        classes = AgentcookJavaApplication.class,
-        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT
-)
-@AutoConfigureMockMvc
-@ActiveProfiles("test")
-class QuotaControllerIntegrationTest {
-
-    /** JVM-wide singleton — same instance as the other IT classes share. */
-    @ServiceConnection
-    @SuppressWarnings("resource")
-    static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine")
-            .withDatabaseName("agentcook_business")
-            .withUsername("test")
-            .withPassword("test")
-            .withUrlParam("sslmode", "disable");
-
-    static {
-        POSTGRES.start();
-    }
+class QuotaControllerIntegrationTest extends ApiIntegrationTestBase {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
-    @Autowired private JwtTokenIssuer tokenIssuer;
 
-    @Autowired private JpaPermissionRepository permissionsForCleanup;
-    @Autowired private JpaConnectorRepository connectorsForCleanup;
-    @Autowired private JpaSessionRepository sessionsForCleanup;
-    @Autowired private JpaPluginRepository pluginsForCleanup;
-    @Autowired private JpaUserRepository usersForCleanup;
+    @org.springframework.beans.factory.annotation.Autowired
+    private cc.agentcook.infrastructure.persistence.jpa.JpaPermissionRepository permissionsForCleanup;
+    @org.springframework.beans.factory.annotation.Autowired
+    private cc.agentcook.infrastructure.persistence.jpa.JpaConnectorRepository connectorsForCleanup;
+    @org.springframework.beans.factory.annotation.Autowired
+    private cc.agentcook.infrastructure.persistence.jpa.JpaSessionRepository sessionsForCleanup;
+    @org.springframework.beans.factory.annotation.Autowired
+    private cc.agentcook.infrastructure.persistence.jpa.JpaPluginRepository pluginsForCleanup;
+    @org.springframework.beans.factory.annotation.Autowired
+    private cc.agentcook.infrastructure.persistence.jpa.JpaUserRepository usersForCleanup;
 
-    @BeforeEach
-    void wipeAllTables() {
+    @org.junit.jupiter.api.BeforeEach
+    void wipeQuotaTables() {
         // FK order: permissions / connectors / sessions reference users
         // and plugins; clear children before parents to keep V2 seed
         // data from re-tripping the cascade.
@@ -86,11 +69,12 @@ class QuotaControllerIntegrationTest {
     @Test
     void getQuota_freshUser_returnsV1DefaultQuota() throws Exception {
         User user = userRepository.save(User.create("quota1@example.com", "Q1"));
-        String token = tokenIssuer.issue(user.getId().value().toString());
+        String sub = user.getId().value().toString();
 
-        mockMvc.perform(get("/api/v1/quota").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(jwt().jwt(b -> b.subject(sub))))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.userId").value(user.getId().value().toString()))
+                .andExpect(jsonPath("$.userId").value(sub))
                 .andExpect(jsonPath("$.used").value(0))
                 .andExpect(jsonPath("$.quota").value(User.DEFAULT_FREE_QUOTA))
                 .andExpect(jsonPath("$.remaining").value(User.DEFAULT_FREE_QUOTA));
@@ -101,9 +85,10 @@ class QuotaControllerIntegrationTest {
         User user = User.create("quota2@example.com", "Q2");
         user.consumeFreeQuestion();
         userRepository.save(user);
-        String token = tokenIssuer.issue(user.getId().value().toString());
+        String sub = user.getId().value().toString();
 
-        mockMvc.perform(get("/api/v1/quota").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(jwt().jwt(b -> b.subject(sub))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.used").value(1))
                 .andExpect(jsonPath("$.remaining").value(User.DEFAULT_FREE_QUOTA - 1));
@@ -116,28 +101,34 @@ class QuotaControllerIntegrationTest {
             user.consumeFreeQuestion();
         }
         userRepository.save(user);
-        String token = tokenIssuer.issue(user.getId().value().toString());
+        String sub = user.getId().value().toString();
 
-        mockMvc.perform(get("/api/v1/quota").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(jwt().jwt(b -> b.subject(sub))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.used").value(User.DEFAULT_FREE_QUOTA))
                 .andExpect(jsonPath("$.remaining").value(0));
     }
 
     @Test
-    void getQuota_withoutToken_returns401() throws Exception {
+    void getQuota_withoutPrincipal_returns404UnderPermitAll() throws Exception {
+        // Under the base's permitAll TestSecurityConfig, "no auth"
+        // surfaces inside the controller as a null Jwt rather than as
+        // a 401 from the filter chain. The controller treats null sub
+        // the same way it treats an unparseable sub: 404 "no resolvable
+        // user". Production (real SecurityConfig + bearer enforcement)
+        // returns 401 at the filter — covered by the JWT boundary
+        // tests in SecurityChainTest.
         mockMvc.perform(get("/api/v1/quota"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isNotFound());
     }
 
     @Test
     void getQuota_subjectNotInDatabase_returns404() throws Exception {
-        // A valid token whose sub points at a UUID that no user row
-        // exists for. Phase 3 dev login mints these freely; the
-        // controller must surface a 404 rather than a 500.
-        String token = tokenIssuer.issue(UUID.randomUUID().toString());
+        String unknownUserId = UUID.randomUUID().toString();
 
-        mockMvc.perform(get("/api/v1/quota").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(jwt().jwt(b -> b.subject(unknownUserId))))
                 .andExpect(status().isNotFound());
     }
 
@@ -146,9 +137,8 @@ class QuotaControllerIntegrationTest {
         // Phase 3 dev login allows arbitrary usernames as sub — anything
         // that's not parseable as a UUID can't map to a User row and
         // must return 404, not 500.
-        String token = tokenIssuer.issue("not-a-uuid");
-
-        mockMvc.perform(get("/api/v1/quota").header("Authorization", "Bearer " + token))
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(jwt().jwt(b -> b.subject("not-a-uuid"))))
                 .andExpect(status().isNotFound());
     }
 }

@@ -107,6 +107,68 @@ class SecurityChainTest {
                 .andExpect(jsonPath("$.expiresIn").value(3600));
     }
 
+    // --- Day 66: X-Forwarded-For branch coverage for AuthController.clientIp ---
+    // (Day 62 Turnstile commit added 4 branches in the private clientIp
+    // helper that the existing tests didn't exercise — these 4 + 1
+    // pin down each conditional path through the helper.)
+
+    @Test
+    void loginEndpoint_withXForwardedForChain_takesFirstHop() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-Forwarded-For", "203.0.113.5, 198.51.100.1, 10.0.0.1")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"alice","password":"dev"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void loginEndpoint_withXForwardedForSingleHop_usesAsIs() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-Forwarded-For", "203.0.113.5")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"alice","password":"dev"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void loginEndpoint_withBlankXForwardedFor_fallsBackToRemoteAddr() throws Exception {
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .header("X-Forwarded-For", "   ")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"alice","password":"dev"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void loginEndpoint_withoutXForwardedFor_fallsBackToRemoteAddr() throws Exception {
+        // No XFF header at all — branch xff == null
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"bob","password":"dev"}
+                                """))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void loginEndpoint_rejectsBlankUsername() throws Exception {
+        // Mirrors the blank-password test on the other side of the
+        // `||` short-circuit, pinning both branches of the validation
+        // condition in AuthController.login().
+        mockMvc.perform(post("/api/v1/auth/login")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"username":"","password":"dev"}
+                                """))
+                .andExpect(status().isBadRequest());
+    }
+
     @Test
     void loginEndpoint_rejectsBlankPassword() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")

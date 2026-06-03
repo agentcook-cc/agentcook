@@ -55,6 +55,16 @@ public class QuotaController {
         // JWT subject (sub claim) is the user UUID. Phase 4 Day 33-34
         // adds an IdP-sub → UserId lookup; until then it's a direct
         // UUID parse + repository lookup.
+        //
+        // In production, jwt is never null — the OAuth2 Resource Server
+        // filter rejects unauthenticated requests at 401 before they
+        // reach the controller. Under test profiles that use a permitAll
+        // SecurityFilterChain (the shared ApiIntegrationTestBase), jwt
+        // can be null; we treat that the same as "sub does not resolve
+        // to a user" and return 404.
+        if (jwt == null || jwt.getSubject() == null) {
+            return ResponseEntity.notFound().build();
+        }
         UserId userId;
         try {
             userId = UserId.from(UUID.fromString(jwt.getSubject()));

@@ -29,21 +29,24 @@ const MESSAGE =
   '禁止内部代号 / 私有邮箱 — 使用对外化名替代。详 memory ' +
   '`desensitization-redlines.md` 化名映射表。';
 
-// Parser note: leaves the default espree in place so this config can
-// run on plain JS / TS-without-type-annotation files (the fixture set
-// + many of the project's config files) without requiring
-// `@typescript-eslint/parser` to be installed. The two sub-package
-// `lint` scripts (`eslint src`) over the React / Vue source remain
-// pre-existing broken — they need `@typescript-eslint/parser` +
-// `eslint-plugin-vue` for full source coverage, which is a separate
-// Buffer item (cross-cutting: package.json + lockfile + Turborepo
-// cache invalidation). The codename / private-email block layer
-// shipped here is independently useful: it runs on every fixture and
-// on any future `.cjs` / plain-`.ts` / `.js` source.
+// Phase 6 backlog #23 (Buffer Day 68 B) — `@typescript-eslint/parser`
+// installed; src/ TS + TSX now parses cleanly. The codename /
+// private-email block runs across the whole source tree, not just
+// fixtures and .cjs configs. Recommended rule sets
+// (`plugin:@typescript-eslint/recommended`) are intentionally NOT
+// extended yet — that's a separate Phase 6 backlog item; right now we
+// only want the codename rules to apply with a parser that won't choke
+// on `interface` / `type`.
 module.exports = {
   root: false,
   env: { browser: true, es2022: true, node: true },
-  parserOptions: { ecmaVersion: 2022, sourceType: 'module' },
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    ecmaFeatures: { jsx: true },
+  },
+  plugins: ['@typescript-eslint'],
   ignorePatterns: [
     'dist/**',
     'node_modules/**',

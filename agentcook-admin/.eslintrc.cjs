@@ -19,25 +19,31 @@ const MESSAGE =
   '禁止内部代号 / 私有邮箱 — 使用对外化名替代。详 memory ' +
   '`desensitization-redlines.md` 化名映射表。';
 
-// Parser note: same rationale as agentcook-app/.eslintrc.cjs — leave
-// default espree in place. Vue SFC source coverage needs
-// `vue-eslint-parser` + `eslint-plugin-vue` (separate Buffer item,
-// cross-cutting). The codename / email block layer here runs on every
-// fixture and every plain `.cjs` / `.ts` / `.js` source file.
+// Phase 6 backlog #23 (Buffer Day 68 B) — `vue-eslint-parser` +
+// `@typescript-eslint/parser` installed; src/ Vue SFCs + TS now parse
+// cleanly. `plugin:vue/vue3-recommended` is intentionally NOT extended
+// here — that's a separate Phase 6 backlog item; right now we only
+// want the codename rules to apply with a parser that won't choke on
+// Vue SFCs or TS keywords.
 module.exports = {
   root: false,
   env: { browser: true, es2022: true, node: true },
-  parserOptions: { ecmaVersion: 2022, sourceType: 'module' },
-  // src/** is excluded at the lint-staged level (root .lintstagedrc.json)
-  // because Vue SFC + TS keywords can't be parsed by default espree, and
-  // ESLint v8 ignorePatterns doesn't apply to CLI-explicit paths. The
-  // codename / private-email block layer here still runs on every
-  // .cjs / .js / non-TS .ts source and the dedicated fixture set.
+  parser: 'vue-eslint-parser',
+  parserOptions: {
+    parser: '@typescript-eslint/parser',
+    ecmaVersion: 2022,
+    sourceType: 'module',
+    extraFileExtensions: ['.vue'],
+  },
+  plugins: ['vue', '@typescript-eslint'],
   ignorePatterns: [
     'dist/**',
     'node_modules/**',
     'coverage/**',
+    'playwright-report/**',
+    'test-results/**',
     '.turbo/**',
+    'tests/eslint/fixtures/**',
   ],
   rules: {
     'no-restricted-syntax': [

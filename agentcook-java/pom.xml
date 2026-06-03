@@ -7,7 +7,15 @@
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
-        <version>3.2.5</version>
+        <!-- Phase 6 Week 2 PR1 (Day 68 spike `87c8d79` validated): 3.2.5
+             → 3.3.7 LTS. Brings tomcat-embed-core 10.1.20 → 10.1.40+
+             and netty-transport 4.1.109 → 4.1.124+ via the BOM, which
+             on its own clears ~50 of the 64 Day 51 dep-check HIGH/CRITICAL
+             CVEs (see _internal/audit/phase6-week2-d-prep.md §3 and
+             phase6-day67-final-verify-d.md §3). grpc-bom stays at 1.63
+             this PR — 1.66 breaks the GrpcServerConfigTest API surface
+             (Day 68 spike showed 4 ERR there), tracked as PR2. -->
+        <version>3.3.7</version>
         <relativePath/>
     </parent>
 

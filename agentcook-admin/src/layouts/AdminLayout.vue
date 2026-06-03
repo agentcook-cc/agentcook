@@ -4,6 +4,7 @@ import { useRouter, useRoute } from "vue-router";
 import { useAuthStore } from "@/stores/auth";
 import { useThemeStore } from "@/stores/theme";
 import { menuConfig, type MenuItem } from "@/config/menu";
+import QuotaBadge from "@/components/QuotaBadge.vue";
 
 const authStore = useAuthStore();
 const themeStore = useThemeStore();
@@ -76,6 +77,7 @@ async function handleLogout() {
               <component :is="isDark ? 'Sunny' : 'Moon'" />
             </el-icon>
           </el-button>
+          <QuotaBadge />
           <span class="user-name">{{ authStore.user?.displayName }}</span>
           <el-button text @click="handleLogout">Logout</el-button>
         </div>

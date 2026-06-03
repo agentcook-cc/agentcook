@@ -28,6 +28,11 @@ module.exports = {
   root: false,
   env: { browser: true, es2022: true, node: true },
   parserOptions: { ecmaVersion: 2022, sourceType: 'module' },
+  // src/** is excluded at the lint-staged level (root .lintstagedrc.json)
+  // because Vue SFC + TS keywords can't be parsed by default espree, and
+  // ESLint v8 ignorePatterns doesn't apply to CLI-explicit paths. The
+  // codename / private-email block layer here still runs on every
+  // .cjs / .js / non-TS .ts source and the dedicated fixture set.
   ignorePatterns: [
     'dist/**',
     'node_modules/**',

@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 import { useSseChat } from "@/hooks/useSseChat";
 import { useSession } from "@/hooks/useSession";
+import { useQuota } from "@/hooks/useQuota";
 import VirtualMessageList from "@/components/VirtualMessageList";
 import ChatInput from "@/components/ChatInput";
 import ChatPluginPicker from "@/components/ChatPluginPicker";
@@ -24,6 +25,7 @@ export default function ChatPage() {
   const logout = useAuthStore((state) => state.clearAuth);
 
   const { sessions, createSession, loadSessionMessages } = useSession();
+  const quota = useQuota(isAuthenticated);
   const [messages, setMessages] = useState<Message[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [selectedPlugins, setSelectedPlugins] = useState<string[]>([]);
@@ -72,6 +74,10 @@ export default function ChatPage() {
     onDone: (finalContent) => {
       updateAssistantMessage(finalContent);
       setIsStreaming(false);
+      // ADR-018 cascade — refresh quota after each completed turn so the
+      // banner flips from "1 left" to "exhausted (downgraded)" without a
+      // 30s lag from the polling fallback.
+      quota.refetch();
     },
     onError: (errorMessage) => {
       updateAssistantMessage(`Error: ${errorMessage}`, true);
@@ -150,7 +156,12 @@ export default function ChatPage() {
 
     setMessages((prev) => [
       ...prev,
-      { id: assistantId, role: "assistant", content: "", timestamp: Date.now() },
+      {
+        id: assistantId,
+        role: "assistant",
+        content: "",
+        timestamp: Date.now(),
+      },
     ]);
     setIsStreaming(true);
     await send(lastMessageRef.current);
@@ -193,6 +204,27 @@ export default function ChatPage() {
 
         <VirtualMessageList messages={messages} />
 
+        {!quota.loading &&
+          !quota.error &&
+          (quota.isExhausted ? (
+            <div
+              role="status"
+              data-testid="quota-banner-exhausted"
+              className="border-t border-amber-100 bg-amber-50 px-4 py-2 text-xs text-amber-800"
+            >
+              Free quota used ({quota.used}/{quota.quota}). Replies are
+              downgraded to glm-4-flash (ADR-018).
+            </div>
+          ) : quota.remaining === 1 ? (
+            <div
+              role="status"
+              data-testid="quota-banner-warning"
+              className="border-t border-blue-100 bg-blue-50 px-4 py-2 text-xs text-blue-800"
+            >
+              {quota.remaining} free question left ({quota.used}/{quota.quota}).
+            </div>
+          ) : null)}
+
         {connectionError && !isStreaming && (
           <div className="flex items-center justify-between border-t border-red-100 bg-red-50 px-4 py-2">
             <span className="text-xs text-red-600">
@@ -208,7 +240,10 @@ export default function ChatPage() {
         )}
 
         <div className="flex items-center gap-2 border-t border-gray-100 px-4 py-1.5">
-          <ChatPluginPicker selectedIds={selectedPlugins} onChange={setSelectedPlugins} />
+          <ChatPluginPicker
+            selectedIds={selectedPlugins}
+            onChange={setSelectedPlugins}
+          />
         </div>
         <ChatInput onSend={handleSend} disabled={isStreaming} />
       </div>

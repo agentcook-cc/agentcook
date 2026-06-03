@@ -1,60 +1,48 @@
 #!/usr/bin/env bash
-# Phase 6 #28 — cross-repo verify guard (cookbook 23 sub-item #22).
-#
-# Block any push from agentcook-cc when the sibling agentcook
-# workspace repo has untracked audit/ or progress/ files. Catches the
-# recurring failure mode where Agent commits source code here but
-# leaves the matching progress/audit doc untracked in the workspace
-# repo — coordinator's `git log` then shows the work landed while
-# `git status` in the other repo silently hides the unstaged report.
-#
-# To bypass intentionally (e.g. you really do want to push source
-# before writing the progress doc), run with:
-#     git push --no-verify
-#
-# Install (once per clone):
-#     git config core.hooksPath .githooks
-# Documented in agentcook-cc/README.md "Cross-repo git hooks" section.
+# .githooks/pre-push — 跨 repo verify (防 #22 教训第 N 次 / Day 65 B + Day 69 C+D 同款)
+# 自动 verify 另一 repo (agentcook ↔ agentcook-cc) 的 audit/ + progress/ 没漏 add
+# 安装: cd <repo root> && git config core.hooksPath .githooks && chmod +x .githooks/pre-push
 
-set -u
+set -e
 
-ROOT=$(git rev-parse --show-toplevel)
+CURRENT_REPO_ROOT="$(git rev-parse --show-toplevel)"
+CURRENT_REPO_NAME="$(basename "$CURRENT_REPO_ROOT")"
 
-if [[ "$ROOT" != *"agentcook-cc"* ]]; then
-  # Only fire from agentcook-cc; other repos don't have a sibling to verify.
-  exit 0
+OTHER_REPO_ROOT=""
+if [ "$CURRENT_REPO_NAME" = "agentcook-cc" ]; then
+    OTHER_REPO_ROOT="$(dirname "$CURRENT_REPO_ROOT")/agentcook"
+elif [ "$CURRENT_REPO_NAME" = "agentcook" ]; then
+    OTHER_REPO_ROOT="$(dirname "$CURRENT_REPO_ROOT")/agentcook-cc"
+else
+    exit 0
 fi
 
-# The sibling workspace repo lives next to agentcook-cc:
-#   .../workspace/accio-work/agentcook-cc
-#   .../workspace/accio-work/agentcook    <- sibling
-SIBLING="$(dirname "$ROOT")/agentcook"
-
-if [[ ! -d "$SIBLING/.git" ]]; then
-  echo "ℹ pre-push: sibling agentcook workspace not found at $SIBLING — skipping cross-repo verify" >&2
-  exit 0
+if [ ! -d "$OTHER_REPO_ROOT/.git" ]; then
+    exit 0
 fi
 
-UNTRACKED=$(
-  cd "$SIBLING" \
-    && git status --short \
-    | grep -E '^\?\? tutorial/_internal/(audit|progress)/' || true
-)
+cd "$OTHER_REPO_ROOT"
+UNTRACKED=$(git ls-files --others --exclude-standard tutorial/_internal/audit/ tutorial/_internal/progress/ 2>/dev/null || true)
 
-if [[ -n "$UNTRACKED" ]]; then
-  echo "🔴 pre-push BLOCKED: agentcook workspace has untracked audit/progress files." >&2
-  echo "" >&2
-  echo "Files:" >&2
-  echo "$UNTRACKED" | sed 's/^/  /' >&2
-  echo "" >&2
-  echo "Cookbook 23 sub-item #22 — every cross-repo commit pair must be" >&2
-  echo "complete before push: source in agentcook-cc + matching" >&2
-  echo "progress/audit in agentcook workspace." >&2
-  echo "" >&2
-  echo "Options:" >&2
-  echo "  1. cd $SIBLING && git add tutorial/_internal/{audit,progress}/... && git commit" >&2
-  echo "  2. git push --no-verify   (only if intentional — leaves cross-repo state out of sync)" >&2
-  exit 1
+if [ -n "$UNTRACKED" ]; then
+    echo ""
+    echo "🔴 跨 repo verify failed (Phase 6 #28 backlog 立的 hook 拦截):"
+    echo ""
+    echo "$OTHER_REPO_ROOT 有以下 untracked 在 audit/progress 目录:"
+    echo "$UNTRACKED" | sed 's/^/  /'
+    echo ""
+    echo "可能 #22 教训重复发生 (B Day 65 / C+D Day 69 同款):"
+    echo "  你 commit 代码到 $CURRENT_REPO_NAME 后,漏 commit 对应 audit/progress 到 $(basename $OTHER_REPO_ROOT)"
+    echo ""
+    echo "立刻处理:"
+    echo "  cd $OTHER_REPO_ROOT"
+    echo "  git add tutorial/_internal/audit/ tutorial/_internal/progress/"
+    echo "  git commit + push"
+    echo ""
+    echo "或如果 untracked 是故意保留,本次跳过 verify:"
+    echo "  git push --no-verify"
+    echo ""
+    exit 1
 fi
 
 exit 0

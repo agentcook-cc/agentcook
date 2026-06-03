@@ -20,16 +20,17 @@ const SEED_ACCESS = "dev-token-e2e-quota";
 const SEED_REFRESH = "dev-refresh-token-e2e-quota";
 
 // In dev mode the app's javaClient resolves baseURL to "" (no
-// VITE_JAVA_API_BASE_URL env), so requests land at the current origin.
-// page.route intercepts every URL the page emits regardless of any vite
-// proxy that would otherwise forward /api/v1/* — using a glob keeps the
-// mock robust to whether VITE_JAVA_API_BASE_URL is set or not.
+// VITE_JAVA_API_BASE_URL env), so requests land at the current origin
+// and pass through the vite dev proxy. page.route intercepts every URL
+// the page emits regardless of any forwarding, so the mock stays
+// independent of whether VITE_JAVA_API_BASE_URL is set or whether the
+// vite proxy is correctly configured — both are exercised by other
+// tests (true-stack chat e2e + smoke).
 //
-// Day 67 揪偏差 #17 — `vite.config.ts` proxy table is missing
-// `/api/v1/quota` (A Day 56 added the Java endpoint but didn't sync the
-// dev proxy). e2e never hits the proxy so this spec passes; flag for
-// A/C: dev without VITE_JAVA_API_BASE_URL otherwise falls through to
-// vite → 404. Fix is one line in vite.config.ts (cross-cutting commit).
+// Phase 6 #26 closed the vite proxy gap (one line in vite.config.ts).
+// The mock here intentionally stays: the contract under test is the
+// UI affordance over the GET response shape, not the dev-server's
+// network plumbing.
 const QUOTA_URL_GLOB = "**/api/v1/quota";
 
 test.describe("app ChatPage — ADR-018 quota banner", () => {

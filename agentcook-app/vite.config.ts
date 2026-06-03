@@ -52,6 +52,10 @@ export default defineConfig({
       "/api/v1/connectors": { target: JAVA_API, changeOrigin: true },
       "/api/v1/permissions": { target: JAVA_API, changeOrigin: true },
       "/api/v1/auth": { target: JAVA_API, changeOrigin: true },
+      // ADR-018 cascade — A Day 56 landed Java QuotaController but the
+      // dev proxy wasn't synced; closed here by Phase 6 #26 (the gap
+      // was flagged Day 67 偏差 #17).
+      "/api/v1/quota": { target: JAVA_API, changeOrigin: true },
     },
   },
 });

@@ -1,0 +1,37 @@
+name: 📚 Documentation Issue
+description: 教程 / 文档有问题
+title: "[Doc] "
+labels: ["documentation", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        教程在 [agentcook-cc/agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial)。代码相关文档(ADR / README)在本仓。
+  - type: dropdown
+    id: doc-repo
+    attributes:
+      label: 哪个仓的文档?
+      options:
+        - 教程仓 (agentcook-tutorial / chapters / appendix / blog)
+        - 代码主仓 (agentcook / README / docs/adr / 包 README)
+    validations:
+      required: true
+  - type: input
+    id: page
+    attributes:
+      label: 哪页有问题
+      placeholder: "chapters/01-where-is-the-opportunity.md 第 X 行 / 第 X 段"
+    validations:
+      required: true
+  - type: textarea
+    id: issue
+    attributes:
+      label: 问题描述
+      placeholder: "这段说 X,但实际 Y / 这里说 'colima delete -f',但应该是 'colima delete'"
+    validations:
+      required: true
+  - type: textarea
+    id: suggested-fix
+    attributes:
+      label: 建议修改(可选)
+      placeholder: "改成 'XXX' 更准"

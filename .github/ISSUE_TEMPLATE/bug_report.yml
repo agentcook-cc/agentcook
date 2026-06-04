@@ -1,0 +1,55 @@
+name: 🐛 Bug Report
+description: 报告 AgentCook 项目中的 bug
+title: "[Bug] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢你来报 bug!请详细填写,有助于我们快速复现 + Day 71+ hotfix(应急 3 档:< 100 🟢 / 100-500 🟡 / > 500 🔴)。
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 发生了什么?
+      placeholder: "我跑 X 时,期望 Y,实际看到 Z"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction-steps
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. git clone https://github.com/agentcook-cc/agentcook
+        2. cd agentcook-starter
+        3. 跑 uv run dev
+        4. 看到错误...
+      render: bash
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: 环境信息
+      placeholder: |
+        - OS: macOS 14.5 / Ubuntu 22.04 / Windows 11
+        - Python: 3.11 / 3.12
+        - Java: 17 / 21
+        - Docker: colima / Docker Desktop / 其他
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: 相关日志
+      placeholder: "粘贴错误日志 / stack trace"
+      render: shell
+  - type: dropdown
+    id: severity
+    attributes:
+      label: 严重度
+      options:
+        - 🔴 critical (服务不可用 / 数据丢失 / 安全漏洞)
+        - 🟡 major (功能不正常 / 影响主流程)
+        - 🟢 minor (UI 错位 / 文档错 / 边缘 case)
+    validations:
+      required: true

@@ -1,0 +1,20 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 💬 Discussions (聊想法 / 不是 bug / 不是 feature)
+    url: https://github.com/agentcook-cc/agentcook/discussions
+    about: |
+      想分享 "我也做了类似的" / 问 "怎么决定 X vs Y" / 看完某讲想问 — 这些适合 Discussion。
+      Discussion 适合:架构选型讨论 / 协作经验分享 / 跨章节深度问题 / "我团队跑多 Agent 撞过什么红线"等。
+  - name: 📚 教程主仓 agentcook-tutorial
+    url: https://github.com/agentcook-cc/agentcook-tutorial
+    about: |
+      30 讲教程 + 7 附录 + 旗舰博客 + 50 篇博客系列(Day 76 起每周 1 篇 / 50 周完)。
+      想看教程内容直接去教程仓。
+  - name: ❓ FAQ 50 个常问
+    url: https://github.com/agentcook-cc/agentcook-tutorial/blob/main/faq/readers-faq.md
+    about: |
+      50 个常问 / 5 主题分组(教程 / 技术架构 / 协作 / 开源贡献 / 商业化)。
+      简单问题先看 FAQ。
+  - name: 📝 掘金大厂码农老A
+    url: https://juejin.cn/user/2147803289619047
+    about: 技术博客同步在掘金 / 跟博客系列同步 publish

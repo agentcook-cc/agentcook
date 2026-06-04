@@ -1,0 +1,35 @@
+name: ❓ Question
+description: 问关于项目的具体问题
+title: "[Question] "
+labels: ["question", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        简单问题先看 [FAQ 50 个](https://github.com/agentcook-cc/agentcook-tutorial/blob/main/faq/readers-faq.md)。如果还没解决,开 issue 或 [Discussion](https://github.com/agentcook-cc/agentcook/discussions)。
+  - type: textarea
+    id: question
+    attributes:
+      label: 你的问题
+      placeholder: "为什么 X 这么设计? / 怎么用 Y? / Z 跟 W 的区别?"
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: 上下文(可选)
+      placeholder: "我已经看过 chapters/0X.md / FAQ §N,但没找到..."
+  - type: dropdown
+    id: topic
+    attributes:
+      label: 话题分类
+      options:
+        - 教程内容
+        - 代码使用
+        - 架构设计
+        - 多 Agent 协作
+        - 部署 / 上线
+        - 商业化
+        - 其他
+    validations:
+      required: true

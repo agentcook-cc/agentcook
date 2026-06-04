@@ -22,7 +22,7 @@ agentcook 实现完整 9 harness 维度:
 | 8 | Observability | OpenTelemetry + Langfuse |
 | 9 | Cost Optimization | model_router + cache |
 
-完整设计决策见 [docs/adr/](docs/adr/)(12 ADR)。
+完整设计决策见 [docs/adr/](docs/adr/)(**19 ADR**)。
 
 ## 仓库矩阵
 
@@ -111,7 +111,15 @@ make clean         # 停止 + 清除 volumes
 
 ## 配套教程
 
-《从 0 到 1 构建商业级 AI Agent 产品》
+📚 **教程主仓**:[agentcook-cc/agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial) — 《从 0 到 1 构建商业级 AI Agent 产品》
+
+主线 30 讲(14,375 行)+ 7 附录(3,613 行,含求职竞争力 + 实战参考)+ 旗舰博客 + 50 篇建造方法论博客系列(Day 76 起每周 1 篇 / 50 周持续 publish)。
+
+📝 **博客系列**:[50 周 publish 节奏排程](https://github.com/agentcook-cc/agentcook-tutorial/blob/main/schedule/blog-publish-schedule-50weeks.md)/ [50 个 FAQ](https://github.com/agentcook-cc/agentcook-tutorial/blob/main/faq/readers-faq.md)
+
+💬 **GitHub Discussions**:[github.com/agentcook-cc/agentcook/discussions](https://github.com/agentcook-cc/agentcook/discussions) — Agent 协作 / 多包 vs 单包 / 测试金字塔 等深度讨论欢迎开新 thread
+
+⭐ **Star** 这个仓 + [agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial),是 50 周博客系列持续 publish 的最直接燃料
 
 ## 项目最终愿景
 

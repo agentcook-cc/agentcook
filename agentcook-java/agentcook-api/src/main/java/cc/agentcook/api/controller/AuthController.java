@@ -5,6 +5,11 @@ import cc.agentcook.api.auth.TurnstileVerifier;
 import cc.agentcook.api.dto.ApiError;
 import cc.agentcook.api.dto.LoginRequest;
 import cc.agentcook.api.dto.LoginResponse;
+import cc.agentcook.application.port.in.CreateUserCommand;
+import cc.agentcook.application.port.in.CreateUserUseCase;
+import cc.agentcook.domain.user.User;
+import cc.agentcook.domain.user.UserId;
+import cc.agentcook.domain.user.UserRepository;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -27,18 +32,33 @@ import org.springframework.web.bind.annotation.RestController;
  * <p>The token shape stays stable across the swap — {@code accessToken}
  * / {@code tokenType: "Bearer"} / {@code expiresIn} (seconds) — so
  * frontend (Agent B) doesn't need to change anything.</p>
+ *
+ * <p>W3 (Day 70+): JWT {@code sub} claim is the user's UUID, not the raw
+ * username. Login auto-provisions a User aggregate keyed off
+ * {@code <username>@dev.local} so {@code /api/v1/users/me} (and any other
+ * UUID-keyed endpoint) can resolve the caller via SecurityContext without
+ * a separate lookup table.</p>
  */
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "Auth", description = "Authentication. Phase 3 issues HS256-signed JWTs against a dev secret.")
 public class AuthController {
 
+    private static final String DEV_EMAIL_DOMAIN = "@dev.local";
+
     private final JwtTokenIssuer tokenIssuer;
     private final TurnstileVerifier turnstileVerifier;
+    private final UserRepository userRepository;
+    private final CreateUserUseCase createUserUseCase;
 
-    public AuthController(JwtTokenIssuer tokenIssuer, TurnstileVerifier turnstileVerifier) {
+    public AuthController(JwtTokenIssuer tokenIssuer,
+                          TurnstileVerifier turnstileVerifier,
+                          UserRepository userRepository,
+                          CreateUserUseCase createUserUseCase) {
         this.tokenIssuer = tokenIssuer;
         this.turnstileVerifier = turnstileVerifier;
+        this.userRepository = userRepository;
+        this.createUserUseCase = createUserUseCase;
     }
 
     @PostMapping("/login")
@@ -61,8 +81,23 @@ public class AuthController {
         if (!turnstileVerifier.verify(body.turnstileToken(), clientIp(request))) {
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).build();
         }
-        String token = tokenIssuer.issue(body.username());
+        UserId userId = resolveOrProvision(body.username());
+        String token = tokenIssuer.issue(userId.value().toString());
         return ResponseEntity.ok(new LoginResponse(token, "Bearer", tokenIssuer.ttlSeconds()));
+    }
+
+    /**
+     * Phase 3 dev placeholder: map {@code username} → User aggregate by
+     * the synthesised email {@code <username>@dev.local}. If the user
+     * does not exist yet, auto-provision one so the JWT subject is
+     * always a real persisted UUID. Phase 4 swaps this for an IdP /
+     * JWKS lookup keyed on the upstream issuer's subject claim.
+     */
+    private UserId resolveOrProvision(String username) {
+        String email = username + DEV_EMAIL_DOMAIN;
+        return userRepository.findByEmail(email)
+                .map(User::getId)
+                .orElseGet(() -> createUserUseCase.execute(new CreateUserCommand(email, username)));
     }
 
     /**

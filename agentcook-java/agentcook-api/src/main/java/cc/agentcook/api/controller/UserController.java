@@ -24,6 +24,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -81,6 +82,25 @@ public class UserController {
         UserId id = createUserUseCase.execute(new CreateUserCommand(body.email(), body.nickname()));
         UserResponse response = userRepository.findById(id).map(UserResponse::from).orElseThrow();
         return ResponseEntity.created(URI.create("/api/v1/users/" + id.value())).body(response);
+    }
+
+    @GetMapping("/me")
+    @Operation(summary = "Fetch the currently-authenticated user. JWT subject is the user UUID.")
+    @ApiResponse(responseCode = "200", description = "User found.",
+            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(responseCode = "404", description = "JWT subject does not resolve to a known user.",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
+        UUID id;
+        try {
+            id = UUID.fromString(authentication.getName());
+        } catch (IllegalArgumentException ex) {
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+        }
+        return userRepository.findById(UserId.from(id))
+                .map(UserResponse::from)
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
     }
 
     @GetMapping("/{id}")

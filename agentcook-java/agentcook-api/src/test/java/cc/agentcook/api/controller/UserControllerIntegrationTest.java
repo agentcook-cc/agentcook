@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -73,5 +74,35 @@ class UserControllerIntegrationTest extends ApiIntegrationTestBase {
 
         mockMvc.perform(delete("/api/v1/users/" + user.getId().value()))
                 .andExpect(status().isNoContent());
+    }
+
+    @Test
+    void getCurrentUserResolvesViaJwtSubject() throws Exception {
+        // W3 #1 fix — admin's GET /users/me previously routed into
+        // GET /users/{id} and returned 400 "Invalid UUID string: me".
+        User user = userRepository.save(User.create("me@example.com", "Me"));
+        String sub = user.getId().value().toString();
+
+        mockMvc.perform(get("/api/v1/users/me")
+                        .with(jwt().jwt(b -> b.subject(sub))))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(sub))
+                .andExpect(jsonPath("$.email").value("me@example.com"));
+    }
+
+    @Test
+    void getCurrentUserReturns404WhenSubjectIsNotUuid() throws Exception {
+        // Phase 4 / legacy fixture safety: a non-UUID subject must not
+        // bubble up as a 500 (Spring's IllegalArgumentException → MVC).
+        mockMvc.perform(get("/api/v1/users/me")
+                        .with(jwt().jwt(b -> b.subject("alice"))))
+                .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void getCurrentUserReturns404WhenUuidNotInDatabase() throws Exception {
+        mockMvc.perform(get("/api/v1/users/me")
+                        .with(jwt().jwt(b -> b.subject("00000000-0000-0000-0000-000000000000"))))
+                .andExpect(status().isNotFound());
     }
 }

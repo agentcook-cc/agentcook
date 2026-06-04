@@ -4,12 +4,19 @@ import cc.agentcook.api.auth.JwtTokenIssuer;
 import cc.agentcook.api.auth.TurnstileVerifier;
 import cc.agentcook.api.config.SecurityConfig;
 import cc.agentcook.api.controller.AuthController;
+import cc.agentcook.application.port.in.CreateUserCommand;
+import cc.agentcook.application.port.in.CreateUserUseCase;
+import cc.agentcook.domain.user.User;
+import cc.agentcook.domain.user.UserId;
+import cc.agentcook.domain.user.UserRepository;
+import cc.agentcook.domain.user.UserStatus;
 import io.jsonwebtoken.Jwts;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
@@ -21,6 +28,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
+import java.util.List;
+import java.util.Optional;
 
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -66,6 +75,31 @@ class SecurityChainTest {
             scanBasePackages = "cc.agentcook.api.security" // scan nothing extra
     )
     static class MinimalSecurityApp {
+
+        /**
+         * AuthController (W3 #1 onwards) needs a UserRepository so the
+         * JWT subject can be a real user UUID. This minimal context
+         * has no JPA — return an in-memory stub that records the
+         * provisioned user so we can verify {@code sub} parsing works
+         * end-to-end without a database.
+         */
+        @Bean
+        UserRepository inMemoryUserRepository() {
+            return new UserRepository() {
+                @Override public Optional<User> findById(UserId id) { return Optional.empty(); }
+                @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }
+                @Override public List<User> findAll() { return List.of(); }
+                @Override public List<User> findByStatus(UserStatus status) { return List.of(); }
+                @Override public User save(User user) { return user; }
+                @Override public void delete(UserId id) {}
+                @Override public boolean existsByEmail(String email) { return false; }
+            };
+        }
+
+        @Bean
+        CreateUserUseCase stubCreateUserUseCase() {
+            return command -> UserId.generate();
+        }
     }
 
     @Autowired private MockMvc mockMvc;

@@ -218,6 +218,14 @@ services:
     container_name: agentcook-java
     ports:
       - "8080:8080"
+      # Host 9091 → container 9090 (gRPC ChatService). Host 9090 is
+      # already taken by the prometheus UI, so the gRPC port is offset
+      # by one when reaching it from the developer's laptop:
+      #   grpcurl -plaintext localhost:9091 list
+      # Cross-cutting note for C — prometheus.yml scrapes
+      # :8080/actuator/prometheus, NOT :9090, so this remapping does
+      # not affect metrics collection. (W3 ① fix #3.)
+      - "9091:9090"
     depends_on:
       postgres-business:
         condition: service_healthy

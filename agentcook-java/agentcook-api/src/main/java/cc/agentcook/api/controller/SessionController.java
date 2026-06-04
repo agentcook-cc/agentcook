@@ -18,6 +18,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -58,13 +59,17 @@ public class SessionController {
     }
 
     @PostMapping
-    @Operation(summary = "Open a new conversation session for an existing user.")
+    @Operation(summary = "Open a new conversation session. Owner defaults to the JWT subject when body.userId is omitted.")
     @ApiResponse(responseCode = "201", description = "Session created.",
             content = @Content(schema = @Schema(implementation = SessionResponse.class)))
     @ApiResponse(responseCode = "404", description = "User not found.",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    public ResponseEntity<SessionResponse> createSession(@Valid @RequestBody CreateSessionRequest body) {
-        SessionId id = createSessionUseCase.execute(new CreateSessionCommand(body.userId(), body.title()));
+    public ResponseEntity<SessionResponse> createSession(@Valid @RequestBody CreateSessionRequest body,
+                                                         Authentication authentication) {
+        String userId = (body.userId() == null || body.userId().isBlank())
+                ? authentication.getName()
+                : body.userId();
+        SessionId id = createSessionUseCase.execute(new CreateSessionCommand(userId, body.title()));
         SessionResponse response = sessionRepository.findById(id).map(SessionResponse::from).orElseThrow();
         return ResponseEntity.created(URI.create("/api/v1/sessions/" + id.value())).body(response);
     }

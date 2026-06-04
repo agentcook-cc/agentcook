@@ -102,28 +102,40 @@ docker compose -f ../docker-compose.dev.yml up -d agentcook-java
 
 - Swagger UI: <http://localhost:8080/swagger-ui.html>
 - OpenAPI spec: <http://localhost:8080/v3/api-docs.yaml>
-- Login (returns a JWT — paste into Swagger UI "Authorize"):
+- Login (returns a JWT — paste into Swagger UI "Authorize"). Login also
+  auto-provisions the corresponding User aggregate on first call, so
+  the JWT's `sub` claim is a real persisted UUID:
+
   ```bash
   TOKEN=$(curl -sS -X POST http://localhost:8080/api/v1/auth/login \
       -H 'Content-Type: application/json' \
-      -d '{"username":"alice","password":"dev"}' | jq -r .token)
-  echo "$TOKEN"   # JWT — sub claim currently = username (see Known issues below)
+      -d '{"username":"alice","password":"dev"}' | jq -r .accessToken)
   ```
-- Decode the JWT to get your `userId` (most Session / Plugin POST endpoints need it in the body):
+
+- Resolve the current user from the JWT — the `/me` endpoint reads
+  the subject out of the token, no body / path parameter needed:
 
   ```bash
-  # quick decode (no signature check) — for dev only
-  echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
-  # → { "sub": "alice", "iat": ..., "exp": ... }
+  curl -sS http://localhost:8080/api/v1/users/me \
+      -H "Authorization: Bearer $TOKEN" | jq .
+  # → { "id": "...uuid...", "email": "alice@dev.local", "nickname": "alice", ... }
+  ```
 
-  # then look the username up to get the UUID:
-  curl -sS http://localhost:8080/api/v1/users -H "Authorization: Bearer $TOKEN" | jq '.[] | select(.username=="alice")'
+- Open a session — `userId` is now optional. When the body omits it
+  the controller falls back to the JWT subject, so the typical
+  end-to-end call is:
+
+  ```bash
+  curl -sS -X POST http://localhost:8080/api/v1/sessions \
+      -H "Authorization: Bearer $TOKEN" \
+      -H 'Content-Type: application/json' \
+      -d '{"title":"Hello"}' | jq .
+  # admin tooling that needs to act on someone else can still pass
+  # `"userId": "<other-uuid>"` explicitly — body wins over JWT subject.
   ```
 
 - Health probes: `/actuator/health/liveness` + `/actuator/health/readiness`
 - Prometheus scrape: `/actuator/prometheus`
-
-> 🟡 **Known issue (Day 70+ W3 tracking)** — JWT `sub` is currently the username string, not a UUID. The `/api/v1/users/me` shortcut endpoint is **not yet wired** — fetch `GET /api/v1/users` and filter client-side until the W3 fix lands. Tracking: `agentcook/tutorial/_internal/stress-test/deployment-loop-w3-d-fix-prompt.md`.
 
 ## Deployment
 
@@ -133,8 +145,10 @@ docker compose -f ../docker-compose.dev.yml up -d agentcook-java
 # Build (uses the included Dockerfile — multi-stage, non-root, healthcheck)
 docker build -t agentcook-java:latest .
 
-# Run standalone (postgres / redis must be reachable; see env vars below)
-docker run --rm -p 8080:8080 -p 9090:9090 \
+# Run standalone (postgres / redis must be reachable; see env vars below).
+# Host 9091 maps to container 9090 (gRPC) — host 9090 is reserved for the
+# Prometheus UI in the full compose stack; mirror that here for parity.
+docker run --rm -p 8080:8080 -p 9091:9090 \
     -e POSTGRES_HOST=host.docker.internal -e POSTGRES_PORT=5433 \
     -e REDIS_HOST=host.docker.internal \
     -e AGENTCOOK_AUTH_JWT_SECRET="$(openssl rand -base64 48)" \
@@ -170,7 +184,7 @@ Full config / Secret split: see [`docs/k8s-config-mapping.md`](../docs/k8s-confi
 | Resource    | Endpoints                                                                        |
 | ----------- | -------------------------------------------------------------------------------- |
 | Auth        | `POST /api/v1/auth/login` (public, returns JWT)                                  |
-| Users       | `GET/POST /api/v1/users`, `GET /api/v1/users/{id}`                               |
+| Users       | `GET/POST /api/v1/users`, `GET /api/v1/users/me`, `GET /api/v1/users/{id}`       |
 | Permissions | `GET/POST /api/v1/users/{userId}/permissions`, `DELETE /api/v1/permissions/{id}` |
 | Sessions    | `GET/POST /api/v1/sessions`, `GET /api/v1/sessions/{id}`                         |
 | Plugins     | `GET/POST /api/v1/plugins`, `POST /api/v1/plugins/{id}/activate`                 |
@@ -181,22 +195,28 @@ Frozen spec: `../docs/api/java-v1.yaml`. Versioning policy:
 
 ## gRPC
 
-The api module exposes a gRPC server on port 9090 (see
+The api module exposes a gRPC server on container port 9090 (see
 `grpc/GrpcServerConfig.java`). `ChatService` bridges SSE chat into
 unary streaming so the Python runtime can call back over gRPC.
+
+Prereq — install grpcurl: `brew install grpcurl` (macOS) /
+`apt install grpcurl` (Debian/Ubuntu).
 
 ```bash
 # Host mode (mvn spring-boot:run) — gRPC on 9090
 grpcurl -plaintext localhost:9090 list   # requires Reflection enabled
 
-# ⚠️ docker compose mode — port 9090 is shared with Prometheus on the host.
-# Either query in-network (recommended):
-docker compose -f ../docker-compose.dev.yml exec agentcook-java grpcurl -plaintext localhost:9090 list
-# or remap to 9091 on the host (edit docker-compose.dev.yml ports: "9091:9090"):
+# Docker compose mode — host 9090 is the Prometheus UI, so the
+# gRPC port is exposed on host 9091 (container 9090):
 grpcurl -plaintext localhost:9091 list
+
+# Inside the docker network if grpcurl isn't on your host PATH:
+docker compose -f ../docker-compose.dev.yml exec agentcook-java \
+    grpcurl -plaintext localhost:9090 list
 ```
 
-> 🟡 **Known issue (D #2)** — `docker-compose.dev.yml` exposes Prometheus on 9090 too. W3 fix will remap one of them. Tracking: `agentcook/tutorial/_internal/stress-test/deployment-loop-w3-d-fix-prompt.md`.
+The gRPC service name is fully-qualified `cc.agentcook.grpc.ChatService`
+— short-form lookups (`grpcurl ... list ChatService`) won't resolve.
 
 ## What's in each directory
 

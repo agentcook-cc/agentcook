@@ -18,21 +18,45 @@
 
 ---
 
-## 1. 第 1 步:brew install wrangler(09:15-09:20 / ~3 min)
+## 1. 第 1 步:npm install wrangler(09:15-09:20 / ~3 min)
+
+> ⚠️ **2026-06 更新 — 不要用 brew 装 wrangler**
+>
+> - Homebrew 的 `wrangler` formula 是 **Erlang refactoring tool**(同名碰撞),**不是** Cloudflare wrangler
+> - 真 Cloudflare wrangler 的 brew 路径是 `cloudflare-wrangler` 第三方 tap(维护不稳定),官方推荐 npm
+> - 主路径统一走 **npm**
+
+### 版本要求(2026-06+ 实测)
+
+| 工具     | 版本                                   | 备注                                            |
+| -------- | -------------------------------------- | ----------------------------------------------- |
+| Node.js  | ≥ v22.0.0(latest)/ v20+(用 wrangler@3) | nvm install 22 推荐                             |
+| wrangler | latest v4(Node 22)/ v3.60+(Node 20)    | latest 要 Node 22;Node 20 必须显式 `wrangler@3` |
+| macOS    | ≥ 13.5(brew 当前最低)                  | 13.3 实测每次警告,但不阻塞                      |
+
+### 命令
 
 ```bash
-# 选 ① brew(推荐 macOS / 用户已习惯)
-brew install wrangler
-which wrangler          # 期望 /opt/homebrew/bin/wrangler
-wrangler --version      # 期望 ≥ 3.60
-
-# 选 ② npm(若 brew 卡 stale lock — Day 51 同款故障可能复现)
-npm install -g wrangler@^3.60
+# Node 20 路径(L2 demo 阶段够用)
+npm install -g wrangler@3
 which wrangler          # 期望 ~/.nvm/versions/node/v20.16.0/bin/wrangler
 wrangler --version
+# 期望:⛅️ wrangler 3.114.x
+
+# Node 22+ 才能装 latest v4
+nvm install 22 && nvm use 22
+npm install -g wrangler
+wrangler --version
+# 期望:⛅️ wrangler 4.x.x
+
+# ❌ 不要这样(会装出 Erlang 工具,无关 Cloudflare):
+# brew install wrangler
 ```
 
-**故障兜底**:`brew reinstall node` 反复 stale lock(Day 51 教训),首选 npm 路径(nvm v20 LTS 已稳定)。
+**故障兜底**:
+
+- `npm install` 卡 → 切 `npm config set registry https://registry.npmmirror.com/`(国内镜像)
+- Node 20 装到 latest wrangler v4 → 报 `requires at least Node.js v22.0.0` → 改装 `wrangler@3` 或升 Node 22
 
 ---
 

@@ -10,35 +10,35 @@
 
 agentcook 实现完整 9 harness 维度:
 
-| # | Harness 维度 | agentcook 实现 |
-|---|---|---|
-| 1 | Agent Loop | `agentcook-core` + LangGraph |
-| 2 | Tool Use 调度 | Tool / Plugin / Skill protocol |
-| 3 | System Prompt 管理 | prefix-cache 友好分段 |
-| 4 | Context Management | compaction + pruning |
-| 5 | Sub-agent 编排 | LangGraph 声明式 router |
-| 6 | Memory | Identity / Soul / Memory / Diary 四层 |
-| 7 | Safety / Sandboxing | Plugin Docker 沙箱 |
-| 8 | Observability | OpenTelemetry + Langfuse |
-| 9 | Cost Optimization | model_router + cache |
+| #   | Harness 维度        | agentcook 实现                        |
+| --- | ------------------- | ------------------------------------- |
+| 1   | Agent Loop          | `agentcook-core` + LangGraph          |
+| 2   | Tool Use 调度       | Tool / Plugin / Skill protocol        |
+| 3   | System Prompt 管理  | prefix-cache 友好分段                 |
+| 4   | Context Management  | compaction + pruning                  |
+| 5   | Sub-agent 编排      | LangGraph 声明式 router               |
+| 6   | Memory              | Identity / Soul / Memory / Diary 四层 |
+| 7   | Safety / Sandboxing | Plugin Docker 沙箱                    |
+| 8   | Observability       | OpenTelemetry + Langfuse              |
+| 9   | Cost Optimization   | model_router + cache                  |
 
 完整设计决策见 [docs/adr/](docs/adr/)(**19 ADR**)。
 
 ## 仓库矩阵
 
-| 包 | 说明 | 类比 | 状态 |
-|---|---|---|---|
-| agentcook-core | Agent 抽象层 + Plugin Bundle 接口 + 9 模块 protocol | langchain-core | 开发中 |
-| agentcook-providers | LLM Provider 适配层 (OpenAI/Anthropic/Qwen/Zhipu) | langchain-openai | 开发中 |
-| agentcook-storage | 存储抽象层 (PostgreSQL + pgvector / Redis / S3) | - | 开发中(Phase 2 Day 17 起,详 ADR-011) |
-| agentcook | FastAPI 主应用，编排 core + providers + storage | - | 开发中 |
-| agentcook-admin | Vue 3 + Element Plus + TypeScript 管理端 | mall-admin-web | 开发中 |
-| agentcook-app | React + Tailwind + shadcn/ui + Electron 用户端 | - | 开发中 |
-| agentcook-swarm | 微服务版 (gateway/agent/skills/connector/admin) | mall-swarm | 规划中 |
-| agentcook-design-tokens | 共享设计系统 token | - | 开发中 |
-| agentcook-starter | 教学最小集 (545 行核心逻辑) | mall-tiny | 开发中 |
-| **agentcook-java** ★ | **Java 17 + Spring Boot 3 + DDD 四层** (api/application/domain/infrastructure) + 5 domain 聚合 + gRPC 调 Python 主壳 | mall-business | 开发中(Phase 2 Day 16 起,详 ADR-013) |
-| docs | ADR 架构决策记录 + 架构文档 | - | 维护中 |
+| 包                      | 说明                                                                                                                 | 类比             | 状态                                 |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------ |
+| agentcook-core          | Agent 抽象层 + Plugin Bundle 接口 + 9 模块 protocol                                                                  | langchain-core   | 开发中                               |
+| agentcook-providers     | LLM Provider 适配层 (OpenAI/Anthropic/Qwen/Zhipu)                                                                    | langchain-openai | 开发中                               |
+| agentcook-storage       | 存储抽象层 (PostgreSQL + pgvector / Redis / S3)                                                                      | -                | 开发中(Phase 2 Day 17 起,详 ADR-011) |
+| agentcook               | FastAPI 主应用，编排 core + providers + storage                                                                      | -                | 开发中                               |
+| agentcook-admin         | Vue 3 + Element Plus + TypeScript 管理端                                                                             | mall-admin-web   | 开发中                               |
+| agentcook-app           | React + Tailwind + shadcn/ui + Electron 用户端                                                                       | -                | 开发中                               |
+| agentcook-swarm         | 微服务版 (gateway/agent/skills/connector/admin)                                                                      | mall-swarm       | 规划中                               |
+| agentcook-design-tokens | 共享设计系统 token                                                                                                   | -                | 开发中                               |
+| agentcook-starter       | 教学最小集 (545 行核心逻辑)                                                                                          | mall-tiny        | 开发中                               |
+| **agentcook-java** ★    | **Java 17 + Spring Boot 3 + DDD 四层** (api/application/domain/infrastructure) + 5 domain 聚合 + gRPC 调 Python 主壳 | mall-business    | 开发中(Phase 2 Day 16 起,详 ADR-013) |
+| docs                    | ADR 架构决策记录 + 架构文档                                                                                          | -                | 维护中                               |
 
 ## 开发者快速上手
 
@@ -52,8 +52,10 @@ agentcook 实现完整 9 harness 维度:
 ### 一键启动
 
 ```bash
-# 1. 安装 Python 依赖
-uv sync --group dev
+# 1. 安装 Python 依赖（必须带 --all-packages --all-extras，
+#    否则 workspace 子包 + OTEL/openai/structlog/pyjwt/alembic 等 optional extras 全不装，
+#    导致 chat 端到端 silent fail / Jaeger trace 没数据 / 章节 18 承诺破）
+uv sync --all-packages --all-extras --group dev
 
 # 2. 启动全部服务（docker-compose + Python app）
 make dev
@@ -97,17 +99,17 @@ make clean         # 停止 + 清除 volumes
 
 ### 端口一览
 
-| 服务 | 端口 | 说明 |
-|------|------|------|
-| agentcook Python | 8000 | FastAPI runtime |
-| agentcook Java | 8080 | Spring Boot（Phase 2 Day 22+） |
-| PostgreSQL (pgvector) | 5432 | 应用数据库 |
-| Redis | 6379 | 缓存 + 会话 |
-| Pact Broker | 9292 | 契约测试 |
-| Jaeger UI | 16686 | 链路追踪 |
-| Prometheus | 9090 | 指标监控 |
-| admin (Vue) | 5173 | 管理端 dev server |
-| app (React) | 5174 | 用户端 dev server |
+| 服务                  | 端口  | 说明                           |
+| --------------------- | ----- | ------------------------------ |
+| agentcook Python      | 8000  | FastAPI runtime                |
+| agentcook Java        | 8080  | Spring Boot（Phase 2 Day 22+） |
+| PostgreSQL (pgvector) | 5432  | 应用数据库                     |
+| Redis                 | 6379  | 缓存 + 会话                    |
+| Pact Broker           | 9292  | 契约测试                       |
+| Jaeger UI             | 16686 | 链路追踪                       |
+| Prometheus            | 9090  | 指标监控                       |
+| admin (Vue)           | 5173  | 管理端 dev server              |
+| app (React)           | 5174  | 用户端 dev server              |
 
 ## 配套教程
 

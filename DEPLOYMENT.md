@@ -18,23 +18,23 @@
 
 ## 0. 3 档对照速查
 
-| 维度                  | L1 docker compose                  | L2 Cloudflare MVP                        | L3 K8s Helm prod                                                               |
-| --------------------- | ---------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------ |
-| **启动时间**          | ~30 min                            | ~40 min                                  | ~7.5h cascade(首次)                                                            |
-| **月费(基础设施)**    | ¥0(本地)                           | ¥0(Cloudflare 免费 tier + Qwen 免费额度) | ¥500-2000(RDS + ElastiCache + K8s 集群)                                        |
-| **公网可访问**        | ❌(localhost only)                 | ✅(`*.pages.dev` + `cloudflared tunnel`) | ✅(真域名 + TLS)                                                               |
-| **服务数**            | 14 个 docker 服务                  | 同 L1 + Cloudflare Pages                 | 5 个 Helm deployment + 托管基础设施                                            |
-| **Blue-Green 切流量** | ❌                                 | ❌                                       | ✅(详 [ADR-006](docs/adr/ADR-006-blue-green-deployment.md))                    |
-| **监控告警**          | 本地 Jaeger + Prometheus(no alert) | 同 L1                                    | ✅ 7 alerts(HTTP 5xx / p99 / pod restart / OOM / CPU / LLM cost / chat fail)   |
-| **on-call runbook**   | —                                  | —                                        | ✅ [troubleshooting-runbook.md](docs/devops/troubleshooting-runbook.md) 410 行 |
-| **适合谁**            | 教程读者跑通 / 本地开发            | demo 推广早期 / 简历作品集               | 真商业级 / 多人协作 / SLA                                                      |
-| **可逆性**            | 一键 `make clean`                  | 一键删 Cloudflare 项目                   | 完整 Helm rollback + Blue-Green 双域并存 7 天                                  |
+| 维度                  | L1 docker compose                  | L2 Cloudflare MVP                        | L3 K8s Helm prod                                                                                               |
+| --------------------- | ---------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **启动时间**          | ~30 min                            | ~40 min                                  | ~7.5h cascade(首次)                                                                                            |
+| **月费(基础设施)**    | ¥0(本地)                           | ¥0(Cloudflare 免费 tier + Qwen 免费额度) | ¥500-2000(RDS + ElastiCache + K8s 集群)                                                                        |
+| **公网可访问**        | ❌(localhost only)                 | ✅(`*.pages.dev` + `cloudflared tunnel`) | ✅(真域名 + TLS)                                                                                               |
+| **服务数**            | 9 个 docker 服务                   | 同 L1 + Cloudflare Pages                 | 5 个 Helm deployment + 托管基础设施                                                                            |
+| **Blue-Green 切流量** | ❌                                 | ❌                                       | ✅(详 [ADR-006](docs/adr/ADR-006-blue-green-deployment.md))                                                    |
+| **监控告警**          | 本地 Jaeger + Prometheus(no alert) | 同 L1                                    | ✅ 9 alerts(HTTP 5xx / p99 / pod restart / OOM / CPU / LLM cost / chat fail / turnstile fail / rate-limit hit) |
+| **on-call runbook**   | —                                  | —                                        | ✅ [troubleshooting-runbook.md](docs/devops/troubleshooting-runbook.md) 410 行                                 |
+| **适合谁**            | 教程读者跑通 / 本地开发            | demo 推广早期 / 简历作品集               | 真商业级 / 多人协作 / SLA                                                                                      |
+| **可逆性**            | 一键 `make clean`                  | 一键删 Cloudflare 项目                   | 完整 Helm rollback + Blue-Green 双域并存 7 天                                                                  |
 
 ---
 
 ## L1 — 本地 docker compose(30 min)
 
-**核心**:14 个 docker 服务一键拉起,本机 `localhost` 跑通完整 agentcook。
+**核心**:9 个 docker 服务一键拉起(postgres / postgres-business / redis / jaeger / prometheus / pact-broker / pact-broker-db / langfuse / agentcook-java),本机 `localhost` 跑通完整 agentcook。
 
 ### 前置
 
@@ -46,14 +46,14 @@
 ### 启动
 
 ```bash
-# 1. 安装 Python 依赖
-uv sync --group dev
+# 1. 安装 Python 依赖(必须带 --all-packages --all-extras,缺一会让 chat / OTEL trace 静默失败)
+uv sync --all-packages --all-extras --group dev
 
 # 2. 启动全部服务(docker-compose + Python app)
 make dev
 
 # 3. 验证
-curl http://localhost:8000/healthz   # agentcook Python
+curl http://localhost:8000/health     # agentcook Python(真路径 /health,不是 /healthz)
 open http://localhost:5173            # admin Vue 端
 open http://localhost:5174            # app React 端
 open http://localhost:16686           # Jaeger 链路追踪

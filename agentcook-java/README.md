@@ -46,20 +46,23 @@ graph BT
 
 ## Modules
 
-| Module | What lives here | What never lives here |
-|---|---|---|
-| `agentcook-domain` | Aggregates (User / Session / Plugin / Connector / Permission), Value Objects (`UserId`, `SessionId`, …), Domain Events, Repository interfaces | Spring, JPA, anything that talks to the wire |
-| `agentcook-application` | UseCase implementations (`@Service @Transactional`), Input Ports (UseCase interfaces + Command/Query records), application-level Exceptions | HTTP / DB / gRPC / cache wiring |
-| `agentcook-infrastructure` | JPA Entities + Spring Data Repositories, Repository adapters (implement Domain Ports), Flyway migrations, Redis cache config, etcd service registry | Controllers, DTOs |
-| `agentcook-api` | `@RestController` + DTO records, OpenAPI (springdoc), Spring Security OAuth2 Resource Server, gRPC server (SSE → gRPC bridge), Observability filters, the `@SpringBootApplication` main class | Domain logic |
+| Module                     | What lives here                                                                                                                                                                               | What never lives here                        |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| `agentcook-domain`         | Aggregates (User / Session / Plugin / Connector / Permission), Value Objects (`UserId`, `SessionId`, …), Domain Events, Repository interfaces                                                 | Spring, JPA, anything that talks to the wire |
+| `agentcook-application`    | UseCase implementations (`@Service @Transactional`), Input Ports (UseCase interfaces + Command/Query records), application-level Exceptions                                                   | HTTP / DB / gRPC / cache wiring              |
+| `agentcook-infrastructure` | JPA Entities + Spring Data Repositories, Repository adapters (implement Domain Ports), Flyway migrations, Redis cache config, etcd service registry                                           | Controllers, DTOs                            |
+| `agentcook-api`            | `@RestController` + DTO records, OpenAPI (springdoc), Spring Security OAuth2 Resource Server, gRPC server (SSE → gRPC bridge), Observability filters, the `@SpringBootApplication` main class | Domain logic                                 |
 
 ## Local development
 
 ### Prerequisites
 
-- JDK 17 (eclipse-temurin recommended)
+- JDK 17 or 21 (eclipse-temurin recommended; 21 verified to build + pass all tests on 2026-06)
 - Maven 3.9+ (the project ships `mvnw` if you prefer the wrapper)
 - Docker (for Testcontainers — postgres:16-alpine pulled on first test run)
+- `grpcurl` if you want to hit the gRPC endpoints (`brew install grpcurl` on macOS, or download from <https://github.com/fullstorydev/grpcurl/releases>)
+
+> ⚠️ **Docker mirror TLS errors (CN users)** — if `docker pull langfuse/langfuse:2` or similar fails with TLS cert error from a Chinese mirror, run `docker logout <mirror-host>` and pull from Docker Hub directly. As a fallback the Testcontainers tests use `tc.cloud` images that are pulled via Docker Hub.
 
 ### Build + test
 
@@ -101,12 +104,26 @@ docker compose -f ../docker-compose.dev.yml up -d agentcook-java
 - OpenAPI spec: <http://localhost:8080/v3/api-docs.yaml>
 - Login (returns a JWT — paste into Swagger UI "Authorize"):
   ```bash
-  curl -sS -X POST http://localhost:8080/api/v1/auth/login \
+  TOKEN=$(curl -sS -X POST http://localhost:8080/api/v1/auth/login \
       -H 'Content-Type: application/json' \
-      -d '{"username":"alice","password":"dev"}'
+      -d '{"username":"alice","password":"dev"}' | jq -r .token)
+  echo "$TOKEN"   # JWT — sub claim currently = username (see Known issues below)
   ```
+- Decode the JWT to get your `userId` (most Session / Plugin POST endpoints need it in the body):
+
+  ```bash
+  # quick decode (no signature check) — for dev only
+  echo "$TOKEN" | cut -d. -f2 | base64 -d 2>/dev/null | jq .
+  # → { "sub": "alice", "iat": ..., "exp": ... }
+
+  # then look the username up to get the UUID:
+  curl -sS http://localhost:8080/api/v1/users -H "Authorization: Bearer $TOKEN" | jq '.[] | select(.username=="alice")'
+  ```
+
 - Health probes: `/actuator/health/liveness` + `/actuator/health/readiness`
 - Prometheus scrape: `/actuator/prometheus`
+
+> 🟡 **Known issue (Day 70+ W3 tracking)** — JWT `sub` is currently the username string, not a UUID. The `/api/v1/users/me` shortcut endpoint is **not yet wired** — fetch `GET /api/v1/users` and filter client-side until the W3 fix lands. Tracking: `agentcook/tutorial/_internal/stress-test/deployment-loop-w3-d-fix-prompt.md`.
 
 ## Deployment
 
@@ -150,14 +167,14 @@ Full config / Secret split: see [`docs/k8s-config-mapping.md`](../docs/k8s-confi
 
 15+ REST operations, generated live from `@RestController` annotations:
 
-| Resource | Endpoints |
-|---|---|
-| Auth | `POST /api/v1/auth/login` (public, returns JWT) |
-| Users | `GET/POST /api/v1/users`, `GET /api/v1/users/{id}` |
+| Resource    | Endpoints                                                                        |
+| ----------- | -------------------------------------------------------------------------------- |
+| Auth        | `POST /api/v1/auth/login` (public, returns JWT)                                  |
+| Users       | `GET/POST /api/v1/users`, `GET /api/v1/users/{id}`                               |
 | Permissions | `GET/POST /api/v1/users/{userId}/permissions`, `DELETE /api/v1/permissions/{id}` |
-| Sessions | `GET/POST /api/v1/sessions`, `GET /api/v1/sessions/{id}` |
-| Plugins | `GET/POST /api/v1/plugins`, `POST /api/v1/plugins/{id}/activate` |
-| Connectors | full CRUD + `POST /api/v1/connectors/{id}/ping` + OAuth callback |
+| Sessions    | `GET/POST /api/v1/sessions`, `GET /api/v1/sessions/{id}`                         |
+| Plugins     | `GET/POST /api/v1/plugins`, `POST /api/v1/plugins/{id}/activate`                 |
+| Connectors  | full CRUD + `POST /api/v1/connectors/{id}/ping` + OAuth callback                 |
 
 Frozen spec: `../docs/api/java-v1.yaml`. Versioning policy:
 [`../docs/api/DEPRECATION-POLICY.md`](../docs/api/DEPRECATION-POLICY.md).
@@ -169,8 +186,17 @@ The api module exposes a gRPC server on port 9090 (see
 unary streaming so the Python runtime can call back over gRPC.
 
 ```bash
+# Host mode (mvn spring-boot:run) — gRPC on 9090
 grpcurl -plaintext localhost:9090 list   # requires Reflection enabled
+
+# ⚠️ docker compose mode — port 9090 is shared with Prometheus on the host.
+# Either query in-network (recommended):
+docker compose -f ../docker-compose.dev.yml exec agentcook-java grpcurl -plaintext localhost:9090 list
+# or remap to 9091 on the host (edit docker-compose.dev.yml ports: "9091:9090"):
+grpcurl -plaintext localhost:9091 list
 ```
+
+> 🟡 **Known issue (D #2)** — `docker-compose.dev.yml` exposes Prometheus on 9090 too. W3 fix will remap one of them. Tracking: `agentcook/tutorial/_internal/stress-test/deployment-loop-w3-d-fix-prompt.md`.
 
 ## What's in each directory
 
@@ -225,13 +251,13 @@ The chapter walks readers through:
 If you're reading the source first and the chapter second, the
 mapping below tells you which file to open for each chapter section:
 
-| Chapter section | Files in this module |
-|---|---|
-| §3 user story → 5 aggregates | `agentcook-domain/src/main/java/cc/agentcook/domain/{user,session,plugin,connector,permission}/` |
-| §4 value objects vs entities | `agentcook-domain/.../UserId.java`, `SessionId.java`, etc. (all `*Id.java` files) |
-| §5 layered vs anemic | full layered impl: this module; anemic counter-example is in the chapter inline |
-| §6 domain services | `agentcook-domain/.../service/PluginActivationService.java` |
-| §7 infrastructure adapters | `agentcook-infrastructure/src/main/java/cc/agentcook/infrastructure/persistence/adapter/` |
-| §8 application boundary | `agentcook-application/src/main/java/cc/agentcook/application/usecase/` |
-| §9 API layer | `agentcook-api/src/main/java/cc/agentcook/api/controller/` |
-| §10 testing the seams | `agentcook-{domain,application,api}/src/test/` (see also `docs/ddd-guide.md` for the testing-pyramid mapping) |
+| Chapter section              | Files in this module                                                                                          |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| §3 user story → 5 aggregates | `agentcook-domain/src/main/java/cc/agentcook/domain/{user,session,plugin,connector,permission}/`              |
+| §4 value objects vs entities | `agentcook-domain/.../UserId.java`, `SessionId.java`, etc. (all `*Id.java` files)                             |
+| §5 layered vs anemic         | full layered impl: this module; anemic counter-example is in the chapter inline                               |
+| §6 domain services           | `agentcook-domain/.../service/PluginActivationService.java`                                                   |
+| §7 infrastructure adapters   | `agentcook-infrastructure/src/main/java/cc/agentcook/infrastructure/persistence/adapter/`                     |
+| §8 application boundary      | `agentcook-application/src/main/java/cc/agentcook/application/usecase/`                                       |
+| §9 API layer                 | `agentcook-api/src/main/java/cc/agentcook/api/controller/`                                                    |
+| §10 testing the seams        | `agentcook-{domain,application,api}/src/test/` (see also `docs/ddd-guide.md` for the testing-pyramid mapping) |

@@ -74,10 +74,10 @@ open http://localhost:16686           # Jaeger 链路追踪
 
 ### 推荐路径
 
-| 步骤                                                      | 文档                                                                                               | 时长           |
-| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------- |
-| 1. 完整 cookbook(决策时间线 + 5 踩坑实录)                 | [docs/devops/L2-cloudflare-pages-mvp-cookbook.md](docs/devops/L2-cloudflare-pages-mvp-cookbook.md) | 通读 ~10 min   |
-| 2. wrangler 真 deploy SOP(brew/npm 安装 + login + deploy) | [docs/devops/L2-wrangler-deploy-sop.md](docs/devops/L2-wrangler-deploy-sop.md)                     | 真执行 ~30 min |
+| 步骤                                                    | 文档                                                                                               | 时长           |
+| ------------------------------------------------------- | -------------------------------------------------------------------------------------------------- | -------------- |
+| 1. 完整 cookbook(决策时间线 + 5 踩坑实录)               | [docs/devops/L2-cloudflare-pages-mvp-cookbook.md](docs/devops/L2-cloudflare-pages-mvp-cookbook.md) | 通读 ~10 min   |
+| 2. wrangler 真 deploy SOP(npm install + login + deploy) | [docs/devops/L2-wrangler-deploy-sop.md](docs/devops/L2-wrangler-deploy-sop.md)                     | 真执行 ~30 min |
 
 ### 何时升级到 L3
 
@@ -99,7 +99,7 @@ open http://localhost:16686           # Jaeger 链路追踪
 | [docs/devops/production-configuration.md](docs/devops/production-configuration.md) | 381 | 5 服务完整配置(env / secret / resource / probe / HPA / PDB / NetworkPolicy / Blue-Green 步骤) |
 | [docs/devops/k8s-operations-manual.md](docs/devops/k8s-operations-manual.md)       | 353 | K8s 日常运维(deploy / upgrade / rollback / 扩缩容 / 排查)                                     |
 | [docs/devops/troubleshooting-runbook.md](docs/devops/troubleshooting-runbook.md)   | 410 | 故障 runbook(8 类故障 × 诊断 → 处置 → 复盘)                                                   |
-| [docs/devops/monitoring-alerts-sop.md](docs/devops/monitoring-alerts-sop.md)       | 231 | 7 alert SOP(分级 / 触发条件 / 处置流程)                                                       |
+| [docs/devops/monitoring-alerts-sop.md](docs/devops/monitoring-alerts-sop.md)       | 231 | 9 alert SOP(分级 / 触发条件 / 处置流程)                                                       |
 
 ### 配套架构决策
 

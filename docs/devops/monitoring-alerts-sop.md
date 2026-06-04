@@ -108,12 +108,14 @@
 | 5   | `AgentcookCPUHigh`                 | CPU 持续 > 80% limit | > 0.8 持续 10m                  | 🟡 P2 warning  | HPA 应自动扩,见 runbook §8                 |
 | 6   | `AgentcookLLMTokenCostSpike`       | Token cost 突增      | > $50/24h(可调)                 | 🟡 P2 warning  | 切 fallback / Grafana llm-cost channel     |
 | 7   | `AgentcookChatFailRateHigh`        | chat fail rate       | > 5% 持续 10m                   | 🔴 P1 critical | runbook §6 / Grafana critical channel      |
+| 8   | `AgentcookTurnstileFailRateHigh`   | Turnstile 验证失败率 | > 30% 持续 5m                   | 🟡 P2 warning  | runbook §10 / Grafana default channel      |
+| 9   | `AgentcookRateLimitHitSpike`       | rate-limit 命中突增  | > 100 次/min 持续 5m            | 🟡 P2 warning  | runbook §11 / Grafana default channel      |
 
 **完整 promql 见 `deploy/helm/agentcook/templates/prometheusrule.yaml`**(每条带 runbook_url 链回本项目)。
 
 ### 4.1 落地状态(Day 55 C 校准)
 
-- ✅ `deploy/helm/agentcook/templates/prometheusrule.yaml`(100 行 / 1 资源 / 3 group / 7 alerts)— **Day 53 已落 + push**(commit `dabe982`)
+- ✅ `deploy/helm/agentcook/templates/prometheusrule.yaml`(100+ 行 / 1 资源 / 3 group / **9 alerts** — Day 53 落 7 + Day 62 加 Turnstile + RateLimit 2 个)
 - ✅ `agentcook-swarm/grafana/provisioning/alerting/contact-points.yml`(3 receiver:default / critical / llm-cost)— Day 55 C 落
 - ✅ `agentcook-swarm/grafana/provisioning/alerting/notification-policies.yml`(severity-based routing)— Day 55 C 落
 - 📅 真 webhook URL(Slack / 钉钉 robot URL)填入 Grafana env var:`GRAFANA_WEBHOOK_URL_DEFAULT/CRITICAL/LLM_COST` — 留作者首发后填,Phase 5 buffer
@@ -220,7 +222,7 @@ P0/P1 触发 → 当值 on-call(立即响应)
 
 ## 8. Day 53-54 C 待补 backlog
 
-- [ ] `deploy/helm/agentcook/templates/prometheusrule.yaml`(7 alerts 真落)
+- [ ] `deploy/helm/agentcook/templates/prometheusrule.yaml`(9 alerts 真落)
 - [ ] AlertManager → Slack / 钉钉 webhook 接入
 - [ ] Loki promtail sidecar(Phase 5 buffer)
 - [ ] Grafana 4th dashboard `Business Funnel`(Agent 完成率 / 用户留存 / 转化漏斗,ADR-005 业务看板)

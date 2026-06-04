@@ -406,5 +406,66 @@ kubectl top pods -n agentcook-prod
 
 ---
 
-**最后更新**:2026-06-03 · Phase 5 Day 52 · Agent C
-**配套**:`k8s-operations-manual.md` / `monitoring-alerts-sop.md` / Day 50 perf report / D Day 50 JVM heap commit ea0c5cb
+## 10. Turnstile 验证失败率突增(`AgentcookTurnstileFailRateHigh`)
+
+**触发**:`AgentcookTurnstileFailRateHigh` alert(Turnstile 验证失败率 > 30% 持续 5m)
+
+**症状**:
+
+- 用户登录页 / chat 提交时 Turnstile widget 不显示或转圈不结束
+- Cloudflare Worker `agentcook-turnstile-verify` log 大量 `VERIFICATION_FAILED`
+- 后端 401 突增
+
+**5 分钟止血**:
+
+1. Cloudflare Dashboard → Turnstile → 看 site `agentcook.cc` Status 是否 Active(若 Inactive 重启 site)
+2. `wrangler tail --env production --name agentcook-turnstile-verify` 看 Worker 实时 log
+3. 临时 bypass(staging 才用,prod 别用):`wrangler secret put TURNSTILE_BYPASS --env production` = `true`
+
+**30 分钟根因**:
+
+1. Cloudflare Turnstile dashboard 看 challenge 通过率历史曲线(可能是 widget 资源加载失败 / CDN 问题)
+2. 前端 Network tab 看 `challenges.cloudflare.com/turnstile/v0/api.js` 是否 200
+3. Worker secret `TURNSTILE_SECRET` 是否过期 / 撤销(Cloudflare 端 rotate 了但 Worker 没同步)
+4. 客户端 IP 是否被 Cloudflare 标 high-risk(看 Worker log 的 `error_codes`)
+
+**修**:
+
+- secret 过期 → `wrangler secret put TURNSTILE_SECRET --env production` 重新注入
+- 前端 widget bug → 检查 sitekey 是否对得上 secret(staging 用 staging secret,prod 用 prod secret)
+- 大量 high-risk IP → Turnstile mode 从 `Managed` 切到 `Invisible`(用户体验略损但容错高)
+
+---
+
+## 11. Rate-limit 命中突增(`AgentcookRateLimitHitSpike`)
+
+**触发**:`AgentcookRateLimitHitSpike` alert(rate-limit 命中 > 100 次/min 持续 5m)
+
+**症状**:
+
+- Cloudflare Worker `agentcook-rate-limit` 大量 429
+- 部分用户报"chat 突然 429,刷新就好"
+- 后端 `chat-fail` 指标可能同步上升(429 计入 fail)
+
+**5 分钟止血**:
+
+1. `wrangler tail --env production --name agentcook-rate-limit` 看实时 429 来源 IP
+2. 单 IP 集中(疑似刷站)→ Cloudflare Dashboard → Security → WAF 加 IP block
+3. 多 IP 分散(疑似真用户峰值)→ 临时调高阈值:Cloudflare Workers env var `RATE_LIMIT_THRESHOLD` 调高 50%
+
+**30 分钟根因**:
+
+1. KV namespace `RATE_LIMIT_KV` read/write 量看是否撞 Cloudflare 免费 tier 上限(1K/天)
+2. 看 Cloudflare Worker analytics CPU time,接近 50ms 阈值会随机抛 1015 错
+3. 业务侧是否真有合法高峰(促销 / 营销活动)— 与运营对一下
+
+**修**:
+
+- KV 撞上限 → 升 Workers Paid plan($5/月 unlimited)
+- CPU time 抖动 → Worker 代码优化 KV 读批量(`storage.list({ prefix })` 替代多次 get)
+- 合法峰值 → 调高阈值并加 documented 解释(`docs-site/docs/rate-limit-policy.md`)
+
+---
+
+**最后更新**:2026-06-04 · Day 70+ W4 · Agent C
+**配套**:`k8s-operations-manual.md` / `monitoring-alerts-sop.md`(9 alerts)/ Day 50 perf report / D Day 50 JVM heap commit ea0c5cb

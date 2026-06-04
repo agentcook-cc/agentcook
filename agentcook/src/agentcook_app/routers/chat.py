@@ -153,15 +153,9 @@ async def _stream_real_response(
         Phase 4.6 single-provider behaviour.
     """
     session_id = request.session_id
-    if provider_override:
-        from agentcook_providers.factory import create_provider as _create_provider
 
-        provider = _create_provider(provider=provider_override)
-    else:
-        provider = _get_provider()
-    model_used = request.model or getattr(provider, "model_name", "unknown")
-
-    # First frame: echo session_id (matches mock contract for useSseChat)
+    # First frame is yielded before provider init so useSseChat always
+    # gets a session-bound frame even if provider creation later raises.
     first_frame = ChatStreamFrame(
         role="assistant",
         content="",
@@ -170,15 +164,28 @@ async def _stream_real_response(
     )
     yield f"data: {first_frame.model_dump_json()}\n\n".encode()
 
-    # Phase 4.6: single-turn (no memory load yet). Phase 5 will hydrate
-    # history from agentcook-storage via session_id.
     messages = [Message(role="user", content=request.message)]
 
     started_ns = time.perf_counter_ns()
     total_chars = 0
     finish_reason: str | None = None
+    model_used: str = request.model or "unknown"
+    provider: Any = None
 
     try:
+        # Provider init must stay inside the try: an ImportError or
+        # ConfigError otherwise propagates to starlette and closes the
+        # stream after headers with 0 bytes, surfacing as
+        # "No response received" in useSseChat instead of an error frame.
+        if provider_override:
+            from agentcook_providers.factory import create_provider as _create_provider
+
+            provider = _create_provider(provider=provider_override)
+        else:
+            provider = _get_provider()
+        if request.model is None:
+            model_used = getattr(provider, "model_name", "unknown")
+
         stream_kwargs: dict[str, Any] = {}
         if request.temperature is not None:
             stream_kwargs["temperature"] = request.temperature
@@ -197,7 +204,6 @@ async def _stream_real_response(
             if chunk.finish_reason:
                 finish_reason = chunk.finish_reason
     except Exception as e:
-        # SSE-friendly error: terminal frame with error field set.
         error_frame = ChatStreamFrame(
             role="assistant",
             content="",
@@ -216,7 +222,7 @@ async def _stream_real_response(
         done=True,
         metadata={
             "model": model_used,
-            "provider": provider.__class__.__name__,
+            "provider": provider.__class__.__name__ if provider else "unknown",
             "request_id": uuid.uuid4().hex,
             "duration_ms": round(duration_ms, 1),
             "output_chars": total_chars,

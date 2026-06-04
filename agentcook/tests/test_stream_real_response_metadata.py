@@ -222,4 +222,86 @@ class TestRealResponseErrorFrame:
         assert terminal["error"] is not None
         assert "RuntimeError" in terminal["error"]
         assert "rate limited" in terminal["error"]
+
+
+class TestRealResponseProviderInitError:
+    """Provider construction failure (e.g. missing ``openai`` extras causing
+    ``ImportError``) must surface as a structured error frame, not a 0-byte
+    SSE stream. Before the W3 fix ``_get_provider()`` ran outside the try
+    block, so init errors propagated to starlette and closed the response
+    after headers — useSseChat then showed "No response received" with no
+    diagnostic signal."""
+
+    def test_provider_init_error_returns_error_frame(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setenv("AGENTCOOK_LLM_PROVIDER", "qwen")
+        monkeypatch.delenv("AGENTCOOK_CHAT_MOCK", raising=False)
+
+        from agentcook_app.routers import chat as chat_module
+
+        def _raising_get_provider() -> Any:
+            raise ImportError("Install agentcook-providers[openai] to use OpenAIProvider.")
+
+        monkeypatch.setattr(chat_module, "_provider_cache", None, raising=False)
+        monkeypatch.setattr(chat_module, "_get_provider", _raising_get_provider)
+
+        client = TestClient(create_app())
+        resp = client.post(
+            "/api/v1/chat/stream",
+            json={"session_id": "sess-init-err", "message": "hi"},
+        )
+
+        assert resp.status_code == 200
+        frames = _parse_frames(resp.text)
+
+        # First frame still goes out so useSseChat sees session_id.
+        assert frames[0]["session_id"] == "sess-init-err"
+        assert frames[0]["done"] is False
+
+        # Terminal frame carries the ImportError text instead of empty stream.
+        terminal = frames[-1]
+        assert terminal["done"] is True
+        assert terminal["error"] is not None
+        assert "ImportError" in terminal["error"]
+        assert "openai" in terminal["error"]
+        assert terminal["metadata"]["source"] == "provider"
+
+    def test_provider_override_init_error_returns_error_frame(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Same contract for the ADR-018 quota-resolver provider_override
+        path — a failing ``create_provider(name)`` must not break the SSE
+        stream either."""
+        monkeypatch.setenv("AGENTCOOK_LLM_PROVIDER", "qwen")
+        monkeypatch.delenv("AGENTCOOK_CHAT_MOCK", raising=False)
+
+        from agentcook_app.routers import chat as chat_module
+
+        async def _override_stream(request: Any) -> AsyncIterator[bytes]:
+            async for frame in chat_module._stream_real_response(
+                request, provider_override="nonexistent-provider"
+            ):
+                yield frame
+
+        from agentcook_app.schemas_chat import ChatStreamRequest
+
+        async def _collect() -> list[dict]:
+            req = ChatStreamRequest(session_id="sess-override-err", message="hi")
+            chunks = []
+            async for frame_bytes in chat_module._stream_real_response(
+                req, provider_override="nonexistent-provider"
+            ):
+                line = frame_bytes.decode().strip()
+                if line.startswith("data: "):
+                    chunks.append(json.loads(line[6:]))
+            return chunks
+
+        import asyncio
+
+        frames = asyncio.run(_collect())
+        terminal = frames[-1]
+        assert terminal["done"] is True
+        assert terminal["error"] is not None
+        assert terminal["metadata"]["source"] == "provider"
         assert terminal["metadata"]["source"] == "provider"

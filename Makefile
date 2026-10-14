@@ -1,7 +1,8 @@
-# agentcook-cc — unified developer commands.
-# Phase 2 Day 21 — Agent C.
+# agentcook — unified developer commands.
 #
 # Usage:
+#   make run          — agent runtime only (offline mock model, no Docker) on :8000
+#   make web          — React chat app on :5174 (talks to make run)
 #   make dev          — start docker-compose + Python app
 #   make test-py      — run Python full test suite
 #   make test-java    — run Java full test suite
@@ -10,7 +11,7 @@
 #   make down         — stop docker-compose
 #   make clean        — stop compose + wipe volumes
 
-.PHONY: dev down clean test-py test-java test-contract lint ci-local help
+.PHONY: run web admin dev down clean test-py test-java test-contract lint ci-local help
 
 COMPOSE := docker compose -f docker-compose.dev.yml
 
@@ -19,6 +20,17 @@ help: ## Show this help
 		awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-15s\033[0m %s\n", $$1, $$2}'
 
 # ── Development ──────────────────────────────────────────────────────────────
+
+run: ## Agent runtime only: offline mock model, in-memory storage, no Docker (:8000)
+	AGENTCOOK_MOCK_DELAY_MS=20 uv run python -m uvicorn agentcook_app.main:app --port 8000 --reload
+
+web: ## React chat app dev server (:5174) — pairs with `make run`
+	pnpm --filter @agentcook-cc/design-tokens build
+	pnpm --filter @agentcook-cc/app dev
+
+admin: ## Vue admin console dev server (:5173)
+	pnpm --filter @agentcook-cc/design-tokens build
+	pnpm --filter @agentcook-cc/admin dev
 
 dev: ## Start docker-compose services + Python app (foreground)
 	$(COMPOSE) up -d
@@ -47,10 +59,8 @@ test-py-cov: ## Run Python tests with coverage report (excludes contract — tho
 test-java: ## Run Java full test suite
 	cd agentcook-java && ./mvnw -B -ntp test
 
-test-contract: ## Run Pact consumer + publish + provider verify (requires broker on :9292)
-	@$(COMPOSE) ps pact-broker | grep -q "(healthy)" || \
-		(echo "❌ pact-broker not healthy. Run: $(COMPOSE) up -d pact-broker"; exit 1)
-	uv run pytest tests/contract/ -v --no-cov
+test-contract: ## Pact consumer pacts + local provider verification (broker tests skip without :9292)
+	uv run pytest -m contract tests/contract/ -v --no-cov
 
 # ── Linting ──────────────────────────────────────────────────────────────────
 

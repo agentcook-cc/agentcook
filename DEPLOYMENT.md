@@ -12,7 +12,21 @@
 | 演示给同行 / 教程读者跟着跑 demo  | **L2 Cloudflare Pages MVP** | ¥0 / ~40 min                 | [本文 §2](#l2--cloudflare-pages-mvp40-min) → [docs/devops/L2-cloudflare-pages-mvp-cookbook.md](docs/devops/L2-cloudflare-pages-mvp-cookbook.md) |
 | 真商业级上线 / 多人协作 / on-call | **L3 K8s Helm prod**        | ¥500-2000/月 / ~7.5h cascade | [本文 §3](#l3--k8s-helm-prod7-5h-cascade) → [docs/devops/](docs/devops/) 4 文档                                                                 |
 
-> 不知道选哪档?看 [§4 选档决策树](#4-选档决策树)。
+> 不知道选哪档?看 [§4 选档决策树](#4-选档决策树)。只想先看看产品长什么样?用下面的 L0。
+
+---
+
+## L0 — 零依赖试用(5 min)
+
+不需要 Docker、数据库或 API Key:运行时用离线 Mock 模型 + 内存存储,工具调用、委派、流式输出、停止生成都是真实代码在跑。
+
+```bash
+uv sync --all-packages --all-extras --group dev && pnpm install
+make run    # 运行时 :8000
+make web    # 用户端 :5174
+```
+
+单容器也可以:`docker build -f agentcook/Dockerfile -t agentcook-runtime .`,生产模式默认要求鉴权(需 `AGENTCOOK_JWT_SECRET`,至少 32 字节)。
 
 ---
 
@@ -59,7 +73,7 @@ open http://localhost:5174            # app React 端
 open http://localhost:16686           # Jaeger 链路追踪
 ```
 
-完整端口表 + 常用命令见 [README.md §开发者快速上手](README.md#开发者快速上手)。
+完整端口表 + 常用命令见 [README.md §开发](README.md#开发)。
 
 ### 何时升级到 L2
 

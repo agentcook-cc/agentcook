@@ -1,135 +1,113 @@
-# agentcook
+# AgentCook
 
-**Open-source Agent Harness** — 9 harness 维度全覆盖的生产级 AI Agent 运行时框架。
+**开源的商业级 AI Agent 产品**：一个会用工具、会委派专家、能记住用户、可以直接上线的 Agent，加上把它跑起来所需的整套工程——运行时、业务后端、用户端、管理后台、部署和测试。
 
-> 配套教程《从 0 到 1 构建商业级 AI Agent 产品》,半个月教你从 0 到 1 上线一款 AI Agent 产品(附完整开源工程)。
+> 配套教程《从 0 到 1 构建商业级 AI Agent 产品》：[agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial)。
+> 想先读一个 1000 行以内的最小版本？看 [`agentcook-starter/python`](agentcook-starter/python/README.md)。
 
-## 什么是 Agent Harness?
-
-**Harness** 是 Anthropic 推广的术语,指**模型之上、把 LLM 变成可在生产环境长时运行 Agent 所需的整套工程脚手架** — 不是模型,不是 prompt,是**模型上面的运行时框架**。Claude Code 自己就是 Anthropic 的 reference harness。
-
-agentcook 实现完整 9 harness 维度:
-
-| #   | Harness 维度        | agentcook 实现                        |
-| --- | ------------------- | ------------------------------------- |
-| 1   | Agent Loop          | `agentcook-core` + LangGraph          |
-| 2   | Tool Use 调度       | Tool / Plugin / Skill protocol        |
-| 3   | System Prompt 管理  | prefix-cache 友好分段                 |
-| 4   | Context Management  | compaction + pruning                  |
-| 5   | Sub-agent 编排      | LangGraph 声明式 router               |
-| 6   | Memory              | Identity / Soul / Memory / Diary 四层 |
-| 7   | Safety / Sandboxing | Plugin Docker 沙箱                    |
-| 8   | Observability       | OpenTelemetry + Langfuse              |
-| 9   | Cost Optimization   | model_router + cache                  |
-
-完整设计决策见 [docs/adr/](docs/adr/)(**19 ADR**)。
-
-## 仓库矩阵
-
-| 包                      | 说明                                                                                                                 | 类比             | 状态                                 |
-| ----------------------- | -------------------------------------------------------------------------------------------------------------------- | ---------------- | ------------------------------------ |
-| agentcook-core          | Agent 抽象层 + Plugin Bundle 接口 + 9 模块 protocol                                                                  | langchain-core   | 开发中                               |
-| agentcook-providers     | LLM Provider 适配层 (OpenAI/Anthropic/Qwen/Zhipu)                                                                    | langchain-openai | 开发中                               |
-| agentcook-storage       | 存储抽象层 (PostgreSQL + pgvector / Redis / S3)                                                                      | -                | 开发中(Phase 2 Day 17 起,详 ADR-011) |
-| agentcook               | FastAPI 主应用，编排 core + providers + storage                                                                      | -                | 开发中                               |
-| agentcook-admin         | Vue 3 + Element Plus + TypeScript 管理端                                                                             | mall-admin-web   | 开发中                               |
-| agentcook-app           | React + Tailwind + shadcn/ui + Electron 用户端                                                                       | -                | 开发中                               |
-| agentcook-swarm         | 微服务版 (gateway/agent/skills/connector/admin)                                                                      | mall-swarm       | 规划中                               |
-| agentcook-design-tokens | 共享设计系统 token                                                                                                   | -                | 开发中                               |
-| agentcook-starter       | 教学最小集 (545 行核心逻辑)                                                                                          | mall-tiny        | 开发中                               |
-| **agentcook-java** ★    | **Java 17 + Spring Boot 3 + DDD 四层** (api/application/domain/infrastructure) + 5 domain 聚合 + gRPC 调 Python 主壳 | mall-business    | 开发中(Phase 2 Day 16 起,详 ADR-013) |
-| docs                    | ADR 架构决策记录 + 架构文档                                                                                          | -                | 维护中                               |
-
-## 开发者快速上手
-
-### 前置条件
-
-- Python 3.11+、[uv](https://docs.astral.sh/uv/) 包管理器
-- Java 17+、Maven Wrapper（`./mvnw`，已内置）
-- Docker（推荐 colima）+ docker compose v2
-- Node.js 20+、pnpm 9+
-
-### 一键启动
+## 5 分钟跑起来（不需要 API Key）
 
 ```bash
-# 1. 安装 Python 依赖（必须带 --all-packages --all-extras，
-#    否则 workspace 子包 + OTEL/openai/structlog/pyjwt/alembic 等 optional extras 全不装，
-#    导致 chat 端到端 silent fail / Jaeger trace 没数据 / 章节 18 承诺破）
-uv sync --all-packages --all-extras --group dev
+uv sync --all-packages --all-extras --group dev   # Python 依赖
+pnpm install                                       # 前端依赖
 
-# 2. 启动全部服务（docker-compose + Python app）
-make dev
-
-# 单独启动 docker 中间件（不启动 app）
-make dev-infra   # 等同于 docker compose up -d
+make run    # 终端 1：Agent 运行时 http://localhost:8000（离线 Mock 模型，内存存储）
+make web    # 终端 2：聊天界面   http://localhost:5174
 ```
 
-### 跨 repo git hooks（Phase 6 #28）
+打开 <http://localhost:5174>，试试：
 
-本仓库与作者的 `agentcook` 工作区仓平行存放（兄弟目录）。提交源码到本仓时，常常忘记把对应的 `audit/` / `progress/` 笔记 commit 到工作区仓 — 协调员 review 时看到代码已 push 但找不到对应文档（cookbook 23 子项 #22 累计教训 4 次）。
+- `calculate 1299 * 0.85 - 50` —— 看 Agent 调用计算器工具，结果卡片可以展开
+- `please ask the analyst to review our sales` —— 看主 Agent 把任务委派给「数据分析师」
+- 回复生成中点「停止」—— 服务端的运行被真正取消，已生成的部分保留
 
-仓库自带一个 `.githooks/pre-push` 守门员：检测到工作区仓的 `tutorial/_internal/audit/` 或 `tutorial/_internal/progress/` 有未提交的新文件时阻止 push。
-
-一次性启用（每个 clone 执行一次）：
+Mock 模型说的是和真实模型一样的接口，所以你看到的工具调用、委派、流式输出、会话持久化全部是真实代码在跑。
+接上真实模型只需要环境变量：
 
 ```bash
-git config core.hooksPath .githooks
+AGENTCOOK_LLM_PROVIDER=qwen,zhipu,mock DASHSCOPE_API_KEY=... make run   # 通义千问，失败降级到智谱，再降级到 Mock
 ```
 
-故意绕过（明确就是想先推源码、稍后补文档）：
+## 它由什么组成
+
+```
+                       ┌──────────────── agentcook-app (React) ── 用户聊天
+ 浏览器 ───────────────┤
+                       └──────────────── agentcook-admin (Vue) ── 运营后台
+          │ /api/v1/chat, conversations, agents, skills…      │ /api/v1/auth, users, quota…
+          ▼                                                    ▼
+ agentcook (FastAPI 运行时)  ◄── JWT（同一密钥）──  agentcook-java (Spring Boot)
+   Agent 循环 · 工具 · 技能 · 委派 · 会话 · 记忆        登录/注册/刷新 · 用户 · 配额 · 插件 · 权限
+          │                                                    │
+          ▼                                                    ▼
+   LLM（Qwen / 智谱 / OpenAI / Anthropic / Mock）     PostgreSQL（业务库）
+   PostgreSQL + pgvector（会话、记忆）
+```
+
+| 包                                           | 职责                                                                                                                     |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| [`agentcook-core`](agentcook-core)           | Agent 引擎：流式 ReAct 循环、并行工具执行与超时、策略钩子、上下文窗口、子 Agent 委派、`@tool` 装饰器、System Prompt 构建 |
+| [`agentcook-providers`](agentcook-providers) | 模型适配：OpenAI 兼容（Qwen / 智谱 / OpenAI）、Anthropic（工具调用 + 提示缓存）、降级链、离线 Mock 模型                  |
+| [`agentcook-storage`](agentcook-storage)     | 存储：会话转录、Agent 记忆（pgvector）、对象存储                                                                         |
+| [`agentcook`](agentcook)                     | 运行时服务：聊天 SSE、运行管理（可取消、断线不丢）、会话、Agent 规格（YAML）、工具包、技能、日志流、委派记录、鉴权、指标 |
+| [`agentcook-java`](agentcook-java)           | 业务后端（DDD 四层）：账号与 JWT 签发、角色、配额、插件、连接器、权限                                                    |
+| [`agentcook-app`](agentcook-app)             | 用户端：流式对话、工具/委派卡片、停止生成、会话侧栏、Agent 选择                                                          |
+| [`agentcook-admin`](agentcook-admin)         | 管理端：用户、插件、权限、技能目录、实时日志、仪表盘                                                                     |
+| [`agentcook-swarm`](agentcook-swarm)         | 微服务部署形态：Traefik 网关 + gRPC + etcd                                                                               |
+| [`agentcook-starter`](agentcook-starter)     | 教学最小集（教程第 22–25 讲）                                                                                            |
+| [`deploy/helm`](deploy/helm)                 | Kubernetes Helm chart                                                                                                    |
+
+架构细节：[ARCHITECTURE.md](ARCHITECTURE.md)；设计决策：[docs/adr/](docs/adr/)（Agent 循环与事件协议见 [ADR-020](docs/adr/ADR-020-agent-loop-and-event-protocol.md)）。
+
+## Agent Harness 的 9 个维度
+
+| 维度          | AgentCook 的实现                                                                                                             |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Agent 循环    | `AgentRunner`：流式、类型化事件（`run_started` / `text_delta` / `tool_call` / `tool_result` / `run_completed`…），轮数预算   |
+| 工具调度      | `@tool` 从函数签名生成 JSON Schema；并行执行、单工具超时、参数校验、`ToolPolicy` 白名单/禁用                                 |
+| System Prompt | 稳定段在前、动态段在后（日期精确到天），对提示缓存友好                                                                       |
+| 上下文管理    | `ContextWindow` 按完整交换裁剪，不会拆开 tool_use / tool_result；中日韩文本的 token 估算                                     |
+| 子 Agent      | `AgentTool` 委派：深度限制、委派记录（谁 → 谁、耗时、结果）                                                                  |
+| 记忆          | 每个（Agent，用户）独立实例；事件、Soul、向量检索（pgvector）                                                                |
+| 安全          | JWT（Java 签发 / Python 校验，拒绝 refresh token 当 access 用）、管理员角色、会话归属校验、`fetch_url` 防 SSRF、工具禁用名单 |
+| 可观测性      | Prometheus 指标（按路由模板）、结构化日志实时流、运行追踪；OpenTelemetry 可选                                                |
+| 成本          | 降级链（主模型失败才降级，且只在首个 token 之前）、免费额度与模型分层（ADR-018）                                             |
+
+## 开发
+
+前置：Python 3.11+ 与 [uv](https://docs.astral.sh/uv/)、Node.js 20+ 与 pnpm 9、Java 17+（`./mvnw` 已内置）、Docker。
 
 ```bash
-git push --no-verify
+make help            # 全部命令
+make run / web / admin
+make dev             # docker-compose 中间件（Postgres、Redis、Jaeger…）+ 运行时
+make test-py         # Python 全量测试（集成测试用 testcontainers，需要 Docker）
+make test-java       # Java 测试
+make test-contract   # Pact 契约：前端期望 vs 运行时实际返回（无需 broker）
+pnpm turbo run lint test build   # 前端
+pnpm e2e             # Playwright（需先 make run + make web）
 ```
 
-### 常用命令（Makefile）
+| 服务                    | 端口         |
+| ----------------------- | ------------ |
+| Agent 运行时（FastAPI） | 8000         |
+| 业务后端（Spring Boot） | 8080         |
+| 管理端 / 用户端（Vite） | 5173 / 5174  |
+| PostgreSQL（pgvector）  | 5432         |
+| Redis                   | 6379         |
+| Jaeger / Prometheus     | 16686 / 9090 |
 
-```bash
-make help          # 查看所有命令
-make dev           # 启动 docker-compose + Python app（:8000）
-make test-py       # Python 全量测试
-make test-py-unit  # 仅 unit 测试（不需要 Docker）
-make test-py-cov   # 测试 + 覆盖率报告
-make test-java     # Java 全量测试
-make lint          # Python ruff check + format check
-make ci-local      # 本地模拟完整 CI
-make down          # 停止 docker-compose
-make clean         # 停止 + 清除 volumes
-```
+## 部署
 
-### 端口一览
-
-| 服务                  | 端口  | 说明                           |
-| --------------------- | ----- | ------------------------------ |
-| agentcook Python      | 8000  | FastAPI runtime                |
-| agentcook Java        | 8080  | Spring Boot（Phase 2 Day 22+） |
-| PostgreSQL (pgvector) | 5432  | 应用数据库                     |
-| Redis                 | 6379  | 缓存 + 会话                    |
-| Pact Broker           | 9292  | 契约测试                       |
-| Jaeger UI             | 16686 | 链路追踪                       |
-| Prometheus            | 9090  | 指标监控                       |
-| admin (Vue)           | 5173  | 管理端 dev server              |
-| app (React)           | 5174  | 用户端 dev server              |
+- **单机容器**：`docker build -f agentcook/Dockerfile -t agentcook-runtime .`（生产模式默认要求鉴权，需 `AGENTCOOK_JWT_SECRET`）
+- **微服务**：`AGENTCOOK_JWT_SECRET=$(openssl rand -hex 32) docker compose -f agentcook-swarm/docker-compose.swarm.yml up --build`，用户端 `/app/`、管理端 `/admin/`
+- **Kubernetes**：[`deploy/helm`](deploy/helm)，见 [DEPLOYMENT.md](DEPLOYMENT.md)
 
 ## 配套教程
 
-📚 **教程主仓**:[agentcook-cc/agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial) — 《从 0 到 1 构建商业级 AI Agent 产品》
+📚 [agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial) —— 30 讲主线 + 附录，从机会判断、架构设计一路讲到上线运营。第 22–25 讲配套 [`agentcook-starter`](agentcook-starter)。
 
-主线 30 讲(14,375 行)+ 7 附录(3,613 行,含求职竞争力 + 实战参考)+ 旗舰博客 + 50 篇建造方法论博客系列(Day 76 起每周 1 篇 / 50 周持续 publish)。
-
-📝 **博客系列**:[50 周 publish 节奏排程](https://github.com/agentcook-cc/agentcook-tutorial/blob/main/schedule/blog-publish-schedule-50weeks.md)/ [50 个 FAQ](https://github.com/agentcook-cc/agentcook-tutorial/blob/main/faq/readers-faq.md)
-
-💬 **GitHub Discussions**:[github.com/agentcook-cc/agentcook/discussions](https://github.com/agentcook-cc/agentcook/discussions) — Agent 协作 / 多包 vs 单包 / 测试金字塔 等深度讨论欢迎开新 thread
-
-⭐ **Star** 这个仓 + [agentcook-tutorial](https://github.com/agentcook-cc/agentcook-tutorial),是 50 周博客系列持续 publish 的最直接燃料
-
-## 项目最终愿景
-
-完整愿景与全景(6 大类产出物 + 4 使用场景 + 时间线 + 价值杠杆图)见配套教程仓库:
-
-`build-ai-agent-product/tutorial/_internal/L3-strategy/final-deliverables-map.md`
-
-> 简短:agentcook 是一份**开源 Agent Harness** + **完整的"产品架构师"教程** + **简历级求职作品集** + **中国大陆开发者环境配置工具书** —— 5 个独立可用的产物互相杠杆放大,长期持有。
+💬 讨论区：[github.com/agentcook-cc/agentcook/discussions](https://github.com/agentcook-cc/agentcook/discussions)
 
 ## License
 

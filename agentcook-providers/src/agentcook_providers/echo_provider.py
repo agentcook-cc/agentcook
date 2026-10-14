@@ -52,7 +52,9 @@ class EchoProvider:
         text = f"[{self._prefix}] {self._last_user(messages)}"
         return ChatResponse(
             message=Message(role="assistant", content=text),
-            usage=TokenUsage(input=self.count_tokens(self._last_user(messages)), output=self.count_tokens(text)),
+            usage=TokenUsage(
+                input=self.count_tokens(self._last_user(messages)), output=self.count_tokens(text)
+            ),
             finish_reason="stop",
         )
 

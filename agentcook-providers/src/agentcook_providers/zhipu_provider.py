@@ -95,9 +95,7 @@ class ZhipuProvider(OpenAIProvider):
         """
         api_key = os.environ.get("ZHIPU_API_KEY")
         if not api_key:
-            raise ValueError(
-                "ZhipuProvider.from_env(): ZHIPU_API_KEY is required."
-            )
+            raise ValueError("ZhipuProvider.from_env(): ZHIPU_API_KEY is required.")
         return cls(
             model=model or os.environ.get("ZHIPU_MODEL") or DEFAULT_ZHIPU_MODEL,
             api_key=api_key,

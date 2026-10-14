@@ -67,9 +67,7 @@ def _build_mock_provider(
     model: str = DEFAULT_ANTHROPIC_MODEL,
 ) -> AnthropicProvider:
     mock_create = AsyncMock(return_value=create_return)
-    mock_client = SimpleNamespace(
-        messages=SimpleNamespace(create=mock_create)
-    )
+    mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
     return AnthropicProvider(model=model, client=mock_client)  # type: ignore[arg-type]
 
 
@@ -112,9 +110,10 @@ class TestDefaults:
         provider = _build_mock_provider(_fake_message(), model="claude-99-future")
         assert provider.context_window == 200_000  # fallback default
 
-    def test_count_tokens_uses_4_char_heuristic(self):
+    def test_count_tokens_uses_cjk_aware_estimate(self):
         provider = _build_mock_provider(_fake_message())
-        assert provider.count_tokens("hello world") == 11 // 4
+        assert provider.count_tokens("hello world") == 3  # ceil(11 / 4)
+        assert provider.count_tokens("你好") == 2  # one token per CJK char
         assert provider.count_tokens("") == 1  # min 1
 
 
@@ -199,9 +198,7 @@ class TestFromEnv:
 
 
 class TestFactoryDispatch:
-    def test_create_provider_anthropic_returns_instance(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_create_provider_anthropic_returns_instance(self, monkeypatch: pytest.MonkeyPatch):
         # Defend against env leaking across tests — earlier TestFromEnv
         # cases set ANTHROPIC_MODEL via monkeypatch and pytest does
         # restore at function exit, but this guard keeps the assertion
@@ -222,9 +219,7 @@ class TestFactoryDispatch:
         )
         assert provider.model_name == "claude-3-5-haiku-20241022"
 
-    def test_factory_anthropic_no_longer_raises(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_factory_anthropic_no_longer_raises(self, monkeypatch: pytest.MonkeyPatch):
         # Day 59 closure — Anthropic was the last NotImplementedError branch.
         monkeypatch.delenv("ANTHROPIC_MODEL", raising=False)
         _stub_anthropic_module(monkeypatch)
@@ -249,32 +244,40 @@ class TestChat:
 
     async def test_chat_extracts_system_message(self):
         mock_create = AsyncMock(return_value=_fake_message())
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(create=mock_create)
-        )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
-        await provider.chat([
-            Message(role="system", content="be brief"),
-            Message(role="user", content="hi"),
-        ])
+        await provider.chat(
+            [
+                Message(role="system", content="be brief"),
+                Message(role="user", content="hi"),
+            ]
+        )
         call_kwargs = mock_create.call_args.kwargs
-        assert call_kwargs["system"] == "be brief"
+        # prompt caching is on by default → system is a cacheable block
+        assert call_kwargs["system"] == [
+            {"type": "text", "text": "be brief", "cache_control": {"type": "ephemeral"}}
+        ]
         assert call_kwargs["messages"] == [{"role": "user", "content": "hi"}]
+
+    async def test_chat_without_prompt_caching_sends_plain_system(self):
+        mock_create = AsyncMock(return_value=_fake_message())
+        mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
+        provider = AnthropicProvider(client=mock_client, prompt_caching=False)  # type: ignore[arg-type]
+        await provider.chat(
+            [Message(role="system", content="s"), Message(role="user", content="hi")]
+        )
+        assert mock_create.call_args.kwargs["system"] == "s"
 
     async def test_chat_uses_default_max_tokens_when_unset(self):
         mock_create = AsyncMock(return_value=_fake_message())
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(create=mock_create)
-        )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
         await provider.chat([Message(role="user", content="hi")])
         assert mock_create.call_args.kwargs["max_tokens"] == DEFAULT_MAX_TOKENS
 
     async def test_chat_passes_explicit_max_tokens_and_temperature(self):
         mock_create = AsyncMock(return_value=_fake_message())
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(create=mock_create)
-        )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(create=mock_create))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
         await provider.chat(
             [Message(role="user", content="hi")],
@@ -294,12 +297,8 @@ class TestChat:
             ("stop_sequence", "stop"),
         ],
     )
-    async def test_chat_stop_reason_mapping(
-        self, stop_reason: str, expected_finish: str
-    ):
-        provider = _build_mock_provider(
-            _fake_message(stop_reason=stop_reason)
-        )
+    async def test_chat_stop_reason_mapping(self, stop_reason: str, expected_finish: str):
+        provider = _build_mock_provider(_fake_message(stop_reason=stop_reason))
         response = await provider.chat([Message(role="user", content="hi")])
         assert response.finish_reason == expected_finish
 
@@ -345,20 +344,18 @@ def _message_delta_event(stop_reason: str):
 
 class TestStreamChat:
     async def test_stream_chat_yields_text_deltas(self):
-        stream = _FakeStream([
-            _content_delta_event("你"),
-            _content_delta_event("好"),
-            _message_delta_event("end_turn"),
-        ])
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kw: stream)
+        stream = _FakeStream(
+            [
+                _content_delta_event("你"),
+                _content_delta_event("好"),
+                _message_delta_event("end_turn"),
+            ]
         )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: stream))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
 
         chunks = [
-            chunk async for chunk in provider.stream_chat(
-                [Message(role="user", content="hi")]
-            )
+            chunk async for chunk in provider.stream_chat([Message(role="user", content="hi")])
         ]
         # 2 content chunks + 1 terminal chunk with finish_reason
         assert len(chunks) == 3
@@ -368,40 +365,36 @@ class TestStreamChat:
         assert chunks[2].finish_reason == "stop"
 
     async def test_stream_chat_handles_max_tokens_finish(self):
-        stream = _FakeStream([
-            _content_delta_event("partial"),
-            _message_delta_event("max_tokens"),
-        ])
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kw: stream)
+        stream = _FakeStream(
+            [
+                _content_delta_event("partial"),
+                _message_delta_event("max_tokens"),
+            ]
         )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: stream))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
 
         chunks = [
-            chunk async for chunk in provider.stream_chat(
-                [Message(role="user", content="long")]
-            )
+            chunk async for chunk in provider.stream_chat([Message(role="user", content="long")])
         ]
         assert chunks[-1].finish_reason == "length"
 
     async def test_stream_chat_skips_non_text_deltas(self):
         # Anthropic emits other event types (message_start / content_block_start /
         # ping). The provider should only surface text_delta to ChatChunk.
-        stream = _FakeStream([
-            SimpleNamespace(type="message_start", delta=None),
-            SimpleNamespace(type="ping", delta=None),
-            _content_delta_event("hi"),
-            _message_delta_event("end_turn"),
-        ])
-        mock_client = SimpleNamespace(
-            messages=SimpleNamespace(stream=lambda **kw: stream)
+        stream = _FakeStream(
+            [
+                SimpleNamespace(type="message_start", delta=None),
+                SimpleNamespace(type="ping", delta=None),
+                _content_delta_event("hi"),
+                _message_delta_event("end_turn"),
+            ]
         )
+        mock_client = SimpleNamespace(messages=SimpleNamespace(stream=lambda **kw: stream))
         provider = AnthropicProvider(client=mock_client)  # type: ignore[arg-type]
 
         chunks = [
-            chunk async for chunk in provider.stream_chat(
-                [Message(role="user", content="hi")]
-            )
+            chunk async for chunk in provider.stream_chat([Message(role="user", content="hi")])
         ]
         # Only "hi" content + terminal frame
         assert [c.delta_content for c in chunks] == ["hi", ""]

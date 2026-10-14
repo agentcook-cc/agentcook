@@ -148,10 +148,12 @@ class TestChatSpan:
 
     async def test_records_message_count_and_no_tools(self, rec: RecordingTracer):
         provider = _build_mock_provider(_fake_completion())
-        await provider.chat([
-            Message(role="system", content="be brief"),
-            Message(role="user", content="x"),
-        ])
+        await provider.chat(
+            [
+                Message(role="system", content="be brief"),
+                Message(role="user", content="x"),
+            ]
+        )
         span = next(s for s in rec.spans if s.name == "model.openai.chat")
         assert span.attributes["agentcook.messages.count"] == 2
         assert span.attributes["agentcook.tools.count"] == 0
@@ -186,7 +188,11 @@ def _stream_chunk(content: str = "", finish_reason: str | None = None):
 
 class TestStreamChatSpan:
     async def test_emits_stream_span(self, rec: RecordingTracer):
-        chunks = [_stream_chunk("he"), _stream_chunk("llo"), _stream_chunk("", finish_reason="stop")]
+        chunks = [
+            _stream_chunk("he"),
+            _stream_chunk("llo"),
+            _stream_chunk("", finish_reason="stop"),
+        ]
         mock_create = AsyncMock(return_value=_async_iter(chunks))
         mock_client = SimpleNamespace(
             chat=SimpleNamespace(completions=SimpleNamespace(create=mock_create))

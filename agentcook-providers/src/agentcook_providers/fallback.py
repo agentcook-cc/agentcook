@@ -39,6 +39,8 @@ class FallbackProvider:
 
     Failure policy:
     - HTTP 429 / 5xx (configurable) → fallback
+    - Streaming: fallback only before the first chunk is yielded (never
+      splice two providers' partial answers)
     - Substring match against ``"overloaded"`` / ``"rate limit"`` etc.
       → fallback (catches vendor-specific message text without status)
     - Anything else → re-raise immediately (don't mask logic bugs)
@@ -117,6 +119,7 @@ class FallbackProvider:
     ) -> AsyncIterator[ChatChunk]:
         last_exc: BaseException | None = None
         for i, provider in enumerate(self._providers):
+            yielded = False
             try:
                 async for chunk in provider.stream_chat(
                     messages,
@@ -124,11 +127,15 @@ class FallbackProvider:
                     temperature=temperature,
                     max_tokens=max_tokens,
                 ):
+                    yielded = True
                     yield chunk
                 return
             except Exception as exc:
                 last_exc = exc
-                if i < len(self._providers) - 1 and self._is_retryable(exc):
+                # Once any chunk reached the caller, switching providers
+                # would splice two different answers together — surface
+                # the error instead and let the caller decide.
+                if not yielded and i < len(self._providers) - 1 and self._is_retryable(exc):
                     next_name = self._providers[i + 1].model_name
                     logger.warning(
                         "Provider %s stream failed (%s); falling back to %s",

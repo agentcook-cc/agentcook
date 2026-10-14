@@ -36,9 +36,7 @@ from agentcook_providers.zhipu_provider import (  # noqa: E402
 # ---------------------------------------------------------------------------
 
 
-def _fake_completion(
-    prompt_tokens: int = 10, completion_tokens: int = 5, finish: str = "stop"
-):
+def _fake_completion(prompt_tokens: int = 10, completion_tokens: int = 5, finish: str = "stop"):
     msg = SimpleNamespace(content="你好", tool_calls=None)
     choice = SimpleNamespace(message=msg, finish_reason=finish)
     usage = SimpleNamespace(
@@ -49,9 +47,7 @@ def _fake_completion(
     return SimpleNamespace(choices=[choice], usage=usage)
 
 
-def _build_mock_provider(
-    create_return: Any, model: str = DEFAULT_ZHIPU_MODEL
-) -> ZhipuProvider:
+def _build_mock_provider(create_return: Any, model: str = DEFAULT_ZHIPU_MODEL) -> ZhipuProvider:
     mock_create = AsyncMock(return_value=create_return)
     mock_client = SimpleNamespace(
         chat=SimpleNamespace(completions=SimpleNamespace(create=mock_create))
@@ -73,9 +69,7 @@ class TestDefaultBaseUrl:
         class FakeAsyncOpenAI:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 captured.update(kwargs)
-                self.chat = SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
-                )
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
 
         import agentcook_providers.openai_provider as openai_mod
 
@@ -89,17 +83,13 @@ class TestDefaultBaseUrl:
         ZhipuProvider(model="glm-4-flash", api_key="test-key")
         assert captured["base_url"] == ZHIPU_BASE_URL
 
-    def test_explicit_base_url_overrides_default(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_explicit_base_url_overrides_default(self, monkeypatch: pytest.MonkeyPatch):
         captured: dict[str, Any] = {}
 
         class FakeAsyncOpenAI:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 captured.update(kwargs)
-                self.chat = SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
-                )
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
 
         import sys
 
@@ -151,9 +141,7 @@ class TestFromEnv:
         class FakeAsyncOpenAI:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
                 captured.update(kwargs)
-                self.chat = SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
-                )
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
 
         import sys
 
@@ -176,14 +164,10 @@ class TestFromEnv:
 
 
 class TestFactoryDispatch:
-    def test_create_provider_zhipu_returns_zhipu_instance(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_create_provider_zhipu_returns_zhipu_instance(self, monkeypatch: pytest.MonkeyPatch):
         class FakeAsyncOpenAI:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
-                self.chat = SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
-                )
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
 
         import sys
 
@@ -194,23 +178,17 @@ class TestFactoryDispatch:
         assert isinstance(provider, ZhipuProvider)
         assert provider.model_name == DEFAULT_ZHIPU_MODEL
 
-    def test_create_provider_zhipu_respects_explicit_model(
-        self, monkeypatch: pytest.MonkeyPatch
-    ):
+    def test_create_provider_zhipu_respects_explicit_model(self, monkeypatch: pytest.MonkeyPatch):
         class FakeAsyncOpenAI:
             def __init__(self, *args: Any, **kwargs: Any) -> None:
-                self.chat = SimpleNamespace(
-                    completions=SimpleNamespace(create=AsyncMock())
-                )
+                self.chat = SimpleNamespace(completions=SimpleNamespace(create=AsyncMock()))
 
         import sys
 
         fake_module = SimpleNamespace(AsyncOpenAI=FakeAsyncOpenAI)
         monkeypatch.setitem(sys.modules, "openai", fake_module)
 
-        provider = create_provider(
-            provider="zhipu", model="glm-4-long", api_key="test"
-        )
+        provider = create_provider(provider="zhipu", model="glm-4-long", api_key="test")
         assert provider.model_name == "glm-4-long"
 
     # Note: This class previously asserted Anthropic still raised

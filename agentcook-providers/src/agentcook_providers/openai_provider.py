@@ -28,6 +28,7 @@ from agentcook_core import (
     ToolProtocol,
 )
 from agentcook_core.langfuse_hook import get_langfuse_hook
+from agentcook_core.tokens import estimate_tokens
 from agentcook_core.tracing import get_tracer
 
 if TYPE_CHECKING:
@@ -65,10 +66,28 @@ def _tools_to_openai(tools: Sequence[ToolProtocol]) -> list[dict[str, Any]]:
     ]
 
 
+def _parse_arguments(raw: str | None) -> dict[str, Any]:
+    """Decode a tool-call argument string without ever raising.
+
+    Models occasionally emit malformed JSON. Surfacing it as a ``_raw``
+    argument lets the agent loop return a precise validation error the
+    model can self-correct from, instead of crashing the stream.
+    """
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {"_raw": raw}
+    return parsed if isinstance(parsed, dict) else {"_raw": raw}
+
+
 def _message_to_openai(msg: Message) -> dict[str, Any]:
     """Convert an internal :class:`Message` to OpenAI's ChatML dict shape."""
     d: dict[str, Any] = {"role": msg.role, "content": msg.content}
-    if msg.name is not None:
+    # ``name`` is only meaningful on user/system/assistant turns; several
+    # OpenAI-compatible backends reject it on ``tool`` messages.
+    if msg.name is not None and msg.role != "tool":
         d["name"] = msg.name
     if msg.tool_calls:
         d["tool_calls"] = [
@@ -100,7 +119,7 @@ def _openai_to_chat_response(completion: Any) -> ChatResponse:
             ToolCall(
                 id=tc.id,
                 name=tc.function.name,
-                arguments=json.loads(tc.function.arguments) if tc.function.arguments else {},
+                arguments=_parse_arguments(tc.function.arguments),
             )
             for tc in raw_msg.tool_calls
         )
@@ -109,18 +128,35 @@ def _openai_to_chat_response(completion: Any) -> ChatResponse:
         content=raw_msg.content or "",
         tool_calls=tool_calls,
     )
-    usage = TokenUsage(
-        input=getattr(completion.usage, "prompt_tokens", 0) or 0,
-        output=getattr(completion.usage, "completion_tokens", 0) or 0,
-    )
+    usage = _usage_from(completion.usage)
     finish: FinishReason | None = None
     if choice.finish_reason in ("stop", "length", "tool_calls", "content_filter"):
         finish = choice.finish_reason  # type: ignore[assignment]
     return ChatResponse(message=message, usage=usage, finish_reason=finish)
 
 
+def _usage_from(raw: Any) -> TokenUsage:
+    if raw is None:
+        return TokenUsage()
+    details = getattr(raw, "prompt_tokens_details", None)
+    return TokenUsage(
+        input=getattr(raw, "prompt_tokens", 0) or 0,
+        output=getattr(raw, "completion_tokens", 0) or 0,
+        cached=(getattr(details, "cached_tokens", 0) or 0) if details is not None else 0,
+    )
+
+
 class OpenAIProvider:
-    """OpenAI Chat Completions provider satisfying ``LLMProviderProtocol``."""
+    """OpenAI Chat Completions provider satisfying ``LLMProviderProtocol``.
+
+    Also serves every OpenAI-compatible backend (Qwen/DashScope, Zhipu,
+    DeepSeek, vLLM, Ollama …) via ``base_url``.
+
+    Args:
+        stream_usage: Request ``stream_options.include_usage`` so the
+            final streamed chunk carries token accounting. Disable for
+            backends that reject the option.
+    """
 
     def __init__(
         self,
@@ -129,9 +165,11 @@ class OpenAIProvider:
         api_key: str | None = None,
         base_url: str | None = None,
         client: AsyncOpenAI | None = None,
+        stream_usage: bool = True,
         **client_kwargs: Any,
     ) -> None:
         self._model = model
+        self._stream_usage = stream_usage
         if client is not None:
             self._client = client
         else:
@@ -155,7 +193,7 @@ class OpenAIProvider:
         try:
             import tiktoken
         except ImportError:
-            return max(1, len(text) // 4)
+            return max(1, estimate_tokens(text))
         try:
             enc = tiktoken.encoding_for_model(self._model)
         except KeyError:
@@ -202,9 +240,7 @@ class OpenAIProvider:
             # the lightweight model_router.select() event lacks. Errors
             # are swallowed; telemetry must never break the response.
             try:
-                last_user = next(
-                    (m.content for m in reversed(messages) if m.role == "user"), ""
-                )
+                last_user = next((m.content for m in reversed(messages) if m.role == "user"), "")
                 get_langfuse_hook().observe_model_call(
                     model=self._model,
                     provider="openai",
@@ -256,6 +292,8 @@ class OpenAIProvider:
                 "messages": api_messages,
                 "stream": True,
             }
+            if self._stream_usage:
+                kwargs["stream_options"] = {"include_usage": True}
             if tools:
                 kwargs["tools"] = _tools_to_openai(tools)
             if temperature is not None:
@@ -266,7 +304,24 @@ class OpenAIProvider:
             stream = await self._client.chat.completions.create(**kwargs)
 
             accumulated: dict[int, dict[str, str]] = {}
+            emitted_calls = False
+            usage: TokenUsage | None = None
+            last_finish: FinishReason | None = None
+
+            def flush_calls() -> tuple[ToolCall, ...]:
+                return tuple(
+                    ToolCall(
+                        id=slot["id"],
+                        name=slot["name"],
+                        arguments=_parse_arguments(slot["arguments"]),
+                    )
+                    for _, slot in sorted(accumulated.items())
+                )
+
             async for chunk in stream:  # type: ignore[union-attr]
+                raw_usage = getattr(chunk, "usage", None)
+                if raw_usage is not None:
+                    usage = _usage_from(raw_usage)
                 if not chunk.choices:
                     continue
                 delta = chunk.choices[0].delta
@@ -275,10 +330,9 @@ class OpenAIProvider:
                 if finish_raw in ("stop", "length", "tool_calls", "content_filter"):
                     finish = finish_raw  # type: ignore[assignment]
 
-                new_tool_calls: list[ToolCall] = []
                 if delta and delta.tool_calls:
                     for tc_delta in delta.tool_calls:
-                        idx = tc_delta.index
+                        idx = tc_delta.index if tc_delta.index is not None else len(accumulated)
                         slot = accumulated.setdefault(
                             idx,
                             {
@@ -293,24 +347,40 @@ class OpenAIProvider:
                             if tc_delta.function.arguments:
                                 slot["arguments"] += tc_delta.function.arguments
 
-                if finish == "tool_calls" and accumulated:
-                    for slot in accumulated.values():
-                        new_tool_calls.append(
-                            ToolCall(
-                                id=slot["id"],
-                                name=slot["name"],
-                                arguments=json.loads(slot["arguments"]) if slot["arguments"] else {},
-                            )
-                        )
+                # Some OpenAI-compatible backends finish tool turns with
+                # "stop" instead of "tool_calls" — emit on any finish.
+                new_tool_calls: tuple[ToolCall, ...] = ()
+                if finish and accumulated and not emitted_calls:
+                    new_tool_calls = flush_calls()
+                    emitted_calls = True
+                    finish = "tool_calls"
 
                 if finish:
+                    last_finish = finish
                     span.set_attribute("agentcook.finish_reason", finish)
 
+                content = (delta.content if delta and delta.content else "") or ""
+                if content or new_tool_calls or finish:
+                    chunks_yielded += 1
+                    yield ChatChunk(
+                        delta_content=content,
+                        delta_tool_calls=new_tool_calls,
+                        finish_reason=finish,
+                    )
+
+            trailing_calls: tuple[ToolCall, ...] = ()
+            if accumulated and not emitted_calls:
+                trailing_calls = flush_calls()
+                last_finish = "tool_calls"
+            if usage is not None or trailing_calls:
+                if usage is not None:
+                    span.set_attribute("agentcook.tokens.in", usage.input)
+                    span.set_attribute("agentcook.tokens.out", usage.output)
                 chunks_yielded += 1
                 yield ChatChunk(
-                    delta_content=(delta.content if delta and delta.content else "") or "",
-                    delta_tool_calls=tuple(new_tool_calls),
-                    finish_reason=finish,
+                    delta_tool_calls=trailing_calls,
+                    finish_reason=last_finish if trailing_calls else None,
+                    usage=usage,
                 )
         finally:
             span.set_attribute("agentcook.stream.chunks", chunks_yielded)

@@ -282,7 +282,9 @@ class SoulManager:
     def __init__(self, store: MemoryStore) -> None:
         self._store = store
 
-    def set_trait(self, agent_id: str, key: str, value: str, *, metadata: dict[str, Any] | None = None) -> None:
+    def set_trait(
+        self, agent_id: str, key: str, value: str, *, metadata: dict[str, Any] | None = None
+    ) -> None:
         """Set or update a soul trait."""
         entry = MemoryEntry(
             layer=MemoryLayer.SOUL,
@@ -456,11 +458,13 @@ class MemoryManager:
                     if entry.embedding_ref:
                         entry_vector = self._embedder.embed(entry.content)
                         score = self._embedder.similarity(query_vector, entry_vector)
-                        candidates.append(SearchResult(
-                            entry=entry,
-                            score=score,
-                            source_layer=layer,
-                        ))
+                        candidates.append(
+                            SearchResult(
+                                entry=entry,
+                                score=score,
+                                source_layer=layer,
+                            )
+                        )
 
             # Sort by score descending, return top_k
             candidates.sort(key=lambda r: r.score, reverse=True)

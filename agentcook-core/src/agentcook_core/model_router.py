@@ -127,7 +127,9 @@ class ModelRegistry:
         """Look up a model by name."""
         return self._models.get(name)
 
-    def list_enabled(self, *, provider: str | None = None, tag: str | None = None) -> list[ModelConfig]:
+    def list_enabled(
+        self, *, provider: str | None = None, tag: str | None = None
+    ) -> list[ModelConfig]:
         """Return enabled models, optionally filtered by provider/tag."""
         result: list[ModelConfig] = []
         for model in self._models.values():

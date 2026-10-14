@@ -33,6 +33,7 @@ logger = logging.getLogger(__name__)
 # HTTP transport protocol (injected, not owned)
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class HttpTransport(Protocol):
     """Minimal async HTTP client shape (matches ``httpx.AsyncClient``)."""
@@ -52,6 +53,7 @@ class HttpTransport(Protocol):
 # OAuth token store protocol
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class OAuthTokenStore(Protocol):
     """Persist and retrieve OAuth tokens for a connector."""
@@ -63,6 +65,7 @@ class OAuthTokenStore(Protocol):
 # ---------------------------------------------------------------------------
 # Base adapter with shared lifecycle
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class BaseAdapter:
@@ -93,6 +96,7 @@ class BaseAdapter:
 # OAuthAdapter
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class OAuthAdapter(BaseAdapter):
     """OAuth 2.0 connector adapter.
@@ -118,9 +122,7 @@ class OAuthAdapter(BaseAdapter):
             if self._opened:
                 return
             if self._token_store is None:
-                raise RuntimeError(
-                    f"OAuthAdapter({self._config.name!r}) requires a token store"
-                )
+                raise RuntimeError(f"OAuthAdapter({self._config.name!r}) requires a token store")
             token = await self._token_store.get_token(self._config.name)
             if token and _is_token_expired(token):
                 token = await self._refresh_token(token)
@@ -133,9 +135,7 @@ class OAuthAdapter(BaseAdapter):
             raise RuntimeError("HttpTransport not injected")
         refresh_url = self._config.config.get("token_url", "")
         if not refresh_url:
-            raise RuntimeError(
-                f"OAuthAdapter({self._config.name!r}): no token_url in config"
-            )
+            raise RuntimeError(f"OAuthAdapter({self._config.name!r}): no token_url in config")
         response = await self._http.request(
             "POST",
             refresh_url,
@@ -154,6 +154,7 @@ class OAuthAdapter(BaseAdapter):
 def _is_token_expired(token: dict[str, Any]) -> bool:
     """Check if an OAuth token dict has expired (best-effort)."""
     import time
+
     expires_at = token.get("expires_at", 0)
     if not expires_at:
         return False
@@ -163,6 +164,7 @@ def _is_token_expired(token: dict[str, Any]) -> bool:
 # ---------------------------------------------------------------------------
 # HttpAdapter
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class HttpAdapter(BaseAdapter):
@@ -184,6 +186,7 @@ class HttpAdapter(BaseAdapter):
 # ---------------------------------------------------------------------------
 # McpAdapter
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class McpAdapter(BaseAdapter):
@@ -208,7 +211,9 @@ class McpAdapter(BaseAdapter):
             # the MCP handshake is implemented.
             self._opened = True
             span.set_attribute("agentcook.mcp.tool_count", len(self._mcp_tools))
-            logger.info("McpAdapter(%s) opened (tools: %d)", self._config.name, len(self._mcp_tools))
+            logger.info(
+                "McpAdapter(%s) opened (tools: %d)", self._config.name, len(self._mcp_tools)
+            )
 
     async def tools(self) -> Sequence[ToolProtocol]:
         return list(self._mcp_tools)
@@ -217,6 +222,7 @@ class McpAdapter(BaseAdapter):
 # ---------------------------------------------------------------------------
 # WebhookAdapter
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class WebhookAdapter(BaseAdapter):
@@ -270,6 +276,7 @@ def create_connector(
 # ---------------------------------------------------------------------------
 # ConnectorManager
 # ---------------------------------------------------------------------------
+
 
 class ConnectorManager:
     """Lifecycle manager for a set of connectors.

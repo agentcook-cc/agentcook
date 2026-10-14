@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class PluginLoadError(Exception):
     """Raised when a plugin bundle cannot be loaded."""
 
@@ -59,6 +60,7 @@ class PluginManifestError(PluginLoadError):
 # ---------------------------------------------------------------------------
 # Sandbox runner protocol (injected, not owned)
 # ---------------------------------------------------------------------------
+
 
 @runtime_checkable
 class SandboxRunner(Protocol):
@@ -82,6 +84,7 @@ class SandboxRunner(Protocol):
 # ---------------------------------------------------------------------------
 # Stub implementations for agents / connectors parsed from JSON
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class AgentStub:
@@ -137,6 +140,7 @@ class ConnectorStub:
 # ---------------------------------------------------------------------------
 # PluginEntry — loaded plugin satisfying PluginProtocol
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class PluginEntry:
@@ -221,6 +225,7 @@ def parse_manifest(manifest_path: Path) -> PluginManifest:
 # Sub-loaders (agents / connectors from JSON)
 # ---------------------------------------------------------------------------
 
+
 def _load_agents(agents_dir: Path) -> list[AgentStub]:
     """Scan ``agents/`` subdirectories for ``agent.json`` files."""
     if not agents_dir.is_dir():
@@ -301,6 +306,7 @@ def _load_skills(skills_dir: Path) -> list[SkillEntry]:
 # Public API
 # ---------------------------------------------------------------------------
 
+
 def load_plugin(
     plugin_dir: str | Path,
     *,
@@ -347,6 +353,7 @@ def load_plugin(
 # Plugin Registry
 # ---------------------------------------------------------------------------
 
+
 class PluginRegistry:
     """In-memory name → :class:`PluginEntry` registry."""
 
@@ -356,9 +363,7 @@ class PluginRegistry:
     def register(self, entry: PluginEntry) -> None:
         name = entry.manifest.name
         if name in self._entries:
-            raise PluginLoadError(
-                f"Plugin {name!r} already registered"
-            )
+            raise PluginLoadError(f"Plugin {name!r} already registered")
         self._entries[name] = entry
 
     def get(self, name: str) -> PluginEntry | None:

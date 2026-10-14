@@ -28,7 +28,8 @@ input/output/metadata". The adapter is free to map that onto Langfuse
 
 from __future__ import annotations
 
-from typing import Any, Mapping, Protocol, runtime_checkable
+from collections.abc import Mapping
+from typing import Any, Protocol, runtime_checkable
 
 # ---------------------------------------------------------------------------
 # Protocol

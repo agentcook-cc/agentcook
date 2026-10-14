@@ -303,9 +303,7 @@ class HookPipeline:
         )
         _span.__enter__()
         try:
-            return self._execute_inner(
-                event, core, context, hooks, hooks_executed, start_ns
-            )
+            return self._execute_inner(event, core, context, hooks, hooks_executed, start_ns)
         finally:
             _span.__exit__(None, None, None)
 

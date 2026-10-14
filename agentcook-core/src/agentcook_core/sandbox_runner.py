@@ -19,13 +19,12 @@ Layer separation:
 from __future__ import annotations
 
 import logging
-import shlex
 import subprocess
 import time
 import uuid
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -206,8 +205,7 @@ class DockerSandboxExecutor:
 
         except FileNotFoundError:
             raise SandboxError(
-                f"Docker binary not found: {self._docker}. "
-                "Ensure Docker is installed and in PATH."
+                f"Docker binary not found: {self._docker}. Ensure Docker is installed and in PATH."
             )
 
     def _build_command(
@@ -220,14 +218,21 @@ class DockerSandboxExecutor:
     ) -> list[str]:
         """Assemble the docker run command with security constraints."""
         cmd = [
-            self._docker, "run",
-            "--name", container_name,
+            self._docker,
+            "run",
+            "--name",
+            container_name,
             "--rm",
-            "--cpus", str(cfg.cpu_limit),
-            "--memory", cfg.memory_limit,
-            "--network", cfg.network_mode.value,
-            "--security-opt", "no-new-privileges",
-            "--pids-limit", "64",
+            "--cpus",
+            str(cfg.cpu_limit),
+            "--memory",
+            cfg.memory_limit,
+            "--network",
+            cfg.network_mode.value,
+            "--security-opt",
+            "no-new-privileges",
+            "--pids-limit",
+            "64",
         ]
 
         if cfg.read_only:
@@ -243,10 +248,14 @@ class DockerSandboxExecutor:
 
         # Pass code via stdin using sh -c
         escaped_code = code.replace("'", "'\\''")
-        cmd.extend([
-            cfg.image,
-            "sh", "-c", f"echo '{escaped_code}' > /tmp/{script_name} && python /tmp/{script_name}",
-        ])
+        cmd.extend(
+            [
+                cfg.image,
+                "sh",
+                "-c",
+                f"echo '{escaped_code}' > /tmp/{script_name} && python /tmp/{script_name}",
+            ]
+        )
 
         return cmd
 

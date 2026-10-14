@@ -438,7 +438,7 @@ class TokenBudgetPruning:
 
             # Determine pruned messages
             kept_count = len(recent)
-            pruned = msg_list[:len(msg_list) - kept_count]
+            pruned = msg_list[: len(msg_list) - kept_count]
 
             # Summarize pruned if summarizer available
             summary_msg: list[Message] = []
@@ -448,7 +448,10 @@ class TokenBudgetPruning:
                     Message(
                         role="system",
                         content=f"[Context summary — {len(pruned)} messages pruned]\n{summary_text}",
-                        metadata={"compaction": "token_budget_summary", "covers_messages": len(pruned)},
+                        metadata={
+                            "compaction": "token_budget_summary",
+                            "covers_messages": len(pruned),
+                        },
                     )
                 ]
 
@@ -496,8 +499,7 @@ class MemorySummarizer:
 
         prompt = (
             "Summarize the following conversation in 2-3 concise sentences, "
-            "preserving key facts, decisions, and action items:\n\n"
-            + "\n".join(lines)
+            "preserving key facts, decisions, and action items:\n\n" + "\n".join(lines)
         )
 
         try:

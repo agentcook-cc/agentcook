@@ -29,6 +29,7 @@ logger = logging.getLogger(__name__)
 # Errors
 # ---------------------------------------------------------------------------
 
+
 class SkillLoadError(Exception):
     """Raised when a skill file cannot be parsed."""
 
@@ -98,7 +99,9 @@ def parse_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return metadata, body
 
 
-def manifest_from_frontmatter(metadata: dict[str, str], *, source: str = "<unknown>") -> SkillManifest:
+def manifest_from_frontmatter(
+    metadata: dict[str, str], *, source: str = "<unknown>"
+) -> SkillManifest:
     """Build a :class:`SkillManifest` from parsed frontmatter *metadata*.
 
     ``name`` and ``description`` are required; ``version`` defaults to
@@ -122,6 +125,7 @@ def manifest_from_frontmatter(metadata: dict[str, str], *, source: str = "<unkno
 # ---------------------------------------------------------------------------
 # SkillEntry — a loaded Skill satisfying SkillProtocol
 # ---------------------------------------------------------------------------
+
 
 @dataclass
 class SkillEntry:
@@ -156,6 +160,7 @@ assert isinstance(SkillEntry.__new__(SkillEntry), SkillProtocol), (
 # ---------------------------------------------------------------------------
 # SkillRegistry
 # ---------------------------------------------------------------------------
+
 
 class SkillRegistry:
     """In-memory name → :class:`SkillEntry` registry.
@@ -203,9 +208,7 @@ class SkillRegistry:
             self.register(entry)
             registered.append(entry)
 
-        logger.info(
-            "Registered %d skills from %s", len(registered), directory
-        )
+        logger.info("Registered %d skills from %s", len(registered), directory)
         return registered
 
     # -- queries ------------------------------------------------------------
@@ -232,6 +235,7 @@ class SkillRegistry:
 # ---------------------------------------------------------------------------
 # Module-level convenience
 # ---------------------------------------------------------------------------
+
 
 def load_skill_file(path: str | Path) -> SkillEntry:
     """Parse a single ``.md`` file into a :class:`SkillEntry`.

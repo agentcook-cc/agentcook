@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 # Routing strategy
 # ---------------------------------------------------------------------------
 
+
 class RoutingStrategy(str, Enum):
     """How the router selects the next agent."""
 
@@ -51,6 +52,7 @@ class RoutingStrategy(str, Enum):
 # ---------------------------------------------------------------------------
 # Configuration dataclasses
 # ---------------------------------------------------------------------------
+
 
 @dataclass(frozen=True, slots=True)
 class RouteRule:
@@ -94,6 +96,7 @@ class RouterConfig:
 # AgentNode protocol (execution contract)
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class AgentNode(Protocol):
     """Execution contract for a sub-agent node in the graph.
@@ -120,6 +123,7 @@ class AgentNode(Protocol):
 # GraphCompiler protocol (injected — LangGraph lives downstream)
 # ---------------------------------------------------------------------------
 
+
 @runtime_checkable
 class GraphCompiler(Protocol):
     """Compiles a :class:`RouterConfig` into an executable graph handle.
@@ -137,6 +141,7 @@ class GraphCompiler(Protocol):
 # ---------------------------------------------------------------------------
 # Built-in pattern-match router (no LangGraph needed)
 # ---------------------------------------------------------------------------
+
 
 def pattern_match_route(
     task: str,
@@ -163,6 +168,7 @@ def pattern_match_route(
 # Orchestrator result
 # ---------------------------------------------------------------------------
 
+
 @dataclass
 class OrchestrationResult:
     """Result of a multi-agent orchestration run."""
@@ -175,6 +181,7 @@ class OrchestrationResult:
 # ---------------------------------------------------------------------------
 # MultiAgentOrchestrator
 # ---------------------------------------------------------------------------
+
 
 class MultiAgentOrchestrator:
     """Runtime executor for multi-agent graphs.
@@ -308,6 +315,7 @@ class MultiAgentOrchestrator:
 # ---------------------------------------------------------------------------
 # Config parsing helpers
 # ---------------------------------------------------------------------------
+
 
 def parse_router_config(raw: dict[str, Any]) -> RouterConfig:
     """Parse a raw dict (from JSON/YAML) into a :class:`RouterConfig`."""

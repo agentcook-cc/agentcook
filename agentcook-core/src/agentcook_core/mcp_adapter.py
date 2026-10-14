@@ -37,6 +37,7 @@ logger = logging.getLogger(__name__)
 # Transport enum + config
 # ---------------------------------------------------------------------------
 
+
 class McpTransportMode(str, Enum):
     """MCP transport flavours per the spec."""
 
@@ -72,6 +73,7 @@ class McpServerConfig:
 # McpTransport protocol (injected)
 # ---------------------------------------------------------------------------
 
+
 @dataclass(frozen=True, slots=True)
 class McpToolSchema:
     """Tool metadata returned by an MCP server's ``tools/list`` response."""
@@ -102,9 +104,7 @@ class McpTransport(Protocol):
         """Fetch the server's tool manifest (``tools/list``)."""
         ...
 
-    async def call_tool(
-        self, tool_name: str, arguments: dict[str, Any]
-    ) -> dict[str, Any]:
+    async def call_tool(self, tool_name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Invoke a tool on the server (``tools/call``)."""
         ...
 
@@ -117,6 +117,7 @@ class McpTransport(Protocol):
 # ---------------------------------------------------------------------------
 # McpToolAdapter — bridges MCP tool → ToolProtocol
 # ---------------------------------------------------------------------------
+
 
 class McpToolAdapter:
     """Wraps a single MCP tool as an agentcook :class:`ToolProtocol`.
@@ -180,14 +181,15 @@ class McpToolAdapter:
 
 
 # Runtime check
-assert isinstance(
-    McpToolAdapter.__new__(McpToolAdapter), ToolProtocol
-), "McpToolAdapter does not satisfy ToolProtocol"
+assert isinstance(McpToolAdapter.__new__(McpToolAdapter), ToolProtocol), (
+    "McpToolAdapter does not satisfy ToolProtocol"
+)
 
 
 # ---------------------------------------------------------------------------
 # McpClient — lifecycle manager for one MCP server
 # ---------------------------------------------------------------------------
+
 
 class McpClient:
     """Client for a single MCP server.
@@ -253,6 +255,7 @@ class McpClient:
 # McpToolRegistry — aggregate multiple MCP servers
 # ---------------------------------------------------------------------------
 
+
 class McpToolRegistry:
     """Manages multiple MCP server connections and provides a unified
     tool pool.
@@ -290,9 +293,7 @@ class McpToolRegistry:
             try:
                 await client.disconnect()
             except Exception:
-                logger.exception(
-                    "Failed to disconnect MCP server %s", client.config.name
-                )
+                logger.exception("Failed to disconnect MCP server %s", client.config.name)
 
     def all_tools(self) -> list[McpToolAdapter]:
         """Return all discovered tools across all connected servers."""

@@ -209,7 +209,10 @@ class MermaidRenderer:
             rendered_html=rendered_html,
             rendered_text=content,
             svg=svg,
-            metadata={"renderer": "mermaid_placeholder", "diagram_type": self._detect_type(content)},
+            metadata={
+                "renderer": "mermaid_placeholder",
+                "diagram_type": self._detect_type(content),
+            },
         )
 
     def _render_placeholder(self, content: str) -> str:
@@ -219,9 +222,9 @@ class MermaidRenderer:
         return (
             f'<svg xmlns="http://www.w3.org/2000/svg" class="mermaid-placeholder" '
             f'data-diagram-type="{diagram_type}">'
-            f"<text x=\"10\" y=\"20\" font-family=\"monospace\" font-size=\"12\">"
+            f'<text x="10" y="20" font-family="monospace" font-size="12">'
             f"[Mermaid: {diagram_type}]</text>"
-            f'<metadata>{escaped}</metadata>'
+            f"<metadata>{escaped}</metadata>"
             f"</svg>"
         )
 

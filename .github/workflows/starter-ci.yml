@@ -1,0 +1,55 @@
+name: Starter CI
+
+# agentcook-starter/python is the tutorial's companion project (chapters 22-25).
+# It is deliberately standalone (requirements.txt, no uv workspace), so it gets
+# its own job: exactly what a reader runs after `make setup`.
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "agentcook-starter/**"
+      - ".github/workflows/starter-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "agentcook-starter/**"
+      - ".github/workflows/starter-ci.yml"
+
+concurrency:
+  group: starter-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    defaults:
+      run:
+        working-directory: agentcook-starter/python
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: agentcook-starter/python/requirements*.txt
+      - name: Install
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: |
+          ruff check .
+          ruff format --check .
+      - name: Test
+        run: python -m pytest
+      - name: Smoke-test the server
+        run: |
+          uvicorn app.main:app --port 8000 &
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          curl -sfN -X POST localhost:8000/api/chat -H 'Content-Type: application/json' \
+            -d '{"message": "搜索一下蓝牙耳机最近有什么热门新品", "session_id": "ci"}' | tee /tmp/out.txt
+          grep -q '"type": "tool_call"' /tmp/out.txt
+          grep -q 'data: \[DONE\]' /tmp/out.txt

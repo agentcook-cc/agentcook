@@ -1,0 +1,20 @@
+# Tool configuration only — dependencies live in requirements*.txt.
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = ["ignore:Using `httpx` with `starlette.testclient`"]
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",  # the formatter owns line length; long Chinese strings stay on one line
+    "RUF001", "RUF002", "RUF003",  # full-width punctuation in Chinese text is intentional
+    "RUF012",  # tools declare name/description/parameters as plain class attributes, by design
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/conftest.py" = ["E402"]

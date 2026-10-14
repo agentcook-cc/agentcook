@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🍳</text></svg>" />
+<title>AgentCook Starter</title>
+<style>
+  :root {
+    --bg: #f7f7f8; --panel: #ffffff; --text: #1f2328; --muted: #6b7280; --border: #e5e7eb;
+    --accent: #2563eb; --accent-text: #ffffff; --user: #2563eb; --user-text: #ffffff;
+    --tool: #fffbeb; --tool-border: #fcd34d; --ok: #059669; --err: #dc2626; --code: #f3f4f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115; --panel: #171a21; --text: #e6e6e6; --muted: #9aa0aa; --border: #2a2f3a;
+      --accent: #3b82f6; --user: #1d4ed8; --tool: #2a2414; --tool-border: #7c5e10; --code: #232833;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
+  .app { display: flex; flex-direction: column; height: 100dvh; max-width: 860px; margin: 0 auto; }
+  header { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+  header h1 { font-size: 16px; margin: 0; }
+  .badge { font-size: 12px; padding: 2px 8px; border-radius: 999px; background: var(--tool); border: 1px solid var(--tool-border); }
+  header .spacer { flex: 1; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 6px 12px; }
+  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  button:disabled { opacity: .5; cursor: default; }
+  #messages { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+  .msg { max-width: 88%; padding: 10px 14px; border-radius: 14px; overflow-wrap: anywhere; }
+  .msg.user { align-self: flex-end; background: var(--user); color: var(--user-text); white-space: pre-wrap; }
+  .msg.assistant { align-self: flex-start; background: var(--panel); border: 1px solid var(--border); }
+  .msg.assistant.error { border-color: var(--err); }
+  .msg .body p { margin: 0 0 8px; } .msg .body p:last-child { margin-bottom: 0; }
+  .msg .body ul { margin: 4px 0 8px; padding-left: 20px; }
+  .msg .body code { background: var(--code); padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+  .msg .err { color: var(--err); margin-top: 6px; }
+  .meta { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  details.tool { background: var(--tool); border: 1px solid var(--tool-border); border-radius: 10px; padding: 6px 10px; margin: 8px 0; font-size: 13px; }
+  details.tool:first-child { margin-top: 0; } details.tool:last-child { margin-bottom: 0; }
+  details.tool summary { cursor: pointer; list-style: none; }
+  details.tool summary::-webkit-details-marker { display: none; }
+  details.tool .status.ok { color: var(--ok); } details.tool .status.error { color: var(--err); }
+  details.tool pre { background: var(--code); padding: 8px; border-radius: 6px; overflow-x: auto; margin: 6px 0 0; font-size: 12px; white-space: pre-wrap; }
+  .empty { margin: auto; text-align: center; color: var(--muted); }
+  .empty h2 { color: var(--text); font-size: 20px; margin-bottom: 4px; }
+  .examples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 16px; }
+  .examples button { font-size: 13px; }
+  form { display: flex; gap: 8px; padding: 12px 16px 16px; border-top: 1px solid var(--border); }
+  textarea { flex: 1; resize: none; font: inherit; color: var(--text); background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px; max-height: 160px; }
+  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .typing::after { content: "▍"; animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>AgentCook Starter</h1>
+    <span id="mode" class="badge" hidden></span>
+    <span class="spacer"></span>
+    <button id="new-chat" type="button">新对话</button>
+  </header>
+  <main id="messages" aria-live="polite"></main>
+  <form id="composer">
+    <textarea id="input" rows="1" placeholder="问点什么…（Enter 发送，Shift+Enter 换行）" aria-label="消息"></textarea>
+    <button id="send" class="primary" type="submit">发送</button>
+  </form>
+</div>
+
+<template id="empty-tpl">
+  <div class="empty">
+    <h2>你好，我是 WorkAgent</h2>
+    <div>一个会用工具的电商运营助手。试试：</div>
+    <div class="examples">
+      <button type="button">搜索一下蓝牙耳机最近有什么热门新品</button>
+      <button type="button">帮我分析一下竞品A的定价策略</button>
+      <button type="button">最近7天哪个商品卖得最好？</button>
+    </div>
+  </div>
+</template>
+
+<script>
+const $ = (sel) => document.querySelector(sel);
+const messagesEl = $("#messages");
+const input = $("#input");
+const sendBtn = $("#send");
+// The server remembers the conversation per session id; a page load starts a new one.
+let sessionId = newSessionId();
+let controller = null;
+
+function newSessionId() {
+  return "s-" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+}
+
+// --- Rendering (everything goes through escapeHtml first: model output is untrusted) ---
+function escapeHtml(s) {
+  return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+}
+function inline(s) {
+  return escapeHtml(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>");
+}
+function renderMarkdown(text) {
+  const out = [];
+  let list = null;
+  for (const line of text.split("\n")) {
+    const item = line.match(/^\s*[-*]\s+(.*)$/);
+    if (item) { (list ??= []).push(`<li>${inline(item[1])}</li>`); continue; }
+    if (list) { out.push(`<ul>${list.join("")}</ul>`); list = null; }
+    if (line.trim()) out.push(`<p>${inline(line)}</p>`);
+  }
+  if (list) out.push(`<ul>${list.join("")}</ul>`);
+  return out.join("");
+}
+function scrollToBottom() { messagesEl.scrollTop = messagesEl.scrollHeight; }
+
+function showEmpty() {
+  messagesEl.replaceChildren($("#empty-tpl").content.cloneNode(true));
+  messagesEl.querySelectorAll(".examples button").forEach((b) => b.addEventListener("click", () => send(b.textContent)));
+}
+
+function addUser(text) {
+  messagesEl.querySelector(".empty")?.remove();
+  const el = document.createElement("div");
+  el.className = "msg user";
+  el.textContent = text;
+  messagesEl.append(el);
+}
+
+// An assistant reply is a flow of text segments and tool cards, in the order events arrive.
+function addAssistant() {
+  const el = document.createElement("div");
+  el.className = "msg assistant";
+  messagesEl.append(el);
+  const view = { el, segment: null, cards: {}, hasContent: false };
+  newSegment(view);
+  return view;
+}
+
+function newSegment(view) {
+  view.segment?.body.classList.remove("typing");
+  const body = document.createElement("div");
+  body.className = "body typing";
+  view.el.append(body);
+  view.segment = { body, text: "" };
+}
+
+function appendText(view, content) {
+  if (!view.segment) newSegment(view);
+  view.segment.text += content;
+  view.segment.body.innerHTML = renderMarkdown(view.segment.text);
+  view.hasContent = true;
+}
+
+function toolCard(view, event) {
+  const card = document.createElement("details");
+  card.className = "tool";
+  card.innerHTML = '<summary>🔧 <strong class="name"></strong> <span class="status">运行中…</span></summary><pre class="input"></pre><pre class="result" hidden></pre>';
+  card.querySelector(".name").textContent = event.name;
+  card.querySelector(".input").textContent = "输入：" + JSON.stringify(event.input, null, 2);
+  if (view.segment && !view.segment.text) view.segment.body.remove();  // drop an empty placeholder
+  view.segment = null;  // text after the tools starts a new paragraph
+  view.el.append(card);
+  view.cards[event.id] = card;
+  view.hasContent = true;
+}
+
+function toolResult(view, event) {
+  const card = view.cards[event.id];
+  if (!card) return;
+  const status = card.querySelector(".status");
+  status.className = "status " + (event.is_error ? "error" : "ok");
+  status.textContent = (event.is_error ? "✗ 失败" : "✓ 完成") + ` · ${event.duration_ms} ms`;
+  const result = card.querySelector(".result");
+  result.hidden = false;
+  result.textContent = "结果：" + (typeof event.result === "string" ? event.result : JSON.stringify(event.result, null, 2));
+}
+
+function finish(view, { error, meta } = {}) {
+  view.el.querySelectorAll(".typing").forEach((b) => b.classList.remove("typing"));
+  if (view.segment && !view.segment.text) view.segment.body.remove();
+  if (!view.hasContent && !error) appendText(view, "（没有回复）");
+  if (error) {
+    view.el.classList.add("error");
+    const e = document.createElement("div");
+    e.className = "err";
+    e.textContent = "⚠️ " + error;
+    view.el.append(e);
+  }
+  if (meta) {
+    const m = document.createElement("div");
+    m.className = "meta";
+    m.textContent = meta;
+    view.el.append(m);
+  }
+}
+
+// --- Streaming: POST + read the SSE body (EventSource can't POST) ---
+async function* readEvents(response) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+    let idx;
+    while ((idx = buffer.indexOf("\n\n")) !== -1) {
+      const block = buffer.slice(0, idx);
+      buffer = buffer.slice(idx + 2);
+      const data = block.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trimStart()).join("\n");
+      if (!data) continue;
+      if (data === "[DONE]") return;
+      try { yield JSON.parse(data); } catch { /* not part of the protocol */ }
+    }
+  }
+}
+
+async function send(text) {
+  text = text.trim();
+  if (!text || controller) return;
+  addUser(text);
+  const view = addAssistant();
+  scrollToBottom();
+  setBusy(true);
+  controller = new AbortController();
+  let settled = false;
+  try {
+    const response = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ message: text, session_id: sessionId }),
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.message || (body.detail && JSON.stringify(body.detail)) || `HTTP ${response.status}`);
+    }
+    for await (const event of readEvents(response)) {
+      if (event.type === "text") {
+        appendText(view, event.content);
+      } else if (event.type === "tool_call") {
+        toolCard(view, event);
+      } else if (event.type === "tool_result") {
+        toolResult(view, event);
+      } else if (event.type === "done") {
+        const usage = event.usage ? ` · ${event.usage.input_tokens}↑ ${event.usage.output_tokens}↓ tokens` : "";
+        finish(view, { meta: `${event.rounds} 轮${usage}` });
+        settled = true;
+      } else if (event.type === "error") {
+        finish(view, { error: event.message });
+        settled = true;
+      }
+      scrollToBottom();
+    }
+    if (!settled) finish(view, { error: "连接中断，回复不完整" });
+  } catch (err) {
+    finish(view, { error: err.name === "AbortError" ? "已停止" : err.message });
+  } finally {
+    controller = null;
+    setBusy(false);
+    scrollToBottom();
+  }
+}
+
+function setBusy(busy) {
+  sendBtn.textContent = busy ? "停止" : "发送";
+  sendBtn.classList.toggle("primary", !busy);
+  input.disabled = busy;
+  if (!busy) input.focus();
+}
+
+$("#composer").addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (controller) { controller.abort(); return; }
+  const text = input.value;
+  input.value = "";
+  autosize();
+  send(text);
+});
+input.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); $("#composer").requestSubmit(); }
+});
+function autosize() { input.style.height = "auto"; input.style.height = Math.min(input.scrollHeight, 160) + "px"; }
+input.addEventListener("input", autosize);
+
+$("#new-chat").addEventListener("click", () => {
+  if (controller) controller.abort();
+  fetch(`/api/sessions/${encodeURIComponent(sessionId)}`, { method: "DELETE" }).catch(() => {});
+  sessionId = newSessionId();
+  showEmpty();
+  input.focus();
+});
+
+fetch("/health").then((r) => r.json()).then((h) => {
+  const badge = $("#mode");
+  badge.textContent = h.mock_mode ? "Mock 模式" : h.model;
+  badge.title = h.mock_mode ? "离线演示：工具真实执行，模型由脚本模拟" : "真实模型";
+  badge.hidden = false;
+}).catch(() => {});
+
+showEmpty();
+input.focus();
+</script>
+</body>
+</html>

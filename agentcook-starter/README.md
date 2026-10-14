@@ -1,72 +1,29 @@
 # agentcook-starter
 
-> **Status**: 🟡 Repository placeholder. The Python package is not yet
-> published — the curated 545-line educational subset is planned for
-> **Phase 6** to coincide with the public release of
-> *《从 0 到 1 构建商业级 AI Agent 产品》*.
-> Use [`agentcook`](../agentcook) (the full FastAPI shell) for any
-> working today.
+教程《从 0 到 1 构建商业级 AI Agent 产品》第 22–25 讲的配套项目：保留真实产品的架构形状，砍掉一切可以推迟的东西。
 
-## What `agentcook-starter` Will Be
-
-A curated subset of `agentcook-cc` packaged as a single installable
-project, sized to be readable end-to-end in one sitting (≈ 545 lines of
-Python). The intent is the same as Java's `mall-tiny`: keep the
-architectural shape of the real product, drop everything you can defer.
-
-The slim version will include:
-
-| Layer | Trimmed from full `agentcook-cc` |
-|-------|----------------------------------|
-| Agent loop | Single-agent loop only (no multi-agent orchestrator) |
-| LLM provider | One adapter (Qwen via OpenAI-compat) |
-| Storage | In-memory store + optional SQLite (no pgvector / Redis / S3) |
-| Memory | Two-layer (Soul + short-term events; no Diary) |
-| Tools | Plugin sandbox dropped — direct in-process callables only |
-| Observability | stdlib logging only (no OTel / Langfuse) |
-| Auth | No JWT; single dev user |
-
-This trade-off is deliberate: the goal is to teach the *shape* of an
-agent harness without the operational depth Phase 4 added. Production
-users should depend on [`agentcook`](../agentcook) +
-[`agentcook-core`](../agentcook-core) directly.
-
-## Why It Doesn't Ship Yet
-
-- **Phase 5 priority is testing pyramid + compliance + DevOps docs**,
-  not the curated educational fork.
-- The "545 lines" target requires the full system to be feature-stable
-  first — otherwise we'd churn the starter every time `agentcook-core`
-  evolves. Phase 4 + Phase 4.6 (chat → real Qwen) only stabilised on
-  2026-06-01.
-- The companion tutorial chapters need to be locked before the starter
-  picks its trimming line — splitting too early creates two sources of
-  truth that drift.
-
-## Roadmap
-
-| Phase | What lands here |
-|-------|------------------|
-| **Phase 6** (post-tutorial publication) | Initial cut: `pyproject.toml` + `src/agentcook_starter/` ≈ 545 LOC + chapter-aligned examples |
-| Phase 6.1 | Reproducibility CI (`pytest agentcook-starter/` is the only check) |
-| Phase 6.2 | PyPI release; tutorial README points new readers here |
-
-See [`_internal/agent-roles/agent-a-architect.md`](../agentcook-cc) and
-the project roadmap for the full sequencing.
-
-## Until Then
-
-Start with the full project instead:
+**→ 从 [`python/`](python/README.md) 开始。** 默认 Mock 模式，不需要 API Key：
 
 ```bash
-git clone https://github.com/agentcook-cc/agentcook-cc.git
-cd agentcook-cc
-uv sync
-uv run pytest agentcook-core agentcook-providers -q
+git clone https://github.com/agentcook-cc/agentcook.git
+cd agentcook/agentcook-starter/python
+make setup && make dev   # http://localhost:8000
 ```
 
-The first three modules to read are
-`agentcook-core/src/agentcook_core/protocols.py` (interface shapes),
-`agentcook-providers/src/agentcook_providers/openai_provider.py`
-(reference LLM adapter), and
-`agentcook/src/agentcook_app/main.py` (FastAPI wiring).
+## 和完整版的关系
+
+| 层         | Starter                                          | 完整版 AgentCook                                                |
+| ---------- | ------------------------------------------------ | --------------------------------------------------------------- |
+| Agent 循环 | 单 Agent ReAct 循环，一个文件（`agent/core.py`） | `agentcook-core`：多 Agent 委派、策略钩子、上下文窗口、并行工具 |
+| 模型       | Anthropic SDK + 离线 Mock 模型                   | 多家模型 + 降级链 + 离线 Mock 模型                              |
+| 会话       | 进程内存                                         | PostgreSQL（会话、记忆、pgvector）                              |
+| 工具       | `BaseTool` + 注册表                              | 工具包、Skill 系统、委派工具                                    |
+| 鉴权       | 内测白名单                                       | JWT（与 Java 业务后端共享）                                     |
+| 可观测性   | 每请求一行 JSON 日志                             | Prometheus 指标、结构化日志流、运行追踪                         |
+| 前端       | 单个 `index.html`                                | React 用户端 + Vue 管理后台                                     |
+
+两边的事件协议是同一个思路（文本增量、工具调用、工具结果、结束），所以从 Starter 毕业到完整版时，前端的心智模型不用变。
+
+## 目录
+
+- [`python/`](python/) — 可运行的项目、测试和第 23/24 讲练习的参考答案（`python/solutions/`）

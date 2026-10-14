@@ -31,6 +31,7 @@ from agentcook_storage.memory_store import _format_vector  # noqa: E402
 
 # --------------------------- SqlStore ---------------------------
 
+
 class _FakeSqlStore:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str, tuple[Any, ...]]] = []
@@ -75,6 +76,7 @@ def test_real_postgres_store_class_satisfies_protocol_signature() -> None:
 
 # --------------------------- KeyValueStore ---------------------------
 
+
 class _FakeKVStore:
     def __init__(self) -> None:
         self._data: dict[str, str] = {}
@@ -112,6 +114,7 @@ def test_real_redis_store_class_signature() -> None:
 
 
 # --------------------------- ObjectStore ---------------------------
+
 
 class _FakeObjectStore:
     def __init__(self) -> None:
@@ -160,6 +163,7 @@ def test_real_s3_object_store_class_signature() -> None:
 
 # --------------------------- PgVectorMemoryStore (unit, mock-PG) ---------------------------
 
+
 class _RecordingPgStore:
     """Tiny in-memory stand-in for PostgresStore — records every call."""
 
@@ -177,6 +181,9 @@ class _RecordingPgStore:
         return list(self.fetch_result)
 
     async def fetchrow(self, query: str, *args: Any) -> Any | None:
+        if query.lstrip().upper().startswith("INSERT"):
+            self.executed.append((query, args))
+            return {"id": 7}
         return None
 
     async def close(self) -> None:
@@ -212,16 +219,18 @@ async def test_pgvector_memory_store_append_event_inserts_with_embedding() -> No
         source="chat-1",
         metadata={"intent": "preference"},
     )
-    await store.append_event("agent-A", event)
+    new_id = await store.append_event("agent-A", event)
 
+    assert new_id == 7  # id comes back via RETURNING (race-free)
     assert len(pg.executed) == 1
     query, args = pg.executed[0]
-    assert "INSERT INTO memory_events" in query
+    assert "INSERT INTO memory_events" in query and "RETURNING id" in query
     assert "::vector" in query and "::jsonb" in query
     # args: (agent_id, timestamp_dt, kind, content, source, metadata_json, vector_str)
     assert args[0] == "agent-A"
     # timestamp is parsed to datetime before binding (asyncpg requires it)
     from datetime import datetime
+
     assert isinstance(args[1], datetime)
     assert args[2] == "observation"
     assert '"intent"' in args[5]  # metadata serialized as JSON

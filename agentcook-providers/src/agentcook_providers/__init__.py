@@ -25,6 +25,7 @@ from agentcook_providers.anthropic_provider import AnthropicProvider
 from agentcook_providers.echo_provider import EchoProvider
 from agentcook_providers.factory import (
     SUPPORTED_PROVIDERS,
+    ProviderConfigError,
     create_provider,
     create_provider_chain,
 )
@@ -41,6 +42,7 @@ __all__ = [
     "FallbackProvider",
     "MockProvider",
     "OpenAIProvider",
+    "ProviderConfigError",
     "SUPPORTED_PROVIDERS",
     "ZhipuProvider",
     "__version__",

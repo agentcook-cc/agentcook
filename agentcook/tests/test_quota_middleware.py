@@ -16,11 +16,8 @@ Scenarios:
 
 from __future__ import annotations
 
-from typing import Any
-
 import httpx
 import pytest
-
 from agentcook_app.middleware import (
     DEFAULT_QUOTA,
     FALLBACK_MODEL,
@@ -30,7 +27,6 @@ from agentcook_app.middleware import (
     QuotaDecision,
     QuotaResolver,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock transport — controls what Java /api/v1/quota returns per test
@@ -83,9 +79,7 @@ class TestAnonymousUser:
         assert decision.remaining == 0
 
     async def test_anonymous_does_not_call_java(self):
-        client, transport = _build_client(
-            lambda req: httpx.Response(500, json={})
-        )
+        client, transport = _build_client(lambda req: httpx.Response(500, json={}))
         resolver = _build_resolver(client=client)
         decision = await resolver.resolve(user_id=None)
         await client.aclose()
@@ -192,9 +186,7 @@ class TestAuthenticatedExhausted:
 
 class TestJavaUnavailable:
     async def test_500_response_degrades_to_fallback(self):
-        client, _ = _build_client(
-            lambda req: httpx.Response(500, json={"error": "internal"})
-        )
+        client, _ = _build_client(lambda req: httpx.Response(500, json={"error": "internal"}))
         resolver = _build_resolver(client=client)
         decision = await resolver.resolve(user_id="usr-001", bearer_token="tok")
         await client.aclose()
@@ -235,9 +227,7 @@ class TestJavaUnavailable:
 
 class TestConfigOverride:
     async def test_override_bypasses_java(self):
-        client, transport = _build_client(
-            lambda req: httpx.Response(500, json={})
-        )
+        client, transport = _build_client(lambda req: httpx.Response(500, json={}))
         resolver = _build_resolver(client=client)
         decision = await resolver.resolve(
             user_id="usr-001",
@@ -279,8 +269,6 @@ class TestModuleDefaults:
         assert FALLBACK_MODEL == "glm-4-flash"
 
     def test_decision_is_frozen(self):
-        d = QuotaDecision(
-            provider="qwen", model="qwen-turbo", remaining=1, reason="within_quota"
-        )
+        d = QuotaDecision(provider="qwen", model="qwen-turbo", remaining=1, reason="within_quota")
         with pytest.raises(Exception):  # FrozenInstanceError
             d.provider = "other"  # type: ignore[misc]

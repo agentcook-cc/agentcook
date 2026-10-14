@@ -30,8 +30,12 @@ class SkillListResponse(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    items: list[SkillSummary] = Field(..., description="Skills, ordered as the registry yields them.")
-    total: int = Field(..., description="Total count — equals ``len(items)`` until pagination lands.")
+    items: list[SkillSummary] = Field(
+        ..., description="Skills, ordered as the registry yields them."
+    )
+    total: int = Field(
+        ..., description="Total count — equals ``len(items)`` until pagination lands."
+    )
 
 
 class SkillDetailResponse(SkillSummary):

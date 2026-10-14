@@ -54,7 +54,9 @@ class PgAgentRuntime:
         self._store = store
         self._memory = PgVectorMemoryStore(store, embedder, vector_dim=vector_dim)
 
-    async def create_agent(self, card: IdentityCard, *, user_id: str, agent_id: str | None = None) -> str:
+    async def create_agent(
+        self, card: IdentityCard, *, user_id: str, agent_id: str | None = None
+    ) -> str:
         """Insert a new Agent row; identity is immutable from this point."""
         aid = agent_id or card.name
         await self._store.execute(
@@ -70,6 +72,27 @@ class PgAgentRuntime:
         )
         return aid
 
+    async def ensure_agent(
+        self, agent_id: str, card: IdentityCard, *, user_id: str
+    ) -> IdentityCard:
+        """Insert the agent row on first use; Identity stays immutable after."""
+        await self._store.execute(
+            "INSERT INTO agents (id, name, role, user_id, created_at, scopes, metadata) "
+            "VALUES ($1, $2, $3, $4, $5, $6::text[], $7::jsonb) ON CONFLICT (id) DO NOTHING",
+            agent_id,
+            card.name,
+            card.role,
+            user_id,
+            _parse_iso(card.created_at),
+            list(card.scopes),
+            json.dumps(card.metadata, ensure_ascii=False),
+        )
+        return await self._load_card(agent_id)
+
+    async def get_owner(self, agent_id: str) -> str | None:
+        row = await self._store.fetchrow("SELECT user_id FROM agents WHERE id = $1", agent_id)
+        return row["user_id"] if row is not None else None
+
     async def close(self) -> None:
         await self._store.close()
 
@@ -77,13 +100,16 @@ class PgAgentRuntime:
 
     async def _load_card(self, agent_id: str) -> IdentityCard:
         row = await self._store.fetchrow(
-            "SELECT name, role, created_at, scopes, metadata "
-            "FROM agents WHERE id = $1",
+            "SELECT name, role, created_at, scopes, metadata FROM agents WHERE id = $1",
             agent_id,
         )
         if row is None:
             raise AgentNotFoundError(agent_id)
-        meta = row["metadata"] if isinstance(row["metadata"], dict) else json.loads(row["metadata"] or "{}")
+        meta = (
+            row["metadata"]
+            if isinstance(row["metadata"], dict)
+            else json.loads(row["metadata"] or "{}")
+        )
         created = row["created_at"]
         created_iso = created.isoformat() if hasattr(created, "isoformat") else str(created)
         return IdentityCard(
@@ -136,9 +162,7 @@ class PgAgentRuntime:
         assert row is not None  # INSERT ... RETURNING always yields a row
         return self._row_to_soul_version(row)
 
-    async def list_soul_history(
-        self, agent_id: str, *, limit: int = 50
-    ) -> Sequence[SoulVersion]:
+    async def list_soul_history(self, agent_id: str, *, limit: int = 50) -> Sequence[SoulVersion]:
         await self._require_agent(agent_id)
         rows = await self._store.fetch(
             "SELECT version, created_at, tone, language_style, values, custom_traits "
@@ -149,20 +173,10 @@ class PgAgentRuntime:
         )
         return tuple(self._row_to_soul_version(r) for r in rows)
 
-    async def append_memory_event(
-        self, agent_id: str, event: MemoryEvent
-    ) -> StoredMemoryEvent:
+    async def append_memory_event(self, agent_id: str, event: MemoryEvent) -> StoredMemoryEvent:
         await self._require_agent(agent_id)
-        await self._memory.append_event(agent_id, event)
-        # PgVectorMemoryStore.append_event doesn't RETURN ids today; fetch
-        # the most recent row's id. Acceptable for v1; Day 22 can switch to
-        # INSERT ... RETURNING id once we stop calling append_event directly.
-        row = await self._store.fetchrow(
-            "SELECT id FROM memory_events WHERE agent_id = $1 "
-            "ORDER BY id DESC LIMIT 1",
-            agent_id,
-        )
-        return StoredMemoryEvent(id=f"evt_{row['id']}", event=event)
+        event_id = await self._memory.append_event(agent_id, event)
+        return StoredMemoryEvent(id=f"evt_{event_id}", event=event)
 
     async def list_memory_events(
         self,
@@ -209,7 +223,8 @@ class PgAgentRuntime:
                     content=r["content"],
                     source=r["source"],
                     metadata=(
-                        r["metadata"] if isinstance(r["metadata"], dict)
+                        r["metadata"]
+                        if isinstance(r["metadata"], dict)
                         else json.loads(r["metadata"] or "{}")
                     ),
                 ),
@@ -219,9 +234,7 @@ class PgAgentRuntime:
         next_cursor = stored[-1].id if has_more and stored else None
         return stored, next_cursor
 
-    async def search_memory(
-        self, agent_id: str, query: str, *, top_k: int = 5
-    ) -> MemoryRecall:
+    async def search_memory(self, agent_id: str, query: str, *, top_k: int = 5) -> MemoryRecall:
         await self._require_agent(agent_id)
         return await self._memory.search(agent_id, query, top_k=top_k)
 
@@ -238,9 +251,7 @@ class PgAgentRuntime:
         count = int(deleted_row["n"]) if deleted_row else 0
         soul_preserved = preserve_identity_and_soul
         if not preserve_identity_and_soul:
-            await self._store.execute(
-                "DELETE FROM soul_versions WHERE agent_id = $1", agent_id
-            )
+            await self._store.execute("DELETE FROM soul_versions WHERE agent_id = $1", agent_id)
         return FlushResult(
             deleted_event_count=count,
             identity_preserved=True,
@@ -251,10 +262,7 @@ class PgAgentRuntime:
 
     def _row_to_soul_version(self, row) -> SoulVersion:
         traits_raw = row["custom_traits"]
-        traits = (
-            traits_raw if isinstance(traits_raw, dict)
-            else json.loads(traits_raw or "{}")
-        )
+        traits = traits_raw if isinstance(traits_raw, dict) else json.loads(traits_raw or "{}")
         return SoulVersion(
             version=int(row["version"]),
             created_at=row["created_at"].isoformat(),

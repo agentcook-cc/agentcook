@@ -6,7 +6,6 @@ import datetime as dt
 from pathlib import Path
 
 import pytest
-
 from agentcook_core import IdentityCard, SkillManifest, SoulConfig
 from agentcook_core.builtin_tools import calculator, current_time, make_load_skill_tool
 from agentcook_core.prompts import PromptSection, SystemPromptBuilder, build_agent_system_prompt
@@ -27,9 +26,14 @@ def test_builder_puts_dynamic_sections_last_and_skips_empty() -> None:
 def test_agent_system_prompt_layout() -> None:
     prompt = build_agent_system_prompt(
         instructions="You help sellers.",
-        identity=IdentityCard(name="Cook", role="assistant", created_at="x", scopes=frozenset({"b", "a"})),
+        identity=IdentityCard(
+            name="Cook", role="assistant", created_at="x", scopes=frozenset({"b", "a"})
+        ),
         soul=SoulConfig(tone="warm", values=("honesty",), custom_traits={"emoji": "rarely"}),
-        skills=[SkillManifest(name="zeta", description="Z"), SkillManifest(name="alpha", description="A")],
+        skills=[
+            SkillManifest(name="zeta", description="Z"),
+            SkillManifest(name="alpha", description="A"),
+        ],
         memories=["User prefers metric units."],
         now=dt.datetime(2026, 10, 14, 23, 59, tzinfo=dt.UTC),
     )
@@ -39,13 +43,20 @@ def test_agent_system_prompt_layout() -> None:
     assert "Tone: warm." in prompt and "emoji: rarely" in prompt
     assert prompt.index("`alpha`") < prompt.index("`zeta`")
     # dynamic content goes last, at day granularity
-    assert prompt.index("## Skills") < prompt.index("## Relevant memories") < prompt.index("## Context")
+    assert (
+        prompt.index("## Skills")
+        < prompt.index("## Relevant memories")
+        < prompt.index("## Context")
+    )
     assert prompt.endswith("Today's date (UTC): 2026-10-14.")
 
 
 def test_extra_sections_respect_cacheability() -> None:
     prompt = build_agent_system_prompt(
-        extra_sections=[PromptSection("Volatile", "v", cacheable=False), PromptSection("Policy", "p")],
+        extra_sections=[
+            PromptSection("Volatile", "v", cacheable=False),
+            PromptSection("Policy", "p"),
+        ],
         operating_rules=None,
         now=dt.datetime(2026, 1, 1, tzinfo=dt.UTC),
     )
@@ -60,7 +71,9 @@ def test_estimate_tokens_counts_cjk_individually() -> None:
 
 
 async def test_calculator_happy_paths() -> None:
-    assert (await calculator.invoke({"expression": "(1299 * 0.85) - 50"})).output["result"] == 1054.15
+    assert (await calculator.invoke({"expression": "(1299 * 0.85) - 50"})).output[
+        "result"
+    ] == 1054.15
     assert (await calculator.invoke({"expression": "2 ^ 10"})).output["result"] == 1024
     assert (await calculator.invoke({"expression": "sqrt(16) + pi - pi"})).output["result"] == 4
 
@@ -91,7 +104,8 @@ async def test_current_time() -> None:
 
 async def test_load_skill_tool(tmp_path: Path) -> None:
     (tmp_path / "pricing.md").write_text(
-        "---\nname: pricing\ndescription: Price things\nversion: 1.2.0\n---\n# Steps\n1. Check costs",
+        "---\nname: pricing\ndescription: Price things\nversion: 1.2.0\n---\n"
+        "# Steps\n1. Check costs",
         encoding="utf-8",
     )
     registry = SkillRegistry()

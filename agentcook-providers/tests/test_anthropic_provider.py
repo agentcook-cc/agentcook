@@ -40,7 +40,6 @@ from agentcook_providers.anthropic_provider import (  # noqa: E402
     _stop_reason_to_finish,
 )
 
-
 # ---------------------------------------------------------------------------
 # Mock helpers
 # ---------------------------------------------------------------------------

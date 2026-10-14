@@ -1,7 +1,7 @@
 [project]
 name = "agentcook"
-version = "0.1.0"
-description = "FastAPI Agent runtime — Memory API, JWT verify (issued by agentcook-java per ADR-013)"
+version = "2.0.0"
+description = "FastAPI agent runtime — streaming agent loop, tools, skills, conversations, memory (JWT verified per ADR-013)"
 requires-python = ">=3.11"
 dependencies = [
     "agentcook-core",
@@ -14,9 +14,17 @@ dependencies = [
     "structlog>=24.1",
     "pyyaml>=6.0",
     "prometheus-client>=0.25.0",
+    "httpx>=0.27",
 ]
 
 [project.optional-dependencies]
+postgres = [
+    "agentcook-storage[postgres]",
+    "psycopg[binary]>=3.1",
+]
+providers = [
+    "agentcook-providers[all]",
+]
 otel = [
     "opentelemetry-sdk>=1.24",
     "opentelemetry-exporter-otlp-proto-grpc>=1.24",

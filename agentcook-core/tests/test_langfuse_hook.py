@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 import pytest
-
 from agentcook_core.langfuse_hook import (
     LangfuseHook,
     NoOpHook,
@@ -13,7 +13,6 @@ from agentcook_core.langfuse_hook import (
     reset_langfuse_hook,
     set_langfuse_hook,
 )
-
 
 # ---------------------------------------------------------------------------
 # Recording fake — same pattern as test_tracing.py's RecordingTracer
@@ -201,12 +200,8 @@ class TestModelRouterIntegration:
         set_langfuse_hook(rec)
 
         registry = ModelRegistry()
-        registry.register(
-            ModelConfig(name="gpt-test", provider="openai", quality_score=80)
-        )
-        registry.register(
-            ModelConfig(name="qwen-test", provider="qwen", quality_score=60)
-        )
+        registry.register(ModelConfig(name="gpt-test", provider="openai", quality_score=80))
+        registry.register(ModelConfig(name="qwen-test", provider="qwen", quality_score=60))
         router = ModelRouter(registry, policy=RoutingPolicy.QUALITY_FIRST)
         router.select()
 

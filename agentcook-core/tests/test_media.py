@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-
 from agentcook_core.media import (
     FileRenderer,
     ImageRenderer,
@@ -16,7 +15,6 @@ from agentcook_core.media import (
     MermaidRenderer,
     ProcessedMedia,
 )
-
 
 # ---------------------------------------------------------------------------
 # MediaType Tests
@@ -187,7 +185,9 @@ class TestFileRenderer:
 
     def test_renders_download_card(self):
         r = FileRenderer()
-        att = MediaAttachment(media_type=MediaType.FILE, url="/f.zip", filename="data.zip", size_bytes=2048)
+        att = MediaAttachment(
+            media_type=MediaType.FILE, url="/f.zip", filename="data.zip", size_bytes=2048
+        )
         result = r.process(att)
         assert "file-card" in result.rendered_html
         assert "data.zip" in result.rendered_html

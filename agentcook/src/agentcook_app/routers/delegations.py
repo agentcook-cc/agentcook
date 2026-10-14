@@ -1,100 +1,91 @@
-"""Delegations API endpoint — Day 29 skeleton (Phase 3 Day 4).
+"""Delegation graph — ``GET /api/v1/agents/{agent_id}/delegations``.
 
-**Status**: scaffolding only. **Not wired** into ``main.py`` yet —
-including it would push ``v1.yaml`` past the v1.1.0 freeze without an
-accompanying minor bump. Day 31 wires it in alongside the
-``GET /api/v1/agents/{id}/delegations`` endpoint B's reactflow
-visualization needs.
-
-Day 31 v1.2.0 bump covers BOTH this router AND ``routers/logs.py``
-(scaffolded Day 30) — see ``routers/logs.py`` docstring for the full
-7-step SOP. One bump, two endpoints — keeps B's regen / C's Pact
-reverify cadence at one cycle per Phase 3 day.
-
-Today's mock returns 3 nodes + 2 edges that look plausible for B's
-reactflow design preview. Phase 5 swaps the body to a live
-``MultiAgentOrchestrator`` snapshot.
+Nodes are the agent and every agent it can delegate to (from the agent
+catalog); edges are the caller's *actual* recent delegations recorded by
+the agent loop (``AgentTool`` → ``DelegationLog``), newest last. The
+``agent_id`` may be an agent name (``assistant``) or a per-user instance
+id (``assistant-<hash>``) — both resolve to the same graph.
 """
 
 from __future__ import annotations
 
-import datetime as dt
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 
-from fastapi import APIRouter, HTTPException, Path, status
-
+from agentcook_app.container import AppContainer, get_container
+from agentcook_app.schemas import ErrorEnvelope
 from agentcook_app.schemas_delegations import (
     DelegationEdge,
     DelegationGraphResponse,
     DelegationNode,
 )
+from agentcook_app.security import UserContext, get_current_user
 
 router = APIRouter(prefix="/api/v1/agents", tags=["delegations"])
 
 
-# --------------------------------------------------------------------------
-# Mock fixture — replaced by MultiAgentOrchestrator snapshot in Phase 5
-# --------------------------------------------------------------------------
-
-
-def _mock_graph(agent_id: str) -> DelegationGraphResponse:
-    """Three-agent demo graph: planner delegates to coder + reviewer."""
-    started = dt.datetime(2026, 6, 5, 9, 0, 0, tzinfo=dt.UTC).isoformat()
-    completed = dt.datetime(2026, 6, 5, 9, 0, 30, tzinfo=dt.UTC).isoformat()
-    return DelegationGraphResponse(
-        agent_id=agent_id,
-        nodes=[
-            DelegationNode(id="planner", name="Planner", role="planner"),
-            DelegationNode(id="coder", name="Coder", role="coder"),
-            DelegationNode(id="reviewer", name="Reviewer", role="reviewer"),
-        ],
-        edges=[
-            DelegationEdge(
-                id="e1",
-                from_id="planner",
-                to_id="coder",
-                task="Implement the search endpoint",
-                status="succeeded",
-                started_at=started,
-                completed_at=completed,
-            ),
-            DelegationEdge(
-                id="e2",
-                from_id="planner",
-                to_id="reviewer",
-                task="Review the search endpoint diff",
-                status="running",
-                started_at=completed,
-                completed_at=None,
-            ),
-        ],
-    )
-
-
-# --------------------------------------------------------------------------
-# Routes
-# --------------------------------------------------------------------------
+def _resolve_agent_name(container: AppContainer, agent_id: str) -> str | None:
+    if agent_id in container.agents:
+        return agent_id
+    for spec in container.agents.list():
+        if agent_id.startswith(f"{spec.name}-"):
+            return spec.name
+    return None
 
 
 @router.get(
     "/{agent_id}/delegations",
     response_model=DelegationGraphResponse,
-    responses={404: {"description": "Agent not found"}},
-    summary="Fetch the delegation graph rooted at an agent",
+    responses={404: {"model": ErrorEnvelope, "description": "Agent not found"}},
+    summary="Delegation graph for one agent (catalog topology + recent delegations)",
 )
 async def get_delegations(
-    agent_id: str = Path(..., description="Root agent id", pattern=r"^[a-zA-Z0-9_-]+$"),
+    agent_id: str = Path(..., pattern=r"^[A-Za-z0-9_\-]{1,64}$"),
+    limit: int = Query(default=50, ge=1, le=500),
+    container: AppContainer = Depends(get_container),
+    user: UserContext = Depends(get_current_user),
 ) -> DelegationGraphResponse:
-    """Today: returns a fixed 3-node / 2-edge demo graph for any agent_id.
-
-    Phase 5: reads from a live ``MultiAgentOrchestrator.snapshot()`` so
-    B's reactflow component shows the actual runtime topology.
-    """
-    if not agent_id:
-        # FastAPI's path validator catches empty paths before this point;
-        # the explicit check is here so reviewers don't have to puzzle
-        # over what guarantees ``agent_id`` is non-empty.
+    name = _resolve_agent_name(container, agent_id)
+    if name is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="agent_id required",
+            status_code=404,
+            detail=ErrorEnvelope(
+                code="AGENT_NOT_FOUND", message=f"Agent {agent_id!r} not found."
+            ).model_dump(),
         )
-    return _mock_graph(agent_id)
+    root = container.agents.get(name)
+    assert root is not None
+    participant_names = [root.name, *root.delegates]
+    events = container.delegations.for_agent(root.name, user_id=user.user_id, limit=limit)
+    for event in events:
+        for key in ("from", "to"):
+            if event.get(key) and event[key] not in participant_names:
+                participant_names.append(event[key])
+
+    nodes = []
+    for participant in participant_names:
+        spec = container.agents.get(participant)
+        nodes.append(
+            DelegationNode(
+                id=participant,
+                name=spec.title if spec else participant,
+                role="orchestrator"
+                if participant == root.name
+                else (spec.description[:80] if spec else "agent"),
+            )
+        )
+    edges = [
+        DelegationEdge(
+            id=str(event.get("run_id") or index),
+            from_id=str(event.get("from")),
+            to_id=str(event.get("to")),
+            task=str(event.get("task", ""))[:200],
+            status="succeeded" if event.get("success") else "failed",
+            started_at=str(event.get("started_at", "")),
+            completed_at=event.get("completed_at"),
+        )
+        for index, event in enumerate(events)
+    ]
+    return DelegationGraphResponse(agent_id=agent_id, nodes=nodes, edges=edges)
+
+
+__all__ = ["router"]

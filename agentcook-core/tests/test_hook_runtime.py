@@ -130,8 +130,15 @@ class TestHookContext:
 
 class TestHookEvent:
     def test_all_events_defined(self):
-        expected = {"agent_run", "tool_invoke", "model_call", "connector_open",
-                    "plugin_activate", "memory_write", "custom"}
+        expected = {
+            "agent_run",
+            "tool_invoke",
+            "model_call",
+            "connector_open",
+            "plugin_activate",
+            "memory_write",
+            "custom",
+        }
         assert {e.value for e in HookEvent} == expected
 
     def test_string_enum(self):

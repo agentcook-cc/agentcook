@@ -20,6 +20,7 @@ from agentcook_core.protocols import ToolProtocol
 # Mock transport
 # ---------------------------------------------------------------------------
 
+
 class MockTransport:
     """Mock MCP transport for unit tests."""
 
@@ -77,6 +78,7 @@ SAMPLE_TOOLS = [
 # McpToolAdapter
 # ---------------------------------------------------------------------------
 
+
 class TestMcpToolAdapter:
     @pytest.mark.unit
     def test_satisfies_tool_protocol(self):
@@ -118,6 +120,7 @@ class TestMcpToolAdapter:
 # McpClient
 # ---------------------------------------------------------------------------
 
+
 class TestMcpClient:
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -137,7 +140,9 @@ class TestMcpClient:
     @pytest.mark.asyncio
     async def test_call_tool_by_name(self):
         transport = MockTransport(tools=SAMPLE_TOOLS, call_response={"content": "ok"})
-        config = McpServerConfig(name="s", transport=McpTransportMode.SSE, url="http://localhost:3000")
+        config = McpServerConfig(
+            name="s", transport=McpTransportMode.SSE, url="http://localhost:3000"
+        )
         client = McpClient(config, transport)
         await client.connect()
 
@@ -175,6 +180,7 @@ class TestMcpClient:
 # ---------------------------------------------------------------------------
 # McpToolRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestMcpToolRegistry:
     @pytest.mark.unit
@@ -260,6 +266,7 @@ class TestMcpToolRegistry:
 # ---------------------------------------------------------------------------
 # McpServerConfig
 # ---------------------------------------------------------------------------
+
 
 class TestMcpServerConfig:
     @pytest.mark.unit

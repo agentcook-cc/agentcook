@@ -17,7 +17,6 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 DelegationStatus = Literal["pending", "running", "succeeded", "failed", "cancelled"]
 
 
@@ -42,7 +41,9 @@ class DelegationEdge(BaseModel):
     task: str = Field(..., description="Short description of the delegated task.")
     status: DelegationStatus = Field(..., description="Lifecycle state of the delegation.")
     started_at: str = Field(..., description="ISO-8601 UTC timestamp.")
-    completed_at: str | None = Field(default=None, description="ISO-8601 UTC; null while in-flight.")
+    completed_at: str | None = Field(
+        default=None, description="ISO-8601 UTC; null while in-flight."
+    )
 
 
 class DelegationGraphResponse(BaseModel):

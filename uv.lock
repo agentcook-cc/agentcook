@@ -22,7 +22,7 @@ members = [
 
 [[package]]
 name = "agentcook"
-version = "0.1.0"
+version = "2.0.0"
 source = { editable = "agentcook" }
 dependencies = [
     { name = "agentcook-core" },
@@ -30,6 +30,7 @@ dependencies = [
     { name = "agentcook-storage" },
     { name = "alembic" },
     { name = "fastapi" },
+    { name = "httpx" },
     { name = "prometheus-client" },
     { name = "pyjwt", extra = ["crypto"] },
     { name = "pyyaml" },
@@ -42,6 +43,13 @@ otel = [
     { name = "opentelemetry-exporter-otlp-proto-grpc" },
     { name = "opentelemetry-instrumentation-fastapi" },
     { name = "opentelemetry-sdk" },
+]
+postgres = [
+    { name = "agentcook-storage", extra = ["postgres"] },
+    { name = "psycopg", extra = ["binary"] },
+]
+providers = [
+    { name = "agentcook-providers", extra = ["all"] },
 ]
 
 [package.dev-dependencies]
@@ -56,19 +64,23 @@ dev = [
 requires-dist = [
     { name = "agentcook-core", editable = "agentcook-core" },
     { name = "agentcook-providers", editable = "agentcook-providers" },
+    { name = "agentcook-providers", extras = ["all"], marker = "extra == 'providers'", editable = "agentcook-providers" },
     { name = "agentcook-storage", editable = "agentcook-storage" },
+    { name = "agentcook-storage", extras = ["postgres"], marker = "extra == 'postgres'", editable = "agentcook-storage" },
     { name = "alembic", specifier = ">=1.13" },
     { name = "fastapi", specifier = ">=0.110.0" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "opentelemetry-exporter-otlp-proto-grpc", marker = "extra == 'otel'", specifier = ">=1.24" },
     { name = "opentelemetry-instrumentation-fastapi", marker = "extra == 'otel'", specifier = ">=0.45b0" },
     { name = "opentelemetry-sdk", marker = "extra == 'otel'", specifier = ">=1.24" },
     { name = "prometheus-client", specifier = ">=0.25.0" },
+    { name = "psycopg", extras = ["binary"], marker = "extra == 'postgres'", specifier = ">=3.1" },
     { name = "pyjwt", extras = ["crypto"], specifier = ">=2.8" },
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "structlog", specifier = ">=24.1" },
     { name = "uvicorn", specifier = ">=0.27.0" },
 ]
-provides-extras = ["otel"]
+provides-extras = ["postgres", "providers", "otel"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -155,7 +167,7 @@ dev = [
 
 [[package]]
 name = "agentcook-storage"
-version = "0.1.0"
+version = "0.2.0"
 source = { editable = "agentcook-storage" }
 dependencies = [
     { name = "agentcook-core" },

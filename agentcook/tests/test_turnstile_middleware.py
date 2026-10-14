@@ -15,16 +15,13 @@ from typing import Any
 
 import httpx
 import pytest
-
 from agentcook_app.middleware import (
     DEFAULT_DEV_SHORT_CIRCUIT,
     SITEVERIFY_URL,
-    TurnstileDecision,
     TurnstileVerifier,
     get_turnstile_verifier,
     reset_turnstile_verifier,
 )
-
 
 # ---------------------------------------------------------------------------
 # Mock transport (same shape as test_quota_middleware.py)
@@ -79,9 +76,7 @@ def _build_siteverify_verifier(
 
 class TestDevShortCircuit:
     async def test_explicit_short_circuit_skips_upstream(self):
-        client, transport = _build_client(
-            lambda req: httpx.Response(500, json={})
-        )
+        client, transport = _build_client(lambda req: httpx.Response(500, json={}))
         verifier = _build_worker_verifier(client=client, dev_short_circuit=True)
         decision = await verifier.verify("any-token", remote_ip="1.2.3.4")
         await client.aclose()
@@ -108,9 +103,7 @@ class TestDevShortCircuit:
 class TestMissingToken:
     @pytest.mark.parametrize("token", [None, "", "   "])
     async def test_empty_token_short_circuits_to_missing(self, token):
-        client, transport = _build_client(
-            lambda req: httpx.Response(200, json={"success": True})
-        )
+        client, transport = _build_client(lambda req: httpx.Response(200, json={"success": True}))
         verifier = _build_worker_verifier(client=client)
         decision = await verifier.verify(token)
         await client.aclose()
@@ -208,9 +201,7 @@ class TestWorkerRejection:
 
 class TestWorkerUnavailable:
     async def test_500_response_fails_closed(self):
-        client, _ = _build_client(
-            lambda req: httpx.Response(500, json={"error": "internal"})
-        )
+        client, _ = _build_client(lambda req: httpx.Response(500, json={"error": "internal"}))
         verifier = _build_worker_verifier(client=client)
         decision = await verifier.verify("token")
         await client.aclose()
@@ -342,9 +333,7 @@ class TestChatEndpointEnforce:
         return TestClient(create_app())
 
     def test_enforce_rejects_missing_token(self, monkeypatch):
-        verifier = TurnstileVerifier(
-            cloudflare_secret="x", dev_short_circuit=False
-        )
+        verifier = TurnstileVerifier(cloudflare_secret="x", dev_short_circuit=False)
         client = self._make_client(verifier, monkeypatch)
 
         resp = client.post(

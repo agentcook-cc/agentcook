@@ -8,7 +8,6 @@ from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
-
 from agentcook_core import (
     Agent,
     AgentRunner,
@@ -95,7 +94,10 @@ async def test_anthropic_chat_sends_tools_and_parses_tool_use() -> None:
             SimpleNamespace(type="tool_use", id="tu_1", name="get_weather", input={"city": "Oslo"}),
         ],
         usage=SimpleNamespace(
-            input_tokens=10, output_tokens=5, cache_read_input_tokens=90, cache_creation_input_tokens=0
+            input_tokens=10,
+            output_tokens=5,
+            cache_read_input_tokens=90,
+            cache_creation_input_tokens=0,
         ),
         stop_reason="tool_use",
     )
@@ -138,15 +140,32 @@ async def test_anthropic_stream_assembles_tool_use_and_usage() -> None:
         ns(type="content_block_start", index=0, content_block=ns(type="text")),
         ns(type="content_block_delta", index=0, delta=ns(type="text_delta", text="Hm")),
         ns(type="content_block_stop", index=0),
-        ns(type="content_block_start", index=1, content_block=ns(type="tool_use", id="tu", name="get_weather")),
-        ns(type="content_block_delta", index=1, delta=ns(type="input_json_delta", partial_json='{"ci')),
-        ns(type="content_block_delta", index=1, delta=ns(type="input_json_delta", partial_json='ty": "Oslo"}')),
+        ns(
+            type="content_block_start",
+            index=1,
+            content_block=ns(type="tool_use", id="tu", name="get_weather"),
+        ),
+        ns(
+            type="content_block_delta",
+            index=1,
+            delta=ns(type="input_json_delta", partial_json='{"ci'),
+        ),
+        ns(
+            type="content_block_delta",
+            index=1,
+            delta=ns(type="input_json_delta", partial_json='ty": "Oslo"}'),
+        ),
         ns(type="content_block_stop", index=1),
         ns(type="message_delta", delta=ns(stop_reason="tool_use"), usage=ns(output_tokens=17)),
     ]
     client = ns(messages=ns(stream=lambda **kw: _FakeAnthropicStream(events)))
     provider = AnthropicProvider(client=client)  # type: ignore[arg-type]
-    chunks = [c async for c in provider.stream_chat([Message(role="user", content="q")], tools=[get_weather])]
+    chunks = [
+        c
+        async for c in provider.stream_chat(
+            [Message(role="user", content="q")], tools=[get_weather]
+        )
+    ]
     assert chunks[0].delta_content == "Hm"
     assert chunks[1].delta_tool_calls == (
         ToolCall(id="tu", name="get_weather", arguments={"city": "Oslo"}),
@@ -168,7 +187,9 @@ def _tc(index: int, id: str | None = None, name: str | None = None, args: str | 
     return SimpleNamespace(index=index, id=id, function=SimpleNamespace(name=name, arguments=args))
 
 
-def _chunk(delta: Any = None, finish: str | None = None, usage: Any = None, choices: bool = True) -> Any:
+def _chunk(
+    delta: Any = None, finish: str | None = None, usage: Any = None, choices: bool = True
+) -> Any:
     return SimpleNamespace(
         choices=[SimpleNamespace(delta=delta, finish_reason=finish)] if choices else [],
         usage=usage,
@@ -195,7 +216,12 @@ async def test_openai_stream_assembles_parallel_tool_calls_and_usage() -> None:
             _chunk(choices=False, usage=SimpleNamespace(prompt_tokens=30, completion_tokens=12)),
         ]
     )
-    chunks = [c async for c in provider.stream_chat([Message(role="user", content="q")], tools=[get_weather])]
+    chunks = [
+        c
+        async for c in provider.stream_chat(
+            [Message(role="user", content="q")], tools=[get_weather]
+        )
+    ]
     assert create.call_args.kwargs["stream_options"] == {"include_usage": True}
     calls = [tc for c in chunks for tc in c.delta_tool_calls]
     assert calls == [
@@ -212,7 +238,12 @@ async def test_openai_stream_emits_tool_calls_even_when_finish_is_stop() -> None
             _chunk(_delta(), finish="stop"),
         ]
     )
-    chunks = [c async for c in provider.stream_chat([Message(role="user", content="q")], tools=[get_weather])]
+    chunks = [
+        c
+        async for c in provider.stream_chat(
+            [Message(role="user", content="q")], tools=[get_weather]
+        )
+    ]
     tool_chunk = next(c for c in chunks if c.delta_tool_calls)
     assert tool_chunk.finish_reason == "tool_calls"
 
@@ -307,13 +338,17 @@ async def test_mock_provider_drives_real_tool_loop() -> None:
 
 
 async def test_mock_provider_time_and_chinese() -> None:
-    response = await AgentRunner(MockProvider()).run(Agent(name="a", tools=(current_time,)), "现在几点？")
+    response = await AgentRunner(MockProvider()).run(
+        Agent(name="a", tools=(current_time,)), "现在几点？"
+    )
     assert response.metadata["tool_calls"] == [{"name": "current_time", "success": True}]
     assert "current_time" in response.output and "Mock" in response.output
 
 
 async def test_mock_provider_plain_answer_lists_tools() -> None:
-    response = await AgentRunner(MockProvider()).run(Agent(name="a", tools=(calculator,)), "hello there")
+    response = await AgentRunner(MockProvider()).run(
+        Agent(name="a", tools=(calculator,)), "hello there"
+    )
     assert response.metadata["turns"] == 1
     assert "offline mock mode" in response.output
     assert "`calculator`" in response.output
@@ -326,13 +361,18 @@ async def test_mock_provider_search_and_skill_rules() -> None:
         return [f"result for {query}"]
 
     provider = MockProvider()
-    text, calls = provider._decide([Message(role="user", content="search bluetooth earbuds")], [web_search])
-    assert calls[0].name == "web_search" and calls[0].arguments == {"query": "search bluetooth earbuds"}
+    text, calls = provider._decide(
+        [Message(role="user", content="search bluetooth earbuds")], [web_search]
+    )
+    assert calls[0].name == "web_search" and calls[0].arguments == {
+        "query": "search bluetooth earbuds"
+    }
 
     load_skill = tool(lambda skill: skill, name="load_skill")
     system = Message(role="system", content="## Skills\n- `listing-optimizer`: improve listings")
     _, calls = provider._decide(
-        [system, Message(role="user", content="Use the listing optimizer on my product")], [load_skill]
+        [system, Message(role="user", content="Use the listing optimizer on my product")],
+        [load_skill],
     )
     assert calls[0].name == "load_skill" and calls[0].arguments == {"skill": "listing-optimizer"}
 

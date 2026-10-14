@@ -15,6 +15,7 @@ Tests swap implementations through ``app.dependency_overrides``.
 from __future__ import annotations
 
 import datetime as dt
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
@@ -26,6 +27,7 @@ from agentcook_core import (
     MemoryRecall,
     SoulConfig,
 )
+from fastapi import Request
 
 # --------------------------------------------------------------------------
 # Errors — routers map these to HTTP via the exception handler in errors.py
@@ -84,15 +86,17 @@ class FlushResult:
 
 @runtime_checkable
 class AgentRuntime(Protocol):
+    async def ensure_agent(
+        self, agent_id: str, card: IdentityCard, *, user_id: str
+    ) -> IdentityCard: ...
+    async def get_owner(self, agent_id: str) -> str | None: ...
     async def get_identity(self, agent_id: str) -> IdentityCard: ...
     async def get_soul_latest(self, agent_id: str) -> SoulVersion: ...
     async def append_soul(self, agent_id: str, config: SoulConfig) -> SoulVersion: ...
     async def list_soul_history(
         self, agent_id: str, *, limit: int = 50
     ) -> Sequence[SoulVersion]: ...
-    async def append_memory_event(
-        self, agent_id: str, event: MemoryEvent
-    ) -> StoredMemoryEvent: ...
+    async def append_memory_event(self, agent_id: str, event: MemoryEvent) -> StoredMemoryEvent: ...
     async def list_memory_events(
         self,
         agent_id: str,
@@ -102,9 +106,7 @@ class AgentRuntime(Protocol):
         limit: int = 50,
         cursor: str | None = None,
     ) -> tuple[Sequence[StoredMemoryEvent], str | None]: ...
-    async def search_memory(
-        self, agent_id: str, query: str, *, top_k: int = 5
-    ) -> MemoryRecall: ...
+    async def search_memory(self, agent_id: str, query: str, *, top_k: int = 5) -> MemoryRecall: ...
     async def flush_memory(
         self, agent_id: str, *, preserve_identity_and_soul: bool = True
     ) -> FlushResult: ...
@@ -117,6 +119,18 @@ class AgentRuntime(Protocol):
 
 def _now_iso() -> str:
     return dt.datetime.now(tz=dt.UTC).isoformat(timespec="seconds")
+
+
+_RECALL_STOPWORDS = frozenset(
+    "a an and are do does for i is it me my of on or the to what which who you your".split()
+)
+
+
+def _recall_terms(text: str) -> set[str]:
+    words = {w for w in re.findall(r"[a-z0-9]+", text.lower()) if w not in _RECALL_STOPWORDS}
+    for run in re.findall(r"[\u4e00-\u9fff]+", text):
+        words.update(run[i : i + 2] for i in range(max(1, len(run) - 1)))
+    return {w for w in words if len(w) > 1 or w.isdigit() or not w.isascii()}
 
 
 class InMemoryAgentRuntime:
@@ -132,6 +146,7 @@ class InMemoryAgentRuntime:
         self._souls: dict[str, list[SoulVersion]] = {}
         self._events: dict[str, list[StoredMemoryEvent]] = {}
         self._event_seq: dict[str, int] = {}
+        self._owners: dict[str, str] = {}
 
     # ---- test helpers ------------------------------------------------
 
@@ -143,6 +158,24 @@ class InMemoryAgentRuntime:
         return aid
 
     # ---- protocol implementation -------------------------------------
+
+    async def ensure_agent(
+        self, agent_id: str, card: IdentityCard, *, user_id: str
+    ) -> IdentityCard:
+        """Create the agent instance on first use; return the stored card.
+
+        Identity is immutable (ADR-011): an existing card is returned
+        unchanged even if *card* differs.
+        """
+        existing = self._agents.get(agent_id)
+        if existing is not None:
+            return existing
+        self._agents[agent_id] = card
+        self._owners[agent_id] = user_id
+        return card
+
+    async def get_owner(self, agent_id: str) -> str | None:
+        return self._owners.get(agent_id)
 
     def _require(self, agent_id: str) -> IdentityCard:
         if agent_id not in self._agents:
@@ -170,16 +203,12 @@ class InMemoryAgentRuntime:
         history.append(version)
         return version
 
-    async def list_soul_history(
-        self, agent_id: str, *, limit: int = 50
-    ) -> Sequence[SoulVersion]:
+    async def list_soul_history(self, agent_id: str, *, limit: int = 50) -> Sequence[SoulVersion]:
         self._require(agent_id)
         history = self._souls.get(agent_id, [])
         return tuple(history[-limit:])
 
-    async def append_memory_event(
-        self, agent_id: str, event: MemoryEvent
-    ) -> StoredMemoryEvent:
+    async def append_memory_event(self, agent_id: str, event: MemoryEvent) -> StoredMemoryEvent:
         self._require(agent_id)
         seq = self._event_seq.get(agent_id, 0) + 1
         self._event_seq[agent_id] = seq
@@ -213,23 +242,37 @@ class InMemoryAgentRuntime:
         next_cursor = page[-1].id if len(items) > limit else None
         return tuple(page), next_cursor
 
-    async def search_memory(
-        self, agent_id: str, query: str, *, top_k: int = 5
-    ) -> MemoryRecall:
+    async def search_memory(self, agent_id: str, query: str, *, top_k: int = 5) -> MemoryRecall:
+        """Keyword-overlap recall (the dev stand-in for pgvector search).
+
+        Scores each event by the fraction of query terms it contains, so
+        "what tone do I prefer" finds "User prefers a friendly tone" — a
+        plain substring test would miss it.
+        """
         self._require(agent_id)
-        q = query.lower()
-        hits: list[MemoryHit] = []
+        terms = _recall_terms(query)
+        if not terms:
+            return MemoryRecall(query=query, hits=())
+        needle = query.strip().lower()
+        scored: list[tuple[float, StoredMemoryEvent]] = []
         for stored in self._events.get(agent_id, []):
-            if q and q in stored.event.content.lower():
-                hits.append(
-                    MemoryHit(
-                        content=stored.event.content,
-                        score=1.0,
-                        event=stored.event,
-                        metadata={"id": stored.id},
-                    )
-                )
-        return MemoryRecall(query=query, hits=tuple(hits[:top_k]))
+            if needle and needle in stored.event.content.lower():
+                scored.append((1.0, stored))  # verbatim phrase match ranks first
+                continue
+            overlap = len(terms & _recall_terms(stored.event.content))
+            if overlap:
+                scored.append((0.9 * overlap / len(terms), stored))
+        scored.sort(key=lambda pair: pair[0], reverse=True)
+        hits = tuple(
+            MemoryHit(
+                content=stored.event.content,
+                score=round(score, 4),
+                event=stored.event,
+                metadata={"id": stored.id},
+            )
+            for score, stored in scored[:top_k]
+        )
+        return MemoryRecall(query=query, hits=hits)
 
     async def flush_memory(
         self, agent_id: str, *, preserve_identity_and_soul: bool = True
@@ -253,35 +296,12 @@ class InMemoryAgentRuntime:
 # --------------------------------------------------------------------------
 
 
-_default_runtime: InMemoryAgentRuntime | None = None
+def get_runtime(request: Request) -> AgentRuntime:
+    """FastAPI dependency → the app container's runtime.
 
-
-def _get_default_runtime() -> InMemoryAgentRuntime:
-    global _default_runtime
-    if _default_runtime is None:
-        _default_runtime = InMemoryAgentRuntime()
-        # Seed one demo agent so /docs cURL examples don't 404 in dev.
-        _default_runtime.seed_agent(
-            IdentityCard(
-                name="demo-agent",
-                role="assistant",
-                created_at=_now_iso(),
-                scopes=frozenset({"chat", "search"}),
-            ),
-            agent_id="demo-agent",
-        )
-    return _default_runtime
-
-
-def get_runtime() -> AgentRuntime:
-    """FastAPI dependency. Tests override via ``app.dependency_overrides``."""
-    return _get_default_runtime()
-
-
-def reset_default_runtime() -> None:
-    """Reset the singleton — useful between tests if a test forgets to override."""
-    global _default_runtime
-    _default_runtime = None
+    Tests override it via ``app.dependency_overrides[get_runtime]``.
+    """
+    return request.app.state.container.runtime
 
 
 __all__ = [
@@ -293,5 +313,4 @@ __all__ = [
     "SoulVersion",
     "StoredMemoryEvent",
     "get_runtime",
-    "reset_default_runtime",
 ]

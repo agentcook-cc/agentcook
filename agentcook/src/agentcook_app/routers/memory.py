@@ -70,6 +70,25 @@ _COMMON_ERRORS = {
 }
 
 
+async def authorized_agent_id(
+    agent_id: str = AGENT_ID_PATH,
+    user: UserContext = Depends(verify_access_token),
+    runtime: AgentRuntime = Depends(get_runtime),
+) -> str:
+    """Path ``agent_id`` the caller may access.
+
+    Per-user agent instances (created by chat) are private to their owner
+    (admins excepted); unowned / shared agents are readable by any
+    authenticated caller. A foreign instance answers 404, not 403, so ids
+    cannot be probed.
+    """
+    get_owner = getattr(runtime, "get_owner", None)
+    owner = await get_owner(agent_id) if get_owner is not None else None
+    if owner is not None and owner != user.user_id and not user.is_admin:
+        raise AgentNotFoundError(agent_id)
+    return agent_id
+
+
 # --------------------------------------------------------------------------
 # Adapters: service value-types → wire schemas
 # --------------------------------------------------------------------------
@@ -134,7 +153,7 @@ def _now_iso() -> str:
     summary="Read an Agent's immutable identity card (ADR-011 layer 1).",
 )
 async def get_identity(
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> IdentityResponse:
@@ -155,7 +174,7 @@ async def get_identity(
     summary="Read the current (latest) SoulConfig version.",
 )
 async def get_soul_latest(
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> SoulResponse:
@@ -179,7 +198,7 @@ async def get_soul_latest(
 )
 async def append_soul(
     body: SoulConfigBody,
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     x_confirm_identity_change: bool | None = Header(default=None),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
@@ -211,7 +230,7 @@ async def append_soul(
     summary="List all SoulConfig versions (oldest → newest), capped.",
 )
 async def list_soul_history(
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     limit: int = Query(default=50, ge=1, le=200),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
@@ -234,7 +253,7 @@ async def list_soul_history(
 )
 async def append_memory_event(
     body: MemoryEventCreate,
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> MemoryEventResponse:
@@ -258,7 +277,7 @@ async def append_memory_event(
     summary="List memory events (cursor pagination, oldest → newest within page).",
 )
 async def list_memory_events(
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     since: str | None = Query(default=None, description="ISO-8601 UTC lower bound."),
     kind: MemoryEventKindLit | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
@@ -288,7 +307,7 @@ async def list_memory_events(
 )
 async def search_memory(
     body: SearchRequest,
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> SearchResponse:
@@ -336,7 +355,7 @@ async def search_memory(
 )
 async def flush_memory(
     body: FlushRequest,
-    agent_id: str = AGENT_ID_PATH,
+    agent_id: str = Depends(authorized_agent_id),
     user: UserContext = Depends(verify_access_token),
     runtime: AgentRuntime = Depends(get_runtime),
 ) -> FlushResponse:

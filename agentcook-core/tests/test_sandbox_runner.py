@@ -6,7 +6,6 @@ import subprocess
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from agentcook_core.sandbox_runner import (
     DockerSandboxExecutor,
     NetworkMode,
@@ -16,7 +15,6 @@ from agentcook_core.sandbox_runner import (
     SandboxResult,
     SubprocessSandboxExecutor,
 )
-
 
 # ---------------------------------------------------------------------------
 # SandboxConfig Tests
@@ -72,11 +70,15 @@ class TestSandboxResult:
         assert result.success is False
 
     def test_failure_timed_out(self):
-        result = SandboxResult(exit_code=-1, stdout="", stderr="timeout", duration_ms=30000.0, timed_out=True)
+        result = SandboxResult(
+            exit_code=-1, stdout="", stderr="timeout", duration_ms=30000.0, timed_out=True
+        )
         assert result.success is False
 
     def test_failure_oom(self):
-        result = SandboxResult(exit_code=-1, stdout="", stderr="", duration_ms=500.0, oom_killed=True)
+        result = SandboxResult(
+            exit_code=-1, stdout="", stderr="", duration_ms=500.0, oom_killed=True
+        )
         assert result.success is False
 
     def test_frozen(self):

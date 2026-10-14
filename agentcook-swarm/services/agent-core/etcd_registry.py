@@ -14,8 +14,8 @@ import json
 import logging
 import os
 import time
-from dataclasses import asdict, dataclass, field
-from typing import Any, Callable, Protocol, runtime_checkable
+from dataclasses import dataclass, field
+from typing import Any, Protocol, runtime_checkable
 
 logger = logging.getLogger(__name__)
 
@@ -40,12 +40,14 @@ class ServiceInstance:
         return f"{self.host}:{self.port}"
 
     def to_json(self) -> str:
-        return json.dumps({
-            "host": self.host,
-            "port": self.port,
-            "metadata": self.metadata,
-            "registered_at": self.registered_at,
-        })
+        return json.dumps(
+            {
+                "host": self.host,
+                "port": self.port,
+                "metadata": self.metadata,
+                "registered_at": self.registered_at,
+            }
+        )
 
     @classmethod
     def from_json(cls, service_name: str, instance_id: str, raw: str) -> ServiceInstance:
@@ -65,7 +67,12 @@ class ServiceRegistry(Protocol):
     """Protocol for service registration and discovery."""
 
     async def register(
-        self, service_name: str, instance_id: str, host: str, port: int, metadata: dict[str, Any] | None = None
+        self,
+        service_name: str,
+        instance_id: str,
+        host: str,
+        port: int,
+        metadata: dict[str, Any] | None = None,
     ) -> None: ...
 
     async def deregister(self, service_name: str, instance_id: str) -> None: ...
@@ -103,6 +110,7 @@ class EtcdServiceRegistry:
         if self._client is None:
             try:
                 import etcd3
+
                 self._client = etcd3.client(host=self._host, port=self._port)
             except ImportError:
                 logger.warning("etcd3 package not installed, using stub mode")
@@ -183,7 +191,9 @@ class EtcdServiceRegistry:
                         key = metadata.key.decode("utf-8")
                         instance_id = key.split("/")[-1]
                         instances.append(
-                            ServiceInstance.from_json(service_name, instance_id, value.decode("utf-8"))
+                            ServiceInstance.from_json(
+                                service_name, instance_id, value.decode("utf-8")
+                            )
                         )
         except Exception as exc:
             logger.warning("etcd discover failed: %s, using fallback", exc)

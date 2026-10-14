@@ -25,9 +25,7 @@ class RedisStore:
         try:
             from redis.asyncio import Redis
         except ImportError as exc:
-            raise ImportError(
-                "Install agentcook-storage[redis] to use RedisStore."
-            ) from exc
+            raise ImportError("Install agentcook-storage[redis] to use RedisStore.") from exc
         client = Redis.from_url(url, decode_responses=True, **client_kwargs)
         return cls(client)
 

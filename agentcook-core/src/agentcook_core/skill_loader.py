@@ -119,6 +119,9 @@ def manifest_from_frontmatter(
         name=name,
         description=description,
         version=metadata.get("version", "0.0.0"),
+        title=metadata.get("title") or None,
+        category=metadata.get("category") or None,
+        updated_at=metadata.get("updated_at") or metadata.get("updated") or None,
     )
 
 
@@ -174,10 +177,11 @@ class SkillRegistry:
 
     # -- mutators -----------------------------------------------------------
 
-    def register(self, entry: SkillEntry) -> None:
-        """Add a single skill; raises :class:`SkillConflictError` on dup."""
+    def register(self, entry: SkillEntry, *, replace: bool = False) -> None:
+        """Add a single skill; raises :class:`SkillConflictError` on dup
+        unless ``replace=True`` (later sources override earlier ones)."""
         name = entry.manifest.name
-        if name in self._entries:
+        if name in self._entries and not replace:
             raise SkillConflictError(
                 f"Skill {name!r} already registered "
                 f"(existing: {self._entries[name]._path}, "

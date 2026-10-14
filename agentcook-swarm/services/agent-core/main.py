@@ -11,7 +11,6 @@ import asyncio
 import logging
 import os
 import signal
-import sys
 
 import uvicorn
 
@@ -31,8 +30,8 @@ ETCD_HOST = os.getenv("ETCD_HOST", "etcd")
 ETCD_PORT = int(os.getenv("ETCD_PORT", "2379"))
 
 
-async def start_grpc_server() -> None:
-    """Start gRPC server in background."""
+async def start_grpc_server(container: object | None = None) -> None:
+    """Start gRPC server in background (sharing the HTTP app's container)."""
     # Enable OTel gRPC server instrumentation BEFORE the server is built so
     # the interceptor wraps it. Safe no-op if the package is missing.
     try:
@@ -44,7 +43,8 @@ async def start_grpc_server() -> None:
 
     try:
         from grpc_server import serve_grpc
-        await serve_grpc(port=GRPC_PORT)
+
+        await serve_grpc(port=GRPC_PORT, container=container)
     except ImportError:
         logger.warning("gRPC server not available (grpcio not installed), skipping")
     except Exception as exc:
@@ -55,6 +55,7 @@ async def register_with_etcd() -> None:
     """Register service with etcd for discovery."""
     try:
         from etcd_registry import EtcdServiceRegistry
+
         registry = EtcdServiceRegistry(host=ETCD_HOST, port=ETCD_PORT)
         instance_id = os.getenv("INSTANCE_ID", f"agent-core-{os.getpid()}")
         await registry.register(
@@ -97,13 +98,13 @@ async def main() -> None:
     # Register with etcd (best-effort)
     await register_with_etcd()
 
-    # Start gRPC in background
-    grpc_task = asyncio.create_task(start_grpc_server())
+    # One app (and one runtime container) serves both transports.
+    app = create_app()
+    grpc_task = asyncio.create_task(start_grpc_server(app.state.container))
 
     # Start HTTP (uvicorn)
     config = uvicorn.Config(
-        app="main:create_app",
-        factory=True,
+        app=app,
         host="0.0.0.0",
         port=HTTP_PORT,
         log_level="info",

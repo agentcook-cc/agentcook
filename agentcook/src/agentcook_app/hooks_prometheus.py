@@ -36,8 +36,6 @@ except ImportError:
     pass
 
 if _PROM_AVAILABLE:
-    from agentcook_core.hook_runtime import HookContext
-
     HOOK_EXECUTIONS = Counter(
         "agentcook_hook_executions_total",
         "Total hook pipeline executions by event type and outcome",
@@ -85,7 +83,9 @@ class PrometheusHook:
             return
 
         event_name = context.event.value
-        outcome = "cancelled" if context.cancelled else ("error" if context.cancelled else "success")
+        outcome = (
+            "cancelled" if context.cancelled else ("error" if context.cancelled else "success")
+        )
 
         # Determine actual outcome from HookResult if available
         if hasattr(result, "success"):

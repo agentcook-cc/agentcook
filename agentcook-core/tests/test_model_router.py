@@ -227,7 +227,9 @@ class TestModelRouterAvailability:
             def is_available(self, model_name: str) -> bool:
                 return model_name != "gpt-4o"
 
-        router = ModelRouter(registry, policy=RoutingPolicy.FALLBACK_CHAIN, checker=PartialChecker())
+        router = ModelRouter(
+            registry, policy=RoutingPolicy.FALLBACK_CHAIN, checker=PartialChecker()
+        )
         result = router.select()
         assert result.model.name == "gpt-3.5-turbo"
         assert "gpt-4o" in result.alternatives_tried

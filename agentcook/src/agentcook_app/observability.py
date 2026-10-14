@@ -42,12 +42,18 @@ SERVICE_NAME = "agentcook-python"
 DEFAULT_OTLP_ENDPOINT = "http://localhost:4317"
 
 
-def setup_telemetry(app: FastAPI) -> None:
+def setup_telemetry(app: FastAPI, endpoint: str | None = None) -> None:
     """Wire OpenTelemetry tracing into a FastAPI application.
 
-    Gracefully no-ops when OTel packages are not installed, so the app
-    can still run without the observability stack (e.g. in unit tests).
+    Opt-in: tracing is enabled only when an OTLP endpoint is configured
+    (``OTEL_EXPORTER_OTLP_ENDPOINT``). Exporting to a default
+    ``localhost:4317`` that nobody runs just fills the logs with retry
+    errors and adds latency. Gracefully no-ops when OTel packages are not
+    installed.
     """
+    endpoint = endpoint or os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT")
+    if not endpoint:
+        return
     if not _OTEL_AVAILABLE:
         import logging
 
@@ -57,8 +63,6 @@ def setup_telemetry(app: FastAPI) -> None:
             "opentelemetry-instrumentation-fastapi"
         )
         return
-
-    endpoint = os.environ.get("OTEL_EXPORTER_OTLP_ENDPOINT", DEFAULT_OTLP_ENDPOINT)
 
     resource = Resource.create(
         {

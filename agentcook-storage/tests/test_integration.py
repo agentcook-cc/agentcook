@@ -37,6 +37,7 @@ def _docker_available() -> bool:
 
 # --------------------------- RedisStore --------------------------------------
 
+
 async def test_redis_store_round_trip(redis_container) -> None:
     """RedisStore set/get/delete + TTL against a real Redis container."""
     from agentcook_storage import RedisStore
@@ -57,6 +58,7 @@ async def test_redis_store_round_trip(redis_container) -> None:
 
 
 # --------------------------- S3ObjectStore (MinIO) --------------------------
+
 
 @pytest.fixture(scope="module")
 def minio_container() -> Iterator[object]:
@@ -83,9 +85,7 @@ def minio_container() -> Iterator[object]:
         deadline = time.time() + 30
         while time.time() < deadline:
             try:
-                urllib.request.urlopen(
-                    f"http://{host}:{port}/minio/health/ready", timeout=2
-                )
+                urllib.request.urlopen(f"http://{host}:{port}/minio/health/ready", timeout=2)
                 break
             except (urllib.error.URLError, urllib.error.HTTPError):
                 time.sleep(0.5)
@@ -136,6 +136,7 @@ async def test_s3_object_store_round_trip(minio_container) -> None:
 
 # --------------------------- PostgresStore + PgVectorMemoryStore ------------
 
+
 @pytest.fixture(scope="module")
 def pgvector_container() -> Iterator[object]:
     """A Postgres container with the pgvector extension pre-installed.
@@ -175,9 +176,7 @@ def pgvector_container() -> Iterator[object]:
             raise RuntimeError(f"pgvector container did not accept TCP on {host}:{port}")
 
         # asyncpg requires the server to be past startup recovery too.
-        dsn = container.get_connection_url().replace(
-            "postgresql+psycopg2://", "postgresql://"
-        )
+        dsn = container.get_connection_url().replace("postgresql+psycopg2://", "postgresql://")
 
         async def _ping() -> None:
             import asyncpg
@@ -209,9 +208,7 @@ async def test_postgres_store_pgvector_round_trip(pgvector_container) -> None:
         ensure_pgvector_extension,
     )
 
-    dsn = pgvector_container.get_connection_url().replace(
-        "postgresql+psycopg2://", "postgresql://"
-    )
+    dsn = pgvector_container.get_connection_url().replace("postgresql+psycopg2://", "postgresql://")
     store = await PostgresStore.connect(dsn, min_size=1, max_size=2)
     try:
         await ensure_pgvector_extension(store)

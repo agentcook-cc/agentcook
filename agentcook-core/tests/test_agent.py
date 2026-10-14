@@ -7,7 +7,6 @@ from collections.abc import AsyncIterator, Callable, Sequence
 from typing import Any
 
 import pytest
-
 from agentcook_core import (
     Agent,
     AgentRunError,
@@ -274,9 +273,7 @@ async def test_history_is_included_and_its_system_messages_ignored() -> None:
         Message(role="user", content="earlier q"),
         Message(role="assistant", content="earlier a"),
     ]
-    await AgentRunner(provider).run(
-        Agent(name="a", instructions="fresh"), "now", history=history
-    )
+    await AgentRunner(provider).run(Agent(name="a", instructions="fresh"), "now", history=history)
     prompt = provider.prompts[0]
     assert [m.content for m in prompt] == ["fresh", "earlier q", "earlier a", "now"]
 

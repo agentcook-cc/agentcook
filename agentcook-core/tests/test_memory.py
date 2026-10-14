@@ -64,15 +64,21 @@ class TestMemoryEntry:
 
     def test_is_expired_false_when_within_ttl(self):
         entry = MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="k", content="v",
-            timestamp=time.time(), ttl=3600,
+            layer=MemoryLayer.MEMORY,
+            key="k",
+            content="v",
+            timestamp=time.time(),
+            ttl=3600,
         )
         assert entry.is_expired is False
 
     def test_is_expired_true_when_past_ttl(self):
         entry = MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="k", content="v",
-            timestamp=time.time() - 10, ttl=5,
+            layer=MemoryLayer.MEMORY,
+            key="k",
+            content="v",
+            timestamp=time.time() - 10,
+            ttl=5,
         )
         assert entry.is_expired is True
 
@@ -92,7 +98,7 @@ class TestMemoryEntry:
 
 class TestMemoryLayer:
     def test_all_layers(self):
-        assert {l.value for l in MemoryLayer} == {"identity", "soul", "memory", "diary"}
+        assert {layer.value for layer in MemoryLayer} == {"identity", "soul", "memory", "diary"}
 
     def test_string_enum(self):
         assert MemoryLayer.IDENTITY == "identity"
@@ -119,8 +125,11 @@ class TestInMemoryStore:
     def test_read_expired_returns_none(self):
         store = InMemoryStore()
         entry = MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="temp", content="v",
-            timestamp=time.time() - 10, ttl=5,
+            layer=MemoryLayer.MEMORY,
+            key="temp",
+            content="v",
+            timestamp=time.time() - 10,
+            ttl=5,
         )
         store.write("agent-1", entry)
         assert store.read("agent-1", MemoryLayer.MEMORY, "temp") is None
@@ -164,13 +173,25 @@ class TestInMemoryStore:
 
     def test_expire_removes_stale(self):
         store = InMemoryStore()
-        store.write("a", MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="fresh", content="v", ttl=3600,
-        ))
-        store.write("a", MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="stale", content="v",
-            timestamp=time.time() - 100, ttl=10,
-        ))
+        store.write(
+            "a",
+            MemoryEntry(
+                layer=MemoryLayer.MEMORY,
+                key="fresh",
+                content="v",
+                ttl=3600,
+            ),
+        )
+        store.write(
+            "a",
+            MemoryEntry(
+                layer=MemoryLayer.MEMORY,
+                key="stale",
+                content="v",
+                timestamp=time.time() - 100,
+                ttl=10,
+            ),
+        )
         removed = store.expire("a")
         assert removed == 1
         assert store.read("a", MemoryLayer.MEMORY, "fresh") is not None
@@ -368,8 +389,11 @@ class TestMemoryManagerTTL:
         mgr = MemoryManager(store)
         # Write a stale entry directly
         stale = MemoryEntry(
-            layer=MemoryLayer.MEMORY, key="old", content="v",
-            timestamp=time.time() - 100, ttl=10,
+            layer=MemoryLayer.MEMORY,
+            key="old",
+            content="v",
+            timestamp=time.time() - 100,
+            ttl=10,
         )
         store.write("a", stale)
         mgr.write_to_layer("a", MemoryLayer.MEMORY, "fresh", "v", ttl=3600)

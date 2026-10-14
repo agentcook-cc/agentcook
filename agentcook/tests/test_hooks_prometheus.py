@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import pytest
-
-from agentcook_core.hook_runtime import HookContext, HookEvent
-
 from agentcook_app.hooks_prometheus import PrometheusHook, is_available
+from agentcook_core.hook_runtime import HookContext, HookEvent
 
 
 @pytest.fixture

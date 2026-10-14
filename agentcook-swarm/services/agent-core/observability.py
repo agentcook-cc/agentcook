@@ -130,7 +130,7 @@ def _install_meter_provider() -> object | None:
     return provider
 
 
-def setup_telemetry(app: "FastAPI" | None = None) -> bool:
+def setup_telemetry(app: FastAPI | None = None) -> bool:
     """Wire OTel SDK + FastAPI auto-instrumentation.
 
     Returns True if real OTel was installed, False if the SDK is

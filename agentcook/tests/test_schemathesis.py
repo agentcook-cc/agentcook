@@ -46,17 +46,19 @@ def _build_app() -> Any:
         agent_id="agent-1",
     )
     # Initialise soul so /soul GET 200s rather than 404s during fuzzing.
-    import asyncio
-
-    from agentcook_core import SoulConfig
-
-    asyncio.get_event_loop().run_until_complete(
-        runtime.append_soul("agent-1", SoulConfig(tone="warm", language_style="friendly"))
-    )
+    _seed_soul(runtime)
 
     app = create_app()
     app.dependency_overrides[get_runtime] = lambda: runtime
     return app
+
+
+def _seed_soul(runtime: InMemoryAgentRuntime) -> None:
+    import asyncio
+
+    from agentcook_core import SoulConfig
+
+    asyncio.run(runtime.append_soul("agent-1", SoulConfig(tone="warm", language_style="friendly")))
 
 
 def _bearer() -> str:
@@ -72,7 +74,12 @@ def _bearer() -> str:
     return f"Bearer {token}"
 
 
-schema = schemathesis.openapi.from_asgi("/openapi.json", _build_app())
+# ``/api/v1/logs/stream?follow=true`` is an intentionally endless tail —
+# fuzzing it would hang the run; its behaviour is covered by
+# test_logs_router.py instead.
+schema = schemathesis.openapi.from_asgi("/openapi.json", _build_app()).exclude(
+    path="/api/v1/logs/stream"
+)
 
 
 @schema.parametrize()
@@ -97,6 +104,7 @@ def test_api_conforms_to_schema(case) -> None:
     still letting us assert on the cases that *do* land — every other
     schemathesis-generated request must conform to the spec.
     """
+
     def _is_known_interop(exc: BaseException) -> bool:
         msg = str(exc)
         return any(
@@ -109,15 +117,6 @@ def test_api_conforms_to_schema(case) -> None:
                 "literal_error",
                 "value_error.missing",
                 "Unsupported methods",  # schemathesis flagging 405 paths
-                # Day 68 (Phase 6 #20 Turnstile follow-on): hypothesis now
-                # explores a wider header space (X-Turnstile-Token /
-                # X-Forwarded-For added in chat.py for backlog #20), which
-                # surfaces the existing chat.py `session_id must not be empty`
-                # path-validation 400. The 400 is intentional product
-                # behavior; treat as known interop until the spec gains an
-                # explicit minLength constraint on session_id (cross-cutting:
-                # spec + Pact + Java client — out of A's #20 scope).
-                "session_id must not be empty",
             )
         )
 
@@ -134,7 +133,7 @@ def test_api_conforms_to_schema(case) -> None:
         # formats sub-failures into the top-level summary), not in the
         # individual sub-exceptions which only carry the check name.
         if _is_known_interop(eg) or all(_is_known_interop(sub) for sub in eg.exceptions):
-            pytest.skip(f"Known schemathesis↔FastAPI interop ({len(eg.exceptions)} cases)")
+            pytest.skip(f"Known schemathesis↔FastAPI interop: {str(eg)[:400]}")
         raise
     except Exception as exc:
         if _is_known_interop(exc):
@@ -159,7 +158,11 @@ def test_no_auth_header_always_returns_401_envelope() -> None:
         "/api/v1/agents/agent-1/memory/flush",
     ]
     for path in paths:
-        resp = client.get(path) if "search" not in path and "flush" not in path else client.post(path, json={})
+        resp = (
+            client.get(path)
+            if "search" not in path and "flush" not in path
+            else client.post(path, json={})
+        )
         assert resp.status_code == 401, f"{path} returned {resp.status_code}"
         assert resp.json()["code"] == "AUTH_MISSING_TOKEN"
 

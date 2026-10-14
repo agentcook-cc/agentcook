@@ -20,7 +20,8 @@ a pool).
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import AsyncIterator, Sequence
+from contextlib import asynccontextmanager
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -46,9 +47,7 @@ class PostgresStore:
         try:
             import asyncpg
         except ImportError as exc:
-            raise ImportError(
-                "Install agentcook-storage[postgres] to use PostgresStore."
-            ) from exc
+            raise ImportError("Install agentcook-storage[postgres] to use PostgresStore.") from exc
         pool = await asyncpg.create_pool(
             dsn=dsn,
             min_size=min_size,
@@ -70,6 +69,17 @@ class PostgresStore:
     async def fetchrow(self, query: str, *args: Any) -> Any | None:
         async with self._pool.acquire() as conn:
             return await conn.fetchrow(query, *args)
+
+    @asynccontextmanager
+    async def transaction(self) -> AsyncIterator[Any]:
+        """Acquire a connection and run the block in one transaction.
+
+        Yields the raw asyncpg connection (``execute`` / ``fetch`` /
+        ``fetchrow`` / ``executemany``); commits on success, rolls back
+        on exception.
+        """
+        async with self._pool.acquire() as conn, conn.transaction():
+            yield conn
 
     async def close(self) -> None:
         await self._pool.close()

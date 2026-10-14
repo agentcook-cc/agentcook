@@ -53,6 +53,7 @@ from agentcook_core import (  # noqa: E402
 
 # --------------------------- Tool ---------------------------
 
+
 class _StubTool:
     name = "echo"
     description = "Return the input verbatim."
@@ -74,10 +75,12 @@ def test_tool_protocol_rejects_incomplete_stub() -> None:
     class Broken:
         name = "x"
         # missing description, parameters_schema, invoke
+
     assert not isinstance(Broken(), ToolProtocol)
 
 
 # --------------------------- Skill ---------------------------
+
 
 class _StubSkill:
     def __init__(self) -> None:
@@ -99,6 +102,7 @@ def test_skill_protocol_contract() -> None:
 
 
 # --------------------------- Connector ---------------------------
+
 
 class _StubConnector:
     def __init__(self) -> None:
@@ -145,6 +149,7 @@ def test_connector_kind_covers_im_webhook() -> None:
 
 # --------------------------- Agent ---------------------------
 
+
 class _StubAgent:
     name = "echo-agent"
     description = "Echoes the last user message."
@@ -169,6 +174,7 @@ async def test_agent_protocol_contract() -> None:
 
 
 # --------------------------- Plugin ---------------------------
+
 
 class _StubPlugin:
     def __init__(self) -> None:
@@ -217,6 +223,7 @@ async def test_plugin_protocol_contract() -> None:
 
 # --------------------------- value types ---------------------------
 
+
 def test_dataclass_value_types_are_frozen() -> None:
     msg = Message(role="user", content="hi")
     with pytest.raises(Exception):
@@ -230,6 +237,7 @@ def test_token_usage_total() -> None:
 
 
 # --------------------------- Message tool-use fields ---------------------------
+
 
 def test_message_supports_tool_call_round_trip() -> None:
     """An assistant turn requesting a tool, followed by a tool reply."""
@@ -255,6 +263,7 @@ def test_message_defaults_remain_backward_compatible() -> None:
 
 # --------------------------- LLMProvider ---------------------------
 
+
 class _StubLLMProvider:
     model_name = "stub-llm-1"
     context_window = 8000
@@ -269,7 +278,9 @@ class _StubLLMProvider:
     ) -> ChatResponse:
         text = messages[-1].content if messages else ""
         reply = Message(role="assistant", content=f"echo: {text}")
-        return ChatResponse(message=reply, usage=TokenUsage(input=10, output=5), finish_reason="stop")
+        return ChatResponse(
+            message=reply, usage=TokenUsage(input=10, output=5), finish_reason="stop"
+        )
 
     async def stream_chat(  # async-generator factory
         self,
@@ -304,6 +315,7 @@ async def test_llm_provider_streams_chunks() -> None:
 
 
 # --------------------------- Identity / Soul / Memory (ADR-011) ---------------------------
+
 
 class _StubIdentity:
     def __init__(self) -> None:
@@ -417,7 +429,9 @@ async def test_memory_store_protocol_event_stream_and_search() -> None:
     store = _InMemoryStore()
     await store.append_event(
         "agent-A",
-        MemoryEvent(timestamp="2026-05-18T00:00:00Z", kind="observation", content="user likes pgvector"),
+        MemoryEvent(
+            timestamp="2026-05-18T00:00:00Z", kind="observation", content="user likes pgvector"
+        ),
     )
     await store.append_event(
         "agent-A",

@@ -89,8 +89,7 @@ def upgrade() -> None:
         """
     )
     op.execute(
-        "CREATE INDEX soul_versions_agent_latest_idx "
-        "ON soul_versions (agent_id, version DESC)"
+        "CREATE INDEX soul_versions_agent_latest_idx ON soul_versions (agent_id, version DESC)"
     )
 
     # memory_events — Layer 3 (event stream + pgvector embedding) -----------
@@ -111,8 +110,7 @@ def upgrade() -> None:
         """
     )
     op.execute(
-        "CREATE INDEX memory_events_agent_ts_idx "
-        "ON memory_events (agent_id, timestamp DESC)"
+        "CREATE INDEX memory_events_agent_ts_idx ON memory_events (agent_id, timestamp DESC)"
     )
 
 

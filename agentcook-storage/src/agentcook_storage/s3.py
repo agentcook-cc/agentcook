@@ -29,9 +29,7 @@ class S3ObjectStore:
         try:
             import aioboto3
         except ImportError as exc:
-            raise ImportError(
-                "Install agentcook-storage[s3] to use S3ObjectStore."
-            ) from exc
+            raise ImportError("Install agentcook-storage[s3] to use S3ObjectStore.") from exc
         self._session = session or aioboto3.Session(
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,

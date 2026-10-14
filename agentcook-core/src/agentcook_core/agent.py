@@ -40,6 +40,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import dataclasses
+import datetime
 import logging
 import time
 import uuid
@@ -915,6 +916,10 @@ class AgentRunner:
 # ---------------------------------------------------------------------------
 
 
+def _utc_now_iso() -> str:
+    return datetime.datetime.now(tz=datetime.UTC).isoformat(timespec="milliseconds")
+
+
 class AgentTool:
     """Expose an :class:`Agent` as a tool another agent can delegate to.
 
@@ -995,6 +1000,7 @@ class AgentTool:
             metadata={"parent_run_id": parent.run_id if parent else None},
         )
         started = time.perf_counter()
+        started_at = _utc_now_iso()
         try:
             response = await self._runner.run(self._agent, task, context=child)
         except AgentRunError as exc:
@@ -1023,7 +1029,10 @@ class AgentTool:
                     "from": parent.agent_name,
                     "to": self._agent.name,
                     "run_id": child.run_id,
+                    "task": task[:500],
                     "success": success,
+                    "started_at": started_at,
+                    "completed_at": _utc_now_iso(),
                     "duration_ms": round((time.perf_counter() - started) * 1000, 1),
                     **outcome,
                 }

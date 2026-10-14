@@ -38,8 +38,7 @@ def _token(*, expired: bool = False, claims: dict | None = None) -> str:
     base: dict = {
         "sub": _USER,
         "scopes": "agent:read agent:write",
-        "exp": dt.datetime.now(tz=dt.UTC)
-        + dt.timedelta(minutes=-5 if expired else 15),
+        "exp": dt.datetime.now(tz=dt.UTC) + dt.timedelta(minutes=-5 if expired else 15),
     }
     if claims:
         base.update(claims)
@@ -84,6 +83,7 @@ def client(fake_runtime: InMemoryAgentRuntime) -> Iterator[TestClient]:
 # Endpoint renamed Day 20: `setup_health(app)` registers `/health` (liveness)
 # and `/health/ready` (readiness). The legacy `/healthz` was removed.
 
+
 def test_health_is_open(client: TestClient) -> None:
     resp = client.get("/health")
     assert resp.status_code == 200 and resp.json() == {"status": "ok"}
@@ -94,31 +94,41 @@ def test_request_id_header_is_set(client: TestClient) -> None:
     assert resp.headers.get("x-request-id")
 
 
+def test_health_ready_checks_only_configured_dependencies(client: TestClient) -> None:
+    """In-memory storage + no Redis configured → ready with no probes."""
+    resp = client.get("/health/ready")
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["status"] == "ready"
+    assert body["checks"] == {}
+    assert body["storage"] == "memory"
+
+
 def test_health_ready_returns_503_when_dependencies_down(
-    client: TestClient, monkeypatch: pytest.MonkeyPatch
+    fake_runtime: InMemoryAgentRuntime, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """Readiness fails closed when postgres or redis is unreachable.
+    """Readiness fails closed when a configured dependency is unreachable.
 
-    Stubs the dependency probes so the test doesn't depend on whatever
-    happens to be listening on the host's :5432/:6379 — `make dev` may or
-    may not be running. The probes are looked up by name on every request
-    in `setup_health`, so monkeypatching the module attribute takes effect
-    even though `client` was created earlier.
+    The Redis probe is stubbed so the test doesn't depend on whatever is
+    listening on the host's :6379.
     """
-    from agentcook_app import health as health_mod
+    import dataclasses
 
-    async def _down() -> tuple[bool, str]:
+    from agentcook_app import health as health_mod
+    from agentcook_app.config import Settings
+
+    async def _down(*_args: object) -> tuple[bool, str]:
         return False, "stub: dependency down"
 
-    monkeypatch.setattr(health_mod, "_check_postgres", _down)
     monkeypatch.setattr(health_mod, "_check_redis", _down)
-
-    resp = client.get("/health/ready")
+    settings = dataclasses.replace(Settings.from_env(), redis_url="redis://unused:6379/0")
+    app = create_app(settings)
+    with TestClient(app) as c:
+        resp = c.get("/health/ready")
     assert resp.status_code == 503
     body = resp.json()
     assert body["status"] == "not_ready"
-    assert body["checks"]["postgres"]["status"] == "down"
-    assert body["checks"]["redis"]["status"] == "down"
+    assert body["checks"]["redis"] == {"status": "down", "detail": "stub: dependency down"}
 
 
 def test_cors_preflight_allows_admin_origin(client: TestClient) -> None:
@@ -134,6 +144,7 @@ def test_cors_preflight_allows_admin_origin(client: TestClient) -> None:
 
 
 # --------------------------- auth envelopes ---------------------------
+
 
 def test_endpoint_without_token_returns_envelope(client: TestClient) -> None:
     resp = client.get(f"/api/v1/agents/{_AGENT}/identity")
@@ -161,6 +172,7 @@ def test_endpoint_with_bad_token_returns_envelope(client: TestClient) -> None:
 
 # --------------------------- Identity ---------------------------
 
+
 def test_get_identity_happy_path(client: TestClient) -> None:
     resp = client.get(f"/api/v1/agents/{_AGENT}/identity", headers=_auth())
     assert resp.status_code == 200
@@ -186,6 +198,7 @@ def test_agent_id_pattern_validation(client: TestClient) -> None:
 
 # --------------------------- Soul: GET latest ---------------------------
 
+
 def test_get_soul_latest_404_when_uninitialized(client: TestClient) -> None:
     resp = client.get(f"/api/v1/agents/{_AGENT}/soul", headers=_auth())
     assert resp.status_code == 404
@@ -206,6 +219,7 @@ def test_get_soul_latest_after_append(client: TestClient) -> None:
 
 # --------------------------- Soul: POST append ---------------------------
 
+
 def test_append_soul_requires_confirmation_header(client: TestClient) -> None:
     resp = client.post(
         f"/api/v1/agents/{_AGENT}/soul",
@@ -224,9 +238,7 @@ def test_append_soul_creates_versions_incrementally(client: TestClient) -> None:
             json={"tone": tone, "language_style": "concise"},
         )
         assert resp.status_code == 201
-    history = client.get(
-        f"/api/v1/agents/{_AGENT}/soul/history", headers=_auth()
-    ).json()
+    history = client.get(f"/api/v1/agents/{_AGENT}/soul/history", headers=_auth()).json()
     assert [v["version"] for v in history["items"]] == [1, 2, 3]
     assert history["items"][-1]["config"]["tone"] == "playful"
 
@@ -243,6 +255,7 @@ def test_append_soul_unknown_agent_returns_404(client: TestClient) -> None:
 
 # --------------------------- Soul: GET history ---------------------------
 
+
 def test_get_soul_history_empty_when_uninitialized(client: TestClient) -> None:
     resp = client.get(f"/api/v1/agents/{_AGENT}/soul/history", headers=_auth())
     assert resp.status_code == 200 and resp.json() == {"items": []}
@@ -255,13 +268,12 @@ def test_get_soul_history_respects_limit(client: TestClient) -> None:
             headers=_confirm_auth(),
             json={"tone": tone, "language_style": "concise"},
         )
-    resp = client.get(
-        f"/api/v1/agents/{_AGENT}/soul/history?limit=2", headers=_auth()
-    )
+    resp = client.get(f"/api/v1/agents/{_AGENT}/soul/history?limit=2", headers=_auth())
     assert len(resp.json()["items"]) == 2
 
 
 # --------------------------- Memory events: POST append ---------------------------
+
 
 def test_append_memory_event_assigns_id_and_timestamp(client: TestClient) -> None:
     resp = client.post(
@@ -297,6 +309,7 @@ def test_append_memory_event_unknown_agent_returns_404(client: TestClient) -> No
 
 # --------------------------- Memory events: GET list ---------------------------
 
+
 def _seed_events(client: TestClient, count: int = 3) -> None:
     for i in range(count):
         client.post(
@@ -319,9 +332,7 @@ def test_list_memory_events_returns_inserted_items(client: TestClient) -> None:
 
 def test_list_memory_events_filters_by_kind(client: TestClient) -> None:
     _seed_events(client, count=4)
-    resp = client.get(
-        f"/api/v1/agents/{_AGENT}/memory/events?kind=tool_use", headers=_auth()
-    )
+    resp = client.get(f"/api/v1/agents/{_AGENT}/memory/events?kind=tool_use", headers=_auth())
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert all(i["kind"] == "tool_use" for i in items)
@@ -329,9 +340,7 @@ def test_list_memory_events_filters_by_kind(client: TestClient) -> None:
 
 def test_list_memory_events_cursor_pagination(client: TestClient) -> None:
     _seed_events(client, count=5)
-    page1 = client.get(
-        f"/api/v1/agents/{_AGENT}/memory/events?limit=2", headers=_auth()
-    ).json()
+    page1 = client.get(f"/api/v1/agents/{_AGENT}/memory/events?limit=2", headers=_auth()).json()
     assert page1["next_cursor"] is not None
     page2 = client.get(
         f"/api/v1/agents/{_AGENT}/memory/events?limit=2&cursor={page1['next_cursor']}",
@@ -343,7 +352,8 @@ def test_list_memory_events_cursor_pagination(client: TestClient) -> None:
 
 # --------------------------- Memory search ---------------------------
 
-def test_search_returns_substring_hits(client: TestClient) -> None:
+
+def test_search_ranks_phrase_match_first(client: TestClient) -> None:
     _seed_events(client, count=3)
     resp = client.post(
         f"/api/v1/agents/{_AGENT}/memory/search",
@@ -352,7 +362,19 @@ def test_search_returns_substring_hits(client: TestClient) -> None:
     )
     assert resp.status_code == 200
     hits = resp.json()["hits"]
-    assert len(hits) == 1 and "event 1" in hits[0]["content"]
+    assert hits[0]["content"] == "event 1" and hits[0]["score"] == 1.0
+    # keyword-overlap matches follow with lower scores
+    assert all(h["score"] < 1.0 for h in hits[1:])
+
+
+def test_search_no_overlap_returns_nothing(client: TestClient) -> None:
+    _seed_events(client, count=2)
+    resp = client.post(
+        f"/api/v1/agents/{_AGENT}/memory/search",
+        headers=_auth(),
+        json={"query": "pricing strategy", "top_k": 5},
+    )
+    assert resp.json()["hits"] == []
 
 
 def test_search_top_k_out_of_range(client: TestClient) -> None:
@@ -376,6 +398,7 @@ def test_search_unknown_agent_returns_404(client: TestClient) -> None:
 
 
 # --------------------------- Memory flush ---------------------------
+
 
 def test_flush_requires_exact_confirm_string(client: TestClient) -> None:
     resp = client.post(
@@ -428,6 +451,7 @@ def test_flush_unknown_agent_returns_404(client: TestClient) -> None:
 
 
 # --------------------------- OpenAPI completeness ---------------------------
+
 
 def test_openapi_has_seven_documented_memory_endpoints(client: TestClient) -> None:
     spec = client.get("/openapi.json").json()

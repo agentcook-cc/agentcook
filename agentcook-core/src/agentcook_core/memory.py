@@ -445,7 +445,7 @@ class MemoryManager:
             attributes={
                 "agentcook.memory.agent_id": agent_id,
                 "agentcook.memory.query.length": len(query),
-                "agentcook.memory.layers": ",".join(l.value for l in search_layers),
+                "agentcook.memory.layers": ",".join(layer.value for layer in search_layers),
                 "agentcook.memory.top_k": top_k,
             },
         ) as span:

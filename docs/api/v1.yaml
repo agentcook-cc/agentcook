@@ -1,5 +1,237 @@
 components:
   schemas:
+    AgentDetail:
+      properties:
+        default:
+          title: Default
+          type: boolean
+        delegates:
+          items:
+            type: string
+          title: Delegates
+          type: array
+        description:
+          title: Description
+          type: string
+        instance_id:
+          title: Instance Id
+          type: string
+        instructions:
+          title: Instructions
+          type: string
+        max_turns:
+          title: Max Turns
+          type: integer
+        memory:
+          title: Memory
+          type: boolean
+        name:
+          title: Name
+          type: string
+        skills:
+          items:
+            type: string
+          title: Skills
+          type: array
+        title:
+          title: Title
+          type: string
+        toolkits:
+          items:
+            type: string
+          title: Toolkits
+          type: array
+        tools:
+          items:
+            $ref: '#/components/schemas/ToolInfo'
+          title: Tools
+          type: array
+      required:
+      - name
+      - title
+      - description
+      - default
+      - toolkits
+      - skills
+      - memory
+      - delegates
+      - instance_id
+      - instructions
+      - max_turns
+      - tools
+      title: AgentDetail
+      type: object
+    AgentInfo:
+      properties:
+        default:
+          title: Default
+          type: boolean
+        delegates:
+          items:
+            type: string
+          title: Delegates
+          type: array
+        description:
+          title: Description
+          type: string
+        instance_id:
+          title: Instance Id
+          type: string
+        memory:
+          title: Memory
+          type: boolean
+        name:
+          title: Name
+          type: string
+        skills:
+          items:
+            type: string
+          title: Skills
+          type: array
+        title:
+          title: Title
+          type: string
+        toolkits:
+          items:
+            type: string
+          title: Toolkits
+          type: array
+      required:
+      - name
+      - title
+      - description
+      - default
+      - toolkits
+      - skills
+      - memory
+      - delegates
+      - instance_id
+      title: AgentInfo
+      type: object
+    AgentListResponse:
+      properties:
+        default_agent:
+          title: Default Agent
+          type: string
+        items:
+          items:
+            $ref: '#/components/schemas/AgentInfo'
+          title: Items
+          type: array
+      required:
+      - items
+      - default_agent
+      title: AgentListResponse
+      type: object
+    ChatCancelResponse:
+      properties:
+        cancelled:
+          title: Cancelled
+          type: boolean
+        run_id:
+          title: Run Id
+          type: string
+      required:
+      - run_id
+      - cancelled
+      title: ChatCancelResponse
+      type: object
+    ChatResponse:
+      description: Non-streaming result of ``POST /api/v1/chat``.
+      properties:
+        agent:
+          title: Agent
+          type: string
+        content:
+          title: Content
+          type: string
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        finish_reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Finish Reason
+        metadata:
+          additionalProperties: true
+          title: Metadata
+          type: object
+        run_id:
+          title: Run Id
+          type: string
+        session_id:
+          title: Session Id
+          type: string
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ToolCallView'
+          title: Tool Calls
+          type: array
+      required:
+      - session_id
+      - run_id
+      - agent
+      - content
+      title: ChatResponse
+      type: object
+    ChatStreamRequest:
+      additionalProperties: false
+      description: Request body for ``POST /api/v1/chat/stream`` and ``POST /api/v1/chat``.
+      properties:
+        agent:
+          anyOf:
+          - pattern: ^[a-z][a-z0-9_-]{0,47}$
+            type: string
+          - type: 'null'
+          description: Agent to talk to (see GET /api/v1/agents); defaults to the default agent.
+          title: Agent
+        max_tokens:
+          anyOf:
+          - maximum: 128000.0
+            minimum: 1.0
+            type: integer
+          - type: 'null'
+          title: Max Tokens
+        message:
+          description: User message content.
+          maxLength: 32000
+          minLength: 1
+          title: Message
+          type: string
+        model:
+          anyOf:
+          - maxLength: 200
+            type: string
+          - type: 'null'
+          description: Provider override such as 'qwen:qwen-plus' or 'mock'. Ignored in production.
+          title: Model
+        plugin_ids:
+          description: Extra toolkit ids to enable for this turn (see GET /api/v1/toolkits).
+          items:
+            type: string
+          maxItems: 16
+          title: Plugin Ids
+          type: array
+        session_id:
+          description: Conversation id. Created on first use; must belong to the caller.
+          pattern: ^[A-Za-z0-9._:-]{1,128}$
+          title: Session Id
+          type: string
+        temperature:
+          anyOf:
+          - maximum: 2.0
+            minimum: 0.0
+            type: number
+          - type: 'null'
+          title: Temperature
+      required:
+      - session_id
+      - message
+      title: ChatStreamRequest
+      type: object
     DelegationEdge:
       additionalProperties: false
       description: A single delegation event from ``from_id`` to ``to_id`` (a reactflow edge).
@@ -155,15 +387,6 @@ components:
       - soul_preserved
       title: FlushResponse
       type: object
-    HTTPValidationError:
-      properties:
-        detail:
-          items:
-            $ref: '#/components/schemas/ValidationError'
-          title: Detail
-          type: array
-      title: HTTPValidationError
-      type: object
     IdentityResponse:
       additionalProperties: false
       properties:
@@ -318,6 +541,18 @@ components:
       - score
       title: MemoryHitResponse
       type: object
+    RenameSessionRequest:
+      additionalProperties: false
+      properties:
+        title:
+          maxLength: 200
+          minLength: 1
+          title: Title
+          type: string
+      required:
+      - title
+      title: RenameSessionRequest
+      type: object
     SearchRequest:
       additionalProperties: false
       properties:
@@ -350,6 +585,55 @@ components:
       required:
       - query
       title: SearchResponse
+      type: object
+    SessionListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SessionSummary'
+          title: Items
+          type: array
+        total:
+          title: Total
+          type: integer
+      required:
+      - items
+      - total
+      title: SessionListResponse
+      type: object
+    SessionSummary:
+      properties:
+        active_run_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Active Run Id
+        agent:
+          title: Agent
+          type: string
+        created_at:
+          title: Created At
+          type: string
+        id:
+          title: Id
+          type: string
+        message_count:
+          title: Message Count
+          type: integer
+        title:
+          title: Title
+          type: string
+        updated_at:
+          title: Updated At
+          type: string
+      required:
+      - id
+      - title
+      - agent
+      - created_at
+      - updated_at
+      - message_count
+      title: SessionSummary
       type: object
     SkillDetailResponse:
       additionalProperties: false
@@ -553,62 +837,225 @@ components:
       - config
       title: SoulVersionResponse
       type: object
-    ValidationError:
+    ToolCallView:
+      description: A tool call as rendered in the chat UI.
       properties:
-        ctx:
-          title: Context
+        arguments:
+          additionalProperties: true
+          title: Arguments
           type: object
-        input:
-          title: Input
-        loc:
-          items:
-            anyOf:
-            - type: string
-            - type: integer
-          title: Location
-          type: array
-        msg:
-          title: Message
+        duration_ms:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Duration Ms
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        id:
+          title: Id
           type: string
-        type:
-          title: Error Type
+        name:
+          title: Name
           type: string
+        output:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Output
+        status:
+          enum:
+          - running
+          - success
+          - error
+          title: Status
+          type: string
+        turn:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Turn
       required:
-      - loc
-      - msg
-      - type
-      title: ValidationError
+      - id
+      - name
+      - status
+      title: ToolCallView
+      type: object
+    ToolInfo:
+      properties:
+        description:
+          title: Description
+          type: string
+        name:
+          title: Name
+          type: string
+        parameters:
+          additionalProperties: true
+          title: Parameters
+          type: object
+      required:
+      - name
+      - description
+      title: ToolInfo
+      type: object
+    ToolkitInfo:
+      properties:
+        description:
+          title: Description
+          type: string
+        id:
+          title: Id
+          type: string
+        name:
+          title: Name
+          type: string
+        tools:
+          items:
+            $ref: '#/components/schemas/ToolInfo'
+          title: Tools
+          type: array
+      required:
+      - id
+      - name
+      - description
+      - tools
+      title: ToolkitInfo
+      type: object
+    ToolkitListResponse:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ToolkitInfo'
+          title: Items
+          type: array
+      required:
+      - items
+      title: ToolkitListResponse
+      type: object
+    TranscriptMessage:
+      description: 'A transcript entry. Tool results are folded into ``tool_calls`` of
+
+        the assistant message that requested them, matching the live UI.'
+      properties:
+        content:
+          title: Content
+          type: string
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+        id:
+          title: Id
+          type: string
+        metadata:
+          additionalProperties: true
+          title: Metadata
+          type: object
+        role:
+          enum:
+          - user
+          - assistant
+          title: Role
+          type: string
+        tool_calls:
+          items:
+            $ref: '#/components/schemas/ToolCallView'
+          title: Tool Calls
+          type: array
+      required:
+      - id
+      - role
+      - content
+      title: TranscriptMessage
+      type: object
+    TranscriptResponse:
+      properties:
+        messages:
+          items:
+            $ref: '#/components/schemas/TranscriptMessage'
+          title: Messages
+          type: array
+        session:
+          $ref: '#/components/schemas/SessionSummary'
+      required:
+      - session
+      - messages
+      title: TranscriptResponse
       type: object
 info:
-  description: Agent runtime + Memory API. JWT verification only — token issuance lives in agentcook-java (ADR-013). Wire
-    format conforms to frontend-conventions §7.6.
+  description: "Agent runtime for AgentCook: a streaming agent loop with tools, skills,\nsub-agent delegation, conversation\
+    \ transcripts and long-term memory.\n\n* **Chat** — `POST /api/v1/chat/stream` runs one agent turn and streams\n  typed\
+    \ frames (text deltas, tool calls, tool results, usage).\n* **Conversations** — transcripts per user, replayed on every\
+    \ turn.\n* **Agents / toolkits / skills** — what the runtime can do, as data.\n* **Memory** — identity / soul / long-term\
+    \ memory per agent instance.\n\nAuthentication: `Authorization: Bearer <JWT>` issued by agentcook-java\n(ADR-013). Errors\
+    \ use the `{code, message, detail}` envelope.\n"
   title: agentcook runtime
-  version: 1.2.0
+  version: 2.0.0
   x-changelog: docs/api/CHANGELOG.md
-  x-frozen: '2026-06-07'
+  x-frozen: '2026-10-14'
   x-paired-spec: docs/api/java-v1.yaml
   x-scope: python-runtime
 openapi: 3.1.0
 paths:
+  /api/v1/agents:
+    get:
+      operationId: list_agents_api_v1_agents_get
+      parameters:
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentListResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema: &id001
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Request validation failed.
+      summary: List available agents
+      tags:
+      - agents
   /api/v1/agents/{agent_id}/delegations:
     get:
-      description: 'Today: returns a fixed 3-node / 2-edge demo graph for any agent_id.
-
-
-        Phase 5: reads from a live ``MultiAgentOrchestrator.snapshot()`` so
-
-        B''s reactflow component shows the actual runtime topology.'
       operationId: get_delegations_api_v1_agents__agent_id__delegations_get
       parameters:
-      - description: Root agent id
-        in: path
+      - in: path
         name: agent_id
         required: true
         schema:
-          description: Root agent id
-          pattern: ^[a-zA-Z0-9_-]+$
+          pattern: ^[A-Za-z0-9_\-]{1,64}$
           title: Agent Id
           type: string
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 500
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
@@ -617,14 +1064,17 @@ paths:
                 $ref: '#/components/schemas/DelegationGraphResponse'
           description: Successful Response
         '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
           description: Agent not found
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-      summary: Fetch the delegation graph rooted at an agent
+              schema: *id001
+          description: Request validation failed.
+      summary: Delegation graph for one agent (catalog topology + recent delegations)
       tags:
       - delegations
   /api/v1/agents/{agent_id}/identity:
@@ -688,9 +1138,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -802,9 +1251,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -880,9 +1328,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -959,9 +1406,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Confirm string missing or wrong.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -1038,9 +1484,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -1111,9 +1556,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -1203,9 +1647,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -1285,9 +1728,8 @@ paths:
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorEnvelope'
-          description: Path / query / body validation failed.
+              schema: *id001
+          description: Request validation failed.
         '500':
           content:
             application/json:
@@ -1297,21 +1739,441 @@ paths:
       summary: List all SoulConfig versions (oldest → newest), capped.
       tags:
       - memory
+  /api/v1/agents/{name}:
+    get:
+      operationId: get_agent_api_v1_agents__name__get
+      parameters:
+      - in: path
+        name: name
+        required: true
+        schema:
+          pattern: ^[a-z][a-z0-9_-]{0,47}$
+          title: Name
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentDetail'
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Describe one agent, including its effective tool list
+      tags:
+      - agents
+  /api/v1/chat:
+    post:
+      operationId: chat_api_v1_chat_post
+      parameters:
+      - in: header
+        name: X-Turnstile-Token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Turnstile-Token
+      - in: header
+        name: X-Forwarded-For
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Forwarded-For
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatStreamRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatResponse'
+          description: Successful Response
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unauthorized
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Not Found
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conflict
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Run one agent turn and return the complete answer
+      tags:
+      - chat
+  /api/v1/chat/runs/{run_id}/cancel:
+    post:
+      operationId: cancel_run_api_v1_chat_runs__run_id__cancel_post
+      parameters:
+      - in: path
+        name: run_id
+        required: true
+        schema:
+          pattern: ^run_[a-f0-9]{16}$
+          title: Run Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChatCancelResponse'
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: No active run with this id.
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Stop an in-flight agent run (the UI's Stop button)
+      tags:
+      - chat
+  /api/v1/chat/stream:
+    post:
+      operationId: chat_stream_api_v1_chat_stream_post
+      parameters:
+      - in: header
+        name: X-Turnstile-Token
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Turnstile-Token
+      - in: header
+        name: X-Forwarded-For
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: X-Forwarded-For
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChatStreamRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema: {}
+            text/event-stream: {}
+          description: SSE stream of chat frames.
+        '401':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Missing/invalid token or Turnstile rejection.
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Unknown agent or session.
+        '409':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Session already has an active run.
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Run one agent turn and stream it as Server-Sent Events
+      tags:
+      - chat
+  /api/v1/conversations:
+    get:
+      operationId: list_conversations_api_v1_conversations_get
+      parameters:
+      - in: query
+        name: limit
+        required: false
+        schema:
+          default: 50
+          maximum: 200
+          minimum: 1
+          title: Limit
+          type: integer
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionListResponse'
+          description: Successful Response
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: List the caller's conversations
+      tags:
+      - conversations
+  /api/v1/conversations/{session_id}:
+    delete:
+      operationId: delete_conversation_api_v1_conversations__session_id__delete
+      parameters:
+      - description: Conversation id
+        in: path
+        name: session_id
+        required: true
+        schema:
+          description: Conversation id
+          pattern: ^[A-Za-z0-9._:-]{1,128}$
+          title: Session Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '204':
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conversation not found.
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Delete a conversation (cancels its active run first)
+      tags:
+      - conversations
+    get:
+      operationId: get_conversation_api_v1_conversations__session_id__get
+      parameters:
+      - description: Conversation id
+        in: path
+        name: session_id
+        required: true
+        schema:
+          description: Conversation id
+          pattern: ^[A-Za-z0-9._:-]{1,128}$
+          title: Session Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TranscriptResponse'
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conversation not found.
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Get a conversation's transcript
+      tags:
+      - conversations
+    patch:
+      operationId: rename_conversation_api_v1_conversations__session_id__patch
+      parameters:
+      - description: Conversation id
+        in: path
+        name: session_id
+        required: true
+        schema:
+          description: Conversation id
+          pattern: ^[A-Za-z0-9._:-]{1,128}$
+          title: Session Id
+          type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RenameSessionRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SessionSummary'
+          description: Successful Response
+        '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Conversation not found.
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Rename a conversation
+      tags:
+      - conversations
   /api/v1/logs/stream:
     get:
       operationId: stream_logs_api_v1_logs_stream_get
       parameters:
-      - description: How many frames to emit before closing the stream.
+      - description: Snapshot size (follow=false).
         in: query
         name: limit
         required: false
         schema:
           default: 30
-          description: How many frames to emit before closing the stream.
-          maximum: 200
+          description: Snapshot size (follow=false).
+          maximum: 500
           minimum: 1
           title: Limit
           type: integer
+      - description: Frames replayed before tailing.
+        in: query
+        name: history
+        required: false
+        schema:
+          default: 30
+          description: Frames replayed before tailing.
+          maximum: 500
+          minimum: 0
+          title: History
+          type: integer
+      - description: Keep streaming new lines.
+        in: query
+        name: follow
+        required: false
+        schema:
+          default: false
+          description: Keep streaming new lines.
+          title: Follow
+          type: boolean
+      - description: Minimum level.
+        in: query
+        name: level
+        required: false
+        schema:
+          anyOf:
+          - enum:
+            - debug
+            - info
+            - warning
+            - error
+            - critical
+            type: string
+          - type: 'null'
+          description: Minimum level.
+          title: Level
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       responses:
         '200':
           content:
@@ -1319,20 +2181,37 @@ paths:
               schema: {}
             text/event-stream: {}
           description: SSE stream of log frames.
-        '422':
+        '403':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
-      summary: Stream recent log frames as Server-Sent Events
+                $ref: '#/components/schemas/ErrorEnvelope'
+          description: Forbidden
+        '422':
+          content:
+            application/json:
+              schema: *id001
+          description: Request validation failed.
+      summary: Stream live log frames as Server-Sent Events
       tags:
       - logs
+  /api/v1/runtime:
+    get:
+      operationId: runtime_info_api_v1_runtime_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                additionalProperties: true
+                title: Response Runtime Info Api V1 Runtime Get
+                type: object
+          description: Successful Response
+      summary: Runtime configuration summary (no secrets)
+      tags:
+      - agents
   /api/v1/skills:
     get:
-      description: 'Return all registered skills (no pagination today — B''s Day 28
-
-        view caps at < 100 items; revisit when that no longer holds).'
       operationId: list_skills_api_v1_skills_get
       responses:
         '200':
@@ -1354,7 +2233,7 @@ paths:
         required: true
         schema:
           description: Skill identifier
-          pattern: ^[a-z0-9-]+$
+          pattern: ^[a-z0-9][a-z0-9-]{0,63}$
           title: Skill Id
           type: string
       responses:
@@ -1365,13 +2244,16 @@ paths:
                 $ref: '#/components/schemas/SkillDetailResponse'
           description: Successful Response
         '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
           description: Skill not found
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+              schema: *id001
+          description: Request validation failed.
       summary: Fetch a single skill's manifest + body
       tags:
       - skills
@@ -1385,9 +2267,17 @@ paths:
         required: true
         schema:
           description: Skill identifier
-          pattern: ^[a-z0-9-]+$
+          pattern: ^[a-z0-9][a-z0-9-]{0,63}$
           title: Skill Id
           type: string
+      - in: header
+        name: authorization
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Authorization
       requestBody:
         content:
           application/json:
@@ -1402,13 +2292,29 @@ paths:
             text/event-stream: {}
           description: SSE stream of skill execution chunks.
         '404':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorEnvelope'
           description: Skill not found
         '422':
           content:
             application/json:
-              schema:
-                $ref: '#/components/schemas/HTTPValidationError'
-          description: Validation Error
+              schema: *id001
+          description: Request validation failed.
       summary: Execute a skill with test input and stream the result via SSE
       tags:
       - skills
+  /api/v1/toolkits:
+    get:
+      operationId: list_toolkits_api_v1_toolkits_get
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolkitListResponse'
+          description: Successful Response
+      summary: List executable toolkits
+      tags:
+      - agents

@@ -163,11 +163,19 @@ class ConnectorConfig:
 
 @dataclass(frozen=True, slots=True)
 class SkillManifest:
-    """Skill metadata read from a skill bundle's frontmatter."""
+    """Skill metadata read from a skill bundle's frontmatter.
+
+    ``name`` is the stable identifier (kebab-case) the model uses with
+    ``load_skill``; ``title`` / ``category`` / ``updated_at`` are optional
+    presentation metadata for catalogs and admin UIs.
+    """
 
     name: str
     description: str
     version: str = "0.0.0"
+    title: str | None = None
+    category: str | None = None
+    updated_at: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

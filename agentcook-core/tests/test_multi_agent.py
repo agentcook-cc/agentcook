@@ -21,6 +21,7 @@ from agentcook_core.types import Message
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 class MockNode:
     """Mock AgentNode for testing."""
 
@@ -87,6 +88,7 @@ def nodes() -> dict[str, MockNode]:
 # pattern_match_route
 # ---------------------------------------------------------------------------
 
+
 class TestPatternMatchRoute:
     @pytest.mark.unit
     def test_routes_to_research(self):
@@ -125,6 +127,7 @@ class TestPatternMatchRoute:
 # ---------------------------------------------------------------------------
 # parse_router_config
 # ---------------------------------------------------------------------------
+
 
 class TestParseRouterConfig:
     @pytest.mark.unit
@@ -173,9 +176,7 @@ class TestParseRouterConfig:
     def test_with_rules(self):
         raw = {
             "agents": [{"name": "x"}],
-            "rules": [
-                {"target": "x", "patterns": ["hi"], "priority": 10}
-            ],
+            "rules": [{"target": "x", "patterns": ["hi"], "priority": 10}],
         }
         config = parse_router_config(raw)
         assert len(config.rules) == 1
@@ -186,6 +187,7 @@ class TestParseRouterConfig:
 # ---------------------------------------------------------------------------
 # MultiAgentOrchestrator (simple mode)
 # ---------------------------------------------------------------------------
+
 
 class TestOrchestratorSimpleMode:
     @pytest.mark.unit
@@ -250,6 +252,7 @@ class TestOrchestratorSimpleMode:
 # MultiAgentOrchestrator (compiled mode)
 # ---------------------------------------------------------------------------
 
+
 class TestOrchestratorCompiledMode:
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -295,6 +298,7 @@ class TestOrchestratorCompiledMode:
 # ---------------------------------------------------------------------------
 # AgentNode protocol check
 # ---------------------------------------------------------------------------
+
 
 class TestAgentNodeProtocol:
     @pytest.mark.unit

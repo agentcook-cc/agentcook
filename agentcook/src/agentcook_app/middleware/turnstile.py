@@ -60,13 +60,9 @@ logger = logging.getLogger(__name__)
 # Default to the C-owned Worker route. Empty string means "fall back to
 # direct siteverify or dev short-circuit"; the verifier never crashes
 # on a missing env.
-DEFAULT_WORKER_URL: str = os.environ.get(
-    "AGENTCOOK_TURNSTILE_WORKER_URL", ""
-).strip()
+DEFAULT_WORKER_URL: str = os.environ.get("AGENTCOOK_TURNSTILE_WORKER_URL", "").strip()
 
-DEFAULT_CLOUDFLARE_SECRET: str = os.environ.get(
-    "AGENTCOOK_TURNSTILE_SECRET", ""
-).strip()
+DEFAULT_CLOUDFLARE_SECRET: str = os.environ.get("AGENTCOOK_TURNSTILE_SECRET", "").strip()
 
 
 def _env_truthy(name: str) -> bool:
@@ -99,7 +95,9 @@ class TurnstileDecision:
     """
 
     verified: bool
-    reason: str  # "verified" | "dev_short_circuit" | "missing_token" | "worker_unavailable" | "cloudflare_rejected"
+    # "verified" | "dev_short_circuit" | "missing_token" | "worker_unavailable"
+    # | "cloudflare_rejected"
+    reason: str
     error_codes: tuple[str, ...] = field(default_factory=tuple)
 
 
@@ -146,18 +144,12 @@ class TurnstileVerifier:
     ) -> TurnstileDecision:
         """Return a TurnstileDecision for one user request."""
         # Mode 1: dev short-circuit OR no upstream configured at all
-        if self._dev_short_circuit or (
-            not self._worker_url and not self._cloudflare_secret
-        ):
-            return TurnstileDecision(
-                verified=True, reason="dev_short_circuit"
-            )
+        if self._dev_short_circuit or (not self._worker_url and not self._cloudflare_secret):
+            return TurnstileDecision(verified=True, reason="dev_short_circuit")
 
         # Mode 2/3 require a token
         if not token or not token.strip():
-            return TurnstileDecision(
-                verified=False, reason="missing_token"
-            )
+            return TurnstileDecision(verified=False, reason="missing_token")
 
         if self._worker_url:
             return await self._verify_via_worker(token, remote_ip)
@@ -214,9 +206,7 @@ class TurnstileVerifier:
                 url,
                 exc,
             )
-            return TurnstileDecision(
-                verified=False, reason="worker_unavailable"
-            )
+            return TurnstileDecision(verified=False, reason="worker_unavailable")
 
         if resp.status_code >= 500:
             logger.warning(
@@ -224,9 +214,7 @@ class TurnstileVerifier:
                 url,
                 resp.status_code,
             )
-            return TurnstileDecision(
-                verified=False, reason="worker_unavailable"
-            )
+            return TurnstileDecision(verified=False, reason="worker_unavailable")
 
         try:
             payload = resp.json()
@@ -235,9 +223,7 @@ class TurnstileVerifier:
                 "Turnstile upstream %s returned non-JSON — fail-closed",
                 url,
             )
-            return TurnstileDecision(
-                verified=False, reason="worker_unavailable"
-            )
+            return TurnstileDecision(verified=False, reason="worker_unavailable")
 
         success = bool(payload.get("success"))
         # Cloudflare uses both `error-codes` (siteverify) and

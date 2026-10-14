@@ -1,52 +1,53 @@
 """JWT access-token verification.
 
 Per ADR-013 the agentcook FastAPI runtime is a **verifier only** —
-issuing access/refresh tokens is the responsibility of agentcook-java
-(OAuth2 Resource Server). We accept the signing key as configuration
-(symmetric HS256 for dev / public-key RS256 for prod) and surface a
-``UserContext`` dependency for endpoints to consume.
+issuing access/refresh tokens is the responsibility of agentcook-java.
+Both services share one secret (HS256, dev default identical on both
+sides) or the Java side's public key (RS256).
 
-B's frontend-conventions §7.6 enforces the wire format:
-- ``Authorization: Bearer <access_token>`` header
-- Token lifetime ~15 minutes (issued by Java; we don't enforce length)
-- Refresh-token flow lives entirely in Java (we never see refresh tokens)
+Two dependencies:
+
+- :func:`get_current_user` — honours ``AGENTCOOK_AUTH_MODE``:
+  ``required`` → a valid token is mandatory; ``optional`` → a valid
+  token is used if present, otherwise the caller is the shared
+  ``anonymous`` user (dev / demo); ``disabled`` → always anonymous.
+  A token that is *present but invalid* is always rejected — silently
+  downgrading a bad token to anonymous would hide auth bugs.
+- :func:`verify_access_token` — always requires a token unless auth is
+  disabled (used by the memory/admin surfaces).
+
+Wire format (frontend-conventions §7.6): ``Authorization: Bearer <jwt>``;
+failures return the canonical ``{code, message, detail}`` envelope.
 """
 
 from __future__ import annotations
 
-import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 import jwt
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
+from agentcook_app.config import Settings
 from agentcook_app.schemas import ErrorEnvelope
+
+ANONYMOUS_USER_ID = "anonymous"
+ADMIN_SCOPES = frozenset({"admin", "agent:admin"})
 
 
 @dataclass(frozen=True, slots=True)
 class UserContext:
-    """Authenticated principal extracted from a verified JWT.
-
-    Only fields agentcook runtime actually needs — we don't mirror the
-    Java User aggregate here (out of scope per ADR-013).
-    """
+    """Authenticated principal extracted from a verified JWT."""
 
     user_id: str
     scopes: frozenset[str]
-    raw_claims: dict[str, Any]
+    raw_claims: dict[str, Any] = field(default_factory=dict)
+    anonymous: bool = False
+    token: str | None = None
 
-
-def _signing_config() -> tuple[str, str]:
-    """Return ``(secret_or_public_key, algorithm)`` from env.
-
-    Dev default uses HS256 with ``AGENTCOOK_JWT_SECRET``; production
-    deploys override with ``AGENTCOOK_JWT_PUBLIC_KEY`` + RS256.
-    """
-    if pubkey := os.environ.get("AGENTCOOK_JWT_PUBLIC_KEY"):
-        return pubkey, os.environ.get("AGENTCOOK_JWT_ALG", "RS256")
-    secret = os.environ.get("AGENTCOOK_JWT_SECRET", "dev-only-do-not-use-in-prod")
-    return secret, os.environ.get("AGENTCOOK_JWT_ALG", "HS256")
+    @property
+    def is_admin(self) -> bool:
+        return bool(self.scopes & ADMIN_SCOPES)
 
 
 def _unauthorized(code: str, message: str) -> HTTPException:
@@ -57,48 +58,84 @@ def _unauthorized(code: str, message: str) -> HTTPException:
     )
 
 
-async def verify_access_token(
-    authorization: str | None = Header(default=None),
-) -> UserContext:
-    """FastAPI dependency that turns ``Authorization`` header into a ``UserContext``.
+def _settings(request: Request) -> Settings:
+    return request.app.state.container.settings
 
-    Issues 401 with the canonical error envelope on any failure — the
-    front-end (B) globally handles 401 by refreshing & retrying (§7.3).
-    """
-    if not authorization or not authorization.lower().startswith("bearer "):
-        raise _unauthorized("AUTH_MISSING_TOKEN", "Missing Bearer token.")
-    token = authorization.split(None, 1)[1].strip()
-    key, alg = _signing_config()
+
+def _anonymous() -> UserContext:
+    return UserContext(user_id=ANONYMOUS_USER_ID, scopes=frozenset(), anonymous=True)
+
+
+def decode_token(token: str, settings: Settings) -> UserContext:
+    key = settings.jwt_public_key or settings.jwt_secret
+    options: dict[str, Any] = {"require": ["exp", "sub"]}
     try:
         claims = jwt.decode(
             token,
             key=key,
-            algorithms=[alg],
-            options={"require": ["exp", "sub"]},
+            algorithms=[settings.jwt_algorithm],
+            issuer=settings.jwt_issuer,
+            options=options,
         )
     except jwt.ExpiredSignatureError:
         raise _unauthorized("AUTH_TOKEN_EXPIRED", "Access token has expired.") from None
     except jwt.InvalidTokenError as exc:
         raise _unauthorized("AUTH_INVALID_TOKEN", f"Invalid token: {exc}") from exc
+    if claims.get("typ") == "refresh" or claims.get("token_type") == "refresh":
+        raise _unauthorized("AUTH_INVALID_TOKEN", "Refresh tokens cannot be used as access tokens.")
 
     scopes_raw = claims.get("scopes") or claims.get("scope") or ""
-    scopes = (
-        frozenset(scopes_raw.split())
-        if isinstance(scopes_raw, str)
-        else frozenset(scopes_raw)
-    )
-    return UserContext(
-        user_id=str(claims["sub"]),
-        scopes=scopes,
-        raw_claims=claims,
-    )
+    scopes = frozenset(scopes_raw.split()) if isinstance(scopes_raw, str) else frozenset(scopes_raw)
+    roles = claims.get("roles")
+    if isinstance(roles, list):
+        scopes = scopes | {str(r).lower() for r in roles}
+    return UserContext(user_id=str(claims["sub"]), scopes=scopes, raw_claims=claims, token=token)
 
 
-def require_scope(required: str):
+def _bearer(authorization: str | None) -> str | None:
+    if not authorization:
+        return None
+    scheme, _, token = authorization.partition(" ")
+    if scheme.lower() != "bearer" or not token.strip():
+        raise _unauthorized("AUTH_MISSING_TOKEN", "Authorization header must be 'Bearer <token>'.")
+    return token.strip()
+
+
+async def get_current_user(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> UserContext:
+    """Caller identity according to the configured auth mode."""
+    settings = _settings(request)
+    if settings.auth_mode == "disabled":
+        return _anonymous()
+    token = _bearer(authorization)
+    if token is None:
+        if settings.auth_mode == "optional":
+            return _anonymous()
+        raise _unauthorized("AUTH_MISSING_TOKEN", "Missing Bearer token.")
+    return decode_token(token, settings)
+
+
+async def verify_access_token(
+    request: Request,
+    authorization: str | None = Header(default=None),
+) -> UserContext:
+    """Strict variant: a valid token is required unless auth is disabled."""
+    settings = _settings(request)
+    if settings.auth_mode == "disabled":
+        return _anonymous()
+    token = _bearer(authorization)
+    if token is None:
+        raise _unauthorized("AUTH_MISSING_TOKEN", "Missing Bearer token.")
+    return decode_token(token, settings)
+
+
+def require_scope(required: str):  # noqa: ANN201 — FastAPI dependency factory
     """Dependency factory enforcing a single scope on an endpoint."""
 
     async def _check(user: UserContext = Depends(verify_access_token)) -> UserContext:
-        if required not in user.scopes:
+        if required not in user.scopes and not user.is_admin:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail=ErrorEnvelope(
@@ -111,4 +148,11 @@ def require_scope(required: str):
     return _check
 
 
-__all__ = ["UserContext", "require_scope", "verify_access_token"]
+__all__ = [
+    "ANONYMOUS_USER_ID",
+    "UserContext",
+    "decode_token",
+    "get_current_user",
+    "require_scope",
+    "verify_access_token",
+]

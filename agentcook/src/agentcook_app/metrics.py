@@ -57,6 +57,34 @@ if _PROM_AVAILABLE:
         "Number of currently active chat sessions",
     )
 
+    AGENT_RUNS = Counter(
+        "agentcook_agent_runs_total",
+        "Agent runs by agent and outcome",
+        ["agent", "outcome"],
+    )
+    AGENT_RUN_DURATION = Histogram(
+        "agentcook_agent_run_duration_seconds",
+        "Wall-clock duration of agent runs",
+        ["agent"],
+        buckets=(0.5, 1, 2, 5, 10, 20, 30, 60, 120),
+    )
+    AGENT_TURNS = Histogram(
+        "agentcook_agent_turns",
+        "Model turns per agent run",
+        ["agent"],
+        buckets=(1, 2, 3, 4, 6, 8, 12, 16),
+    )
+    TOOL_CALLS = Counter(
+        "agentcook_tool_calls_total",
+        "Tool invocations by tool and outcome",
+        ["tool", "outcome"],
+    )
+    LLM_TOKENS = Counter(
+        "agentcook_llm_tokens_total",
+        "LLM tokens by model and direction (input/output/cached)",
+        ["model", "direction"],
+    )
+
 
 # ── Setup ────────────────────────────────────────────────────────────────────
 
@@ -94,14 +122,59 @@ def setup_metrics(app: FastAPI) -> None:
             return await call_next(request)
 
         method = request.method
-        path = request.url.path
 
         start = time.perf_counter()
         response = await call_next(request)
         elapsed = time.perf_counter() - start
+
+        # Label by route *template* (/api/v1/sessions/{session_id}) — raw
+        # paths would create one time series per session id and blow up
+        # Prometheus cardinality.
+        route = request.scope.get("route")
+        path = getattr(route, "path", None) or "unmatched"
 
         status = str(response.status_code)
         REQUEST_COUNT.labels(method=method, path=path, status=status).inc()
         REQUEST_LATENCY.labels(method=method, path=path).observe(elapsed)
 
         return response
+
+
+# ── Agent-loop metrics (RunHooks bridge) ─────────────────────────────────────
+
+try:
+    from agentcook_core import RunHooks as _RunHooks
+except ImportError:  # pragma: no cover
+    _RunHooks = object  # type: ignore[assignment,misc]
+
+
+class AgentMetricsHooks(_RunHooks):  # type: ignore[misc,valid-type]
+    """Export agent runs, tool calls and token usage to Prometheus."""
+
+    def __init__(self, model: str) -> None:
+        self._model = model
+
+    async def on_llm_end(self, ctx, agent, message, usage) -> None:  # noqa: ANN001
+        if not _PROM_AVAILABLE:
+            return
+        LLM_TOKENS.labels(model=self._model, direction="input").inc(usage.input)
+        LLM_TOKENS.labels(model=self._model, direction="output").inc(usage.output)
+        if usage.cached:
+            LLM_TOKENS.labels(model=self._model, direction="cached").inc(usage.cached)
+
+    async def after_tool_call(self, ctx, agent, call, result):  # noqa: ANN001, ANN201
+        if _PROM_AVAILABLE:
+            TOOL_CALLS.labels(
+                tool=call.name, outcome="success" if result.success else "error"
+            ).inc()
+        return None
+
+    async def on_run_end(self, ctx, agent, outcome) -> None:  # noqa: ANN001
+        if not _PROM_AVAILABLE:
+            return
+        status = getattr(outcome, "finish_reason", None) or "failed"
+        if outcome.type == "run_failed":
+            status = "failed"
+        AGENT_RUNS.labels(agent=agent.name, outcome=status).inc()
+        AGENT_RUN_DURATION.labels(agent=agent.name).observe(outcome.duration_ms / 1000)
+        AGENT_TURNS.labels(agent=agent.name).observe(outcome.turns)

@@ -6,10 +6,10 @@ springdoc-openapi cross-check).
 
 Two specs ship in this repo, intentionally separate:
 
-| Spec | Owner | Source of truth | Scope |
-|---|---|---|---|
-| `docs/api/v1.yaml` | Agent A (Python runtime) | FastAPI `app.openapi()` → `scripts/dump-openapi.py` | Memory / Soul / Identity |
-| `docs/api/java-v1.yaml` | Agent D (Java business) | springdoc-openapi `/v3/api-docs.yaml` | User / Session / Plugin / Connector / Permission |
+| Spec                    | Owner                   | Source of truth                                     | Scope                                                  |
+| ----------------------- | ----------------------- | --------------------------------------------------- | ------------------------------------------------------ |
+| `docs/api/v1.yaml`      | Python runtime          | FastAPI `app.openapi()` → `scripts/dump-openapi.py` | Chat / conversations / agents / skills / memory / logs |
+| `docs/api/java-v1.yaml` | Agent D (Java business) | springdoc-openapi `/v3/api-docs.yaml`               | User / Session / Plugin / Connector / Permission       |
 
 The split mirrors **ADR-013** (dual-backend split): Python owns the
 agent runtime + memory; Java owns auth/business state. Each spec
@@ -18,6 +18,36 @@ consumer types and vice versa.
 
 ---
 
+## v1.yaml — `python-runtime` v2.0.0 (frozen 2026-10-14)
+
+**Bump type**: major — the chat endpoint now runs the agent loop and its
+frame protocol gains typed frames; several mock endpoints became real.
+v1 clients keep working: every frame still carries `role` / `content` /
+`done`, and request bodies are backward compatible except that
+`session_id` is now validated (`^[A-Za-z0-9._:-]{1,128}$`).
+
+### Changed
+
+| Endpoint                                    | Change                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| ------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/chat/stream`                  | Runs the agent loop (tools, skills, sub-agents, memory). Frames gain `type` (`start` / `delta` / `tool_call` / `tool_result` / `done` / `error`), `run_id`, and a `tool_call` object. New body field `agent`. `plugin_ids` now selects runtime toolkits (see `/api/v1/toolkits`). Transcripts persist per session and are replayed every turn. Errors before streaming return envelopes: 404 `AGENT_NOT_FOUND` / `SESSION_NOT_FOUND`, 409 `SESSION_BUSY`, 400 `INVALID_MODEL`, 503 `MODEL_UNAVAILABLE`. Auth follows `AGENTCOOK_AUTH_MODE`. |
+| `GET /api/v1/skills*`                       | Served from the live skill registry (bundled + `AGENTCOOK_SKILLS_DIRS`); `test/stream` executes the skill with a real model and tools.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `GET /api/v1/logs/stream`                   | Real log stream. `follow=false` (default) returns a snapshot of the latest `limit` frames; `follow=true` tails live; `level` filters. Admin scope required when auth is `required`.                                                                                                                                                                                                                                                                                                                                                         |
+| `GET /api/v1/agents/{agent_id}/delegations` | Real graph: catalog topology + the caller's recorded sub-agent delegations.                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Memory endpoints                            | Per-user agent instances are private to their owner (admins excepted); foreign ids answer 404.                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| All 422 responses                           | Documented as the `ErrorEnvelope` the API actually returns.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+
+### Added
+
+| Method                     | Path                                      | Purpose                                                       |
+| -------------------------- | ----------------------------------------- | ------------------------------------------------------------- |
+| POST                       | `/api/v1/chat`                            | Same turn as `/chat/stream`, single JSON response.            |
+| POST                       | `/api/v1/chat/runs/{run_id}/cancel`       | Stop an in-flight run (runs survive client disconnects).      |
+| GET / GET / PATCH / DELETE | `/api/v1/conversations[/{session_id}]`    | List, read (folded transcript), rename, delete conversations. |
+| GET                        | `/api/v1/agents`, `/api/v1/agents/{name}` | Agent catalog incl. the caller's `instance_id`.               |
+| GET                        | `/api/v1/toolkits`                        | Executable toolkits (`plugin_ids` values).                    |
+| GET                        | `/api/v1/runtime`                         | Non-secret runtime summary.                                   |
+
 ## v1.yaml — `python-runtime` v1.2.0 (frozen 2026-06-07)
 
 **Bumped by**: Agent A · Phase 3 Day 6
@@ -25,6 +55,7 @@ consumer types and vice versa.
 **Bump type**: minor — additive only. v1.1.0 endpoints unchanged.
 
 **Verification**:
+
 - `wc -l docs/api/v1.yaml` → 1414 lines (+165 from v1.1.0)
 - 11 paths × 13 operations (+2 paths from v1.1.0)
 - 23 component schemas (+3 from v1.1.0: `DelegationNode` / `DelegationEdge` / `DelegationGraphResponse`)
@@ -34,10 +65,10 @@ consumer types and vice versa.
 
 ### What's new
 
-| Method | Path | Schema | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/agents/{agent_id}/delegations` | `DelegationGraphResponse` | Runtime delegation graph rooted at an agent — what B's Day 31 app `AgentDelegationView.tsx` (reactflow) displays. Today returns a fixed 3-node / 2-edge mock; Phase 5 wires through `MultiAgentOrchestrator.snapshot()`. |
-| GET | `/api/v1/logs/stream` | (SSE, see frame below) | SSE-streamed log frames for B's Day 31 admin `LogStreamView.vue`. 1Hz cadence, configurable `?limit` (1–200), terminal frame carries `extra.finished: true`. Today's mock generates synthetic frames; Phase 5 swaps in a structlog broadcast handler. |
+| Method | Path                                    | Schema                    | Purpose                                                                                                                                                                                                                                               |
+| ------ | --------------------------------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/agents/{agent_id}/delegations` | `DelegationGraphResponse` | Runtime delegation graph rooted at an agent — what B's Day 31 app `AgentDelegationView.tsx` (reactflow) displays. Today returns a fixed 3-node / 2-edge mock; Phase 5 wires through `MultiAgentOrchestrator.snapshot()`.                              |
+| GET    | `/api/v1/logs/stream`                   | (SSE, see frame below)    | SSE-streamed log frames for B's Day 31 admin `LogStreamView.vue`. 1Hz cadence, configurable `?limit` (1–200), terminal frame carries `extra.finished: true`. Today's mock generates synthetic frames; Phase 5 swaps in a structlog broadcast handler. |
 
 ### Backend wiring
 
@@ -75,7 +106,7 @@ Each `data:` frame:
   "event": "request.start",
   "request_id": "0000000a0000000a",
   "logger": "agentcook_app.mock",
-  "extra": {"seq": 10, "finished": true}
+  "extra": { "seq": 10, "finished": true }
 }
 ```
 
@@ -92,6 +123,7 @@ EventSource on that signal (same shape as the v1.1 skills SSE contract).
 **Bump type**: minor — additive only. v1.0.0 endpoints unchanged.
 
 **Verification** (run `scripts/dump-openapi.py` then check):
+
 - `wc -l docs/api/v1.yaml` → 1249 lines (+246 from v1.0.0)
 - 9 paths × 11 operations
 - 20 component schemas (+6 from v1.0.0: `SkillSummary` / `SkillListResponse` / `SkillDetailResponse` / `SkillTestRequest` + 2 FastAPI-generated validation envelopes)
@@ -102,11 +134,11 @@ EventSource on that signal (same shape as the v1.1 skills SSE contract).
 
 ### What's new
 
-| Method | Path | Schema | Purpose |
-|---|---|---|---|
-| GET | `/api/v1/skills` | `SkillListResponse` | List all registered skills (B's SkillListView source). |
-| GET | `/api/v1/skills/{skill_id}` | `SkillDetailResponse` | Skill manifest + body for B's SkillDetailDrawer. |
-| POST | `/api/v1/skills/{skill_id}/test/stream` | `SkillTestRequest` → SSE | Streamed skill execution for B's SkillTestDialog (consumed via `useSseChat`). Returns `text/event-stream`; 10 mock chunks × 500ms today, real `SkillRegistry` execution Phase 5. |
+| Method | Path                                    | Schema                   | Purpose                                                                                                                                                                          |
+| ------ | --------------------------------------- | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/skills`                        | `SkillListResponse`      | List all registered skills (B's SkillListView source).                                                                                                                           |
+| GET    | `/api/v1/skills/{skill_id}`             | `SkillDetailResponse`    | Skill manifest + body for B's SkillDetailDrawer.                                                                                                                                 |
+| POST   | `/api/v1/skills/{skill_id}/test/stream` | `SkillTestRequest` → SSE | Streamed skill execution for B's SkillTestDialog (consumed via `useSseChat`). Returns `text/event-stream`; 10 mock chunks × 500ms today, real `SkillRegistry` execution Phase 5. |
 
 ### Backend wiring
 
@@ -156,6 +188,7 @@ EventSource when it sees `finished: true` to release the connection.
 **Frozen by**: Agent A · Phase 2 Day 9
 
 **Verification**:
+
 - `wc -l docs/api/v1.yaml` → 1004 lines
 - 6 paths × 8 operations
 - 14 component schemas
@@ -165,16 +198,16 @@ EventSource when it sees `finished: true` to release the connection.
 
 ### Paths
 
-| Method | Path | Schema |
-|---|---|---|
-| GET | `/api/v1/agents/{agent_id}/identity` | `IdentityResponse` |
-| GET | `/api/v1/agents/{agent_id}/soul` | `SoulResponse` |
-| POST | `/api/v1/agents/{agent_id}/soul` | `SoulConfigBody` → `SoulVersionResponse` |
-| GET | `/api/v1/agents/{agent_id}/soul/history` | `SoulHistoryResponse` |
-| POST | `/api/v1/agents/{agent_id}/memory/events` | `MemoryEventCreate` → `MemoryEventResponse` |
-| GET | `/api/v1/agents/{agent_id}/memory/events` | `MemoryEventListResponse` |
-| POST | `/api/v1/agents/{agent_id}/memory/search` | `SearchRequest` → `SearchResponse` |
-| POST | `/api/v1/agents/{agent_id}/memory/flush` | `FlushRequest` → `FlushResponse` |
+| Method | Path                                      | Schema                                      |
+| ------ | ----------------------------------------- | ------------------------------------------- |
+| GET    | `/api/v1/agents/{agent_id}/identity`      | `IdentityResponse`                          |
+| GET    | `/api/v1/agents/{agent_id}/soul`          | `SoulResponse`                              |
+| POST   | `/api/v1/agents/{agent_id}/soul`          | `SoulConfigBody` → `SoulVersionResponse`    |
+| GET    | `/api/v1/agents/{agent_id}/soul/history`  | `SoulHistoryResponse`                       |
+| POST   | `/api/v1/agents/{agent_id}/memory/events` | `MemoryEventCreate` → `MemoryEventResponse` |
+| GET    | `/api/v1/agents/{agent_id}/memory/events` | `MemoryEventListResponse`                   |
+| POST   | `/api/v1/agents/{agent_id}/memory/search` | `SearchRequest` → `SearchResponse`          |
+| POST   | `/api/v1/agents/{agent_id}/memory/flush`  | `FlushRequest` → `FlushResponse`            |
 
 ### Excluded by design
 
@@ -235,6 +268,7 @@ now require a valid Bearer token (Spring Security
 `oauth2ResourceServer().jwt()` chain wired in `SecurityConfig`).
 
 Spec-level effect:
+
 - Adds `securitySchemes.bearerAuth` (HTTP Bearer / JWT) at the
   components root
 - Adds `security: [bearerAuth: []]` defaults at the operation level
@@ -251,10 +285,10 @@ B regenerates `types.java.gen.ts` (the security overlay propagates).
 K8s-aware liveness / readiness probe paths land as additional
 operations alongside the aggregated `/actuator/health`:
 
-| Method | Path | Purpose |
-|---|---|---|
-| GET | `/actuator/health/liveness` | JVM-alive check; never includes downstream state |
-| GET | `/actuator/health/readiness` | DB + Redis + agent-core reachability; flips pod to NotReady on transient downstream blip without restarting the JVM |
+| Method | Path                         | Purpose                                                                                                             |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/actuator/health/liveness`  | JVM-alive check; never includes downstream state                                                                    |
+| GET    | `/actuator/health/readiness` | DB + Redis + agent-core reachability; flips pod to NotReady on transient downstream blip without restarting the JVM |
 
 Probes are public (no Bearer needed) per Spring Boot
 `management.endpoint.health.probes.enabled=true` defaults.
@@ -345,6 +379,7 @@ the Java spec is intentionally a build artifact, not a hand-edited
 file.
 
 **Verification** (post Day 30 additive update):
+
 - `wc -l docs/api/java-v1.yaml` → 810 lines (was 672 on 2026-06-05; +138 = GET /users list + Permission CRUD + DTO schemas)
 - 12 path templates / **19 operations** (was 12 × 15 — `+ GET /api/v1/users`, `+ GET/POST /api/v1/users/{userId}/permissions`, `+ DELETE /api/v1/permissions/{permissionId}`)
 - 17 component schemas (was 15 — `+ GrantPermissionRequest`, `+ PermissionResponse`)
@@ -381,12 +416,12 @@ schema, but the path inventory grows by one operation).
 Permission management + the missing user-list endpoint, unblocking B's
 admin User/Permission management UI:
 
-| Method | Path | Use case |
-|---|---|---|
-| GET    | `/api/v1/users?status=` | `ListUsersUseCase` — was added Day 26 but never exposed; surfaced today so admin's `UserListView` can drop its mock data |
-| GET    | `/api/v1/users/{userId}/permissions` | `ListPermissionsByUserUseCase` |
-| POST   | `/api/v1/users/{userId}/permissions` | `GrantPermissionUseCase` (201 + Location, body picks `ALLOW` / `DENY` via `effect`) |
-| DELETE | `/api/v1/permissions/{permissionId}` | `RevokePermissionUseCase` (204 / 404 `PERMISSION_NOT_FOUND`) |
+| Method | Path                                 | Use case                                                                                                                 |
+| ------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------ |
+| GET    | `/api/v1/users?status=`              | `ListUsersUseCase` — was added Day 26 but never exposed; surfaced today so admin's `UserListView` can drop its mock data |
+| GET    | `/api/v1/users/{userId}/permissions` | `ListPermissionsByUserUseCase`                                                                                           |
+| POST   | `/api/v1/users/{userId}/permissions` | `GrantPermissionUseCase` (201 + Location, body picks `ALLOW` / `DENY` via `effect`)                                      |
+| DELETE | `/api/v1/permissions/{permissionId}` | `RevokePermissionUseCase` (204 / 404 `PERMISSION_NOT_FOUND`)                                                             |
 
 New error code: `404 PERMISSION_NOT_FOUND`.
 
@@ -401,14 +436,14 @@ Permission). B updates `RoleListView` → `PermissionGroupView`.
 Connector lifecycle CRUD + OAuth callback endpoints added to unblock B's
 admin Connector management UI (`ConnectorListView` + `ConnectorOAuthFlow`).
 
-| Method | Path | Use case |
-|---|---|---|
-| GET    | `/api/v1/connectors?pluginId=` | `ListConnectorsUseCase` |
-| POST   | `/api/v1/connectors`           | `CreateConnectorUseCase` (201, admin path — bypasses end-user permission check) |
-| GET    | `/api/v1/connectors/{id}`      | direct repository read (200 / 404) |
-| PUT    | `/api/v1/connectors/{id}/config` | `UpdateConnectorConfigUseCase` |
-| DELETE | `/api/v1/connectors/{id}`      | `DeleteConnectorUseCase` (204 / 404) |
-| POST   | `/api/v1/connectors/{id}/ping` | `PingConnectorUseCase` — returns mock 42ms latency in Phase 3; Phase 4 swaps for real upstream IM SDK probes |
+| Method | Path                                | Use case                                                                                                                           |
+| ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| GET    | `/api/v1/connectors?pluginId=`      | `ListConnectorsUseCase`                                                                                                            |
+| POST   | `/api/v1/connectors`                | `CreateConnectorUseCase` (201, admin path — bypasses end-user permission check)                                                    |
+| GET    | `/api/v1/connectors/{id}`           | direct repository read (200 / 404)                                                                                                 |
+| PUT    | `/api/v1/connectors/{id}/config`    | `UpdateConnectorConfigUseCase`                                                                                                     |
+| DELETE | `/api/v1/connectors/{id}`           | `DeleteConnectorUseCase` (204 / 404)                                                                                               |
+| POST   | `/api/v1/connectors/{id}/ping`      | `PingConnectorUseCase` — returns mock 42ms latency in Phase 3; Phase 4 swaps for real upstream IM SDK probes                       |
 | POST   | `/api/v1/connectors/oauth/callback` | OAuth dev dummy — returns `dev-{provider}-{uuid}` bearer token for any of `dingtalk` / `feishu` / `telegram` / `discord` / `slack` |
 
 New error code: `404 CONNECTOR_NOT_FOUND`.
@@ -420,16 +455,16 @@ B regenerates `types.java.gen.ts` to pick up the 5 new DTO records.
 
 ### Paths
 
-| Method | Path | Request → Response |
-|---|---|---|
-| POST | `/api/v1/auth/login` | `LoginRequest` → `LoginResponse` (200) — Phase 3 dev dummy bearer token |
-| POST | `/api/v1/users` | `CreateUserRequest` → `UserResponse` (201) / `ApiError` (409 dup email) |
-| GET  | `/api/v1/users/{id}` | — → `UserResponse` (200) / `ApiError` (404) |
-| POST | `/api/v1/sessions` | `CreateSessionRequest` → `SessionResponse` (201) |
-| GET  | `/api/v1/sessions/{id}` | — → `SessionResponse` (200) / 404 |
-| POST | `/api/v1/plugins` | `multipart/form-data` (`file=<zip>`) → `PluginResponse` (201) / `ApiError` (400 / 409) |
-| GET  | `/api/v1/plugins?status=` | — → `List<PluginResponse>` |
-| POST | `/api/v1/plugins/{id}/activate` | `ActivatePluginRequest` → `ConnectorResponse` (200) / `ApiError` (403/404) |
+| Method | Path                            | Request → Response                                                                     |
+| ------ | ------------------------------- | -------------------------------------------------------------------------------------- |
+| POST   | `/api/v1/auth/login`            | `LoginRequest` → `LoginResponse` (200) — Phase 3 dev dummy bearer token                |
+| POST   | `/api/v1/users`                 | `CreateUserRequest` → `UserResponse` (201) / `ApiError` (409 dup email)                |
+| GET    | `/api/v1/users/{id}`            | — → `UserResponse` (200) / `ApiError` (404)                                            |
+| POST   | `/api/v1/sessions`              | `CreateSessionRequest` → `SessionResponse` (201)                                       |
+| GET    | `/api/v1/sessions/{id}`         | — → `SessionResponse` (200) / 404                                                      |
+| POST   | `/api/v1/plugins`               | `multipart/form-data` (`file=<zip>`) → `PluginResponse` (201) / `ApiError` (400 / 409) |
+| GET    | `/api/v1/plugins?status=`       | — → `List<PluginResponse>`                                                             |
+| POST   | `/api/v1/plugins/{id}/activate` | `ActivatePluginRequest` → `ConnectorResponse` (200) / `ApiError` (403/404)             |
 
 ### Authentication
 

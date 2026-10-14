@@ -1,43 +1,16 @@
-"""Logs streaming endpoint — Day 30 scaffolding (Phase 3 Day 5).
+"""Live log stream — ``GET /api/v1/logs/stream`` (SSE).
 
-**Status**: scaffolding only. **Not wired** into ``main.py`` yet.
-Day 31 wires this in alongside ``routers/delegations.py`` (which has
-been waiting since Day 29) — both ride the same v1.1 → v1.2 minor
-bump so the spec bump is amortized across two new endpoints.
+Frames come from the in-process :class:`~agentcook_app.log_stream.LogHub`
+(structlog + stdlib logging), shaped as :class:`LogFrame`.
 
-What ships today:
+- ``follow=false`` (default): a snapshot — the most recent ``limit``
+  frames, the last one marked ``extra.finished = true`` (the v1 contract
+  the admin ``LogStreamView`` closes on). Never blocks.
+- ``follow=true``: replays the last ``history`` frames, then tails new
+  log lines indefinitely with ``: ping`` keep-alives every 15s.
 
-- ``GET /api/v1/logs/stream`` — SSE-streamed log frames for B's
-  ``LogStreamView`` (Day 31 admin monitoring page). Today's mock
-  generates 30 synthetic frames over ~30s; Phase 5 swaps the body for
-  a structlog broadcast handler so live logs from
-  ``logging_config.configure()`` reach the browser.
-
-The frame shape (``schemas_logs.LogFrame``) intentionally mirrors what
-``logging_config.py`` already emits — when Phase 5 lands, the live
-handler can ``yield LogFrame.model_validate(record)`` without any
-schema-level translation.
-
-Day 31 v1.2.0 bump SOP — covers BOTH this router AND
-``routers/delegations.py``:
-
-1. ``main.py``: ``from agentcook_app.routers import memory, skills, delegations, logs``
-   + ``app.include_router(delegations.router)``
-   + ``app.include_router(logs.router)``
-2. ``main.py``: ``version="1.1.0"`` → ``"1.2.0"``
-3. ``main.py``: ``_install_freeze_metadata`` x-frozen → Day 31 date
-4. ``uv run python scripts/dump-openapi.py``
-   expect: 11 paths (was 9), ~24 schemas (was 20)
-5. Flip BOTH spec-freeze invariants:
-   - ``test_delegations_router::TestSpecFreezeBoundary`` (Day 29 lock)
-   - ``test_logs_router::TestSpecFreezeBoundary`` (Day 30 lock)
-   into "must BE in" + version 1.2.0 assertions
-6. ``docs/api/CHANGELOG.md`` prepend ``## v1.yaml — python-runtime v1.2.0``
-7. Broadcast: B re-runs ``pnpm gen:api:python``; C re-runs
-   ``make test-contract``
-
-Two endpoints in one bump > two bumps a day apart — keeps B's
-codegen / C's Pact reverify cadence at one cycle per Phase 3 day.
+Requires an authenticated admin in ``required`` auth mode: log lines can
+contain request paths and user ids.
 """
 
 from __future__ import annotations
@@ -46,98 +19,104 @@ import asyncio
 import datetime as dt
 import json
 from collections.abc import AsyncIterator
+from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
 
-from agentcook_app.schemas_logs import LogFrame
+from agentcook_app.container import AppContainer, get_container
+from agentcook_app.log_stream import LogHub, _passes
+from agentcook_app.schemas import ErrorEnvelope
+from agentcook_app.schemas_logs import LogLevel
+from agentcook_app.security import UserContext, get_current_user
 
 router = APIRouter(prefix="/api/v1/logs", tags=["logs"])
 
-
-# --------------------------------------------------------------------------
-# Mock generator — replaced by structlog broadcast handler in Phase 5
-# --------------------------------------------------------------------------
+_DEFAULT_LIMIT = 30
+_MAX_LIMIT = 500
 
 
-_MOCK_FRAME_INTERVAL_SECS = 1.0
-_MOCK_DEFAULT_LIMIT = 30
-_MOCK_MAX_LIMIT = 200
-
-_LEVELS = ("info", "info", "info", "debug", "warning", "info", "error")
-_EVENTS = (
-    "request.start",
-    "request.end",
-    "agent.run",
-    "model.select",
-    "memory.write",
-    "tool.invoke",
-    "hook.fired",
-)
+def _encode(frame: dict[str, Any]) -> bytes:
+    return f"data: {json.dumps(frame, ensure_ascii=False, default=str)}\n\n".encode()
 
 
-def _build_frame(seq: int) -> LogFrame:
-    """Synthesize one realistic-looking log line for the SSE mock."""
-    now = dt.datetime.now(dt.UTC).isoformat()
-    level = _LEVELS[seq % len(_LEVELS)]
-    event = _EVENTS[seq % len(_EVENTS)]
-    return LogFrame(
-        timestamp=now,
-        level=level,  # type: ignore[arg-type]
-        event=event,
-        request_id=f"{seq:08x}{seq:08x}",
-        logger="agentcook_app.mock",
-        extra={"seq": seq},
-    )
+async def _snapshot(hub: LogHub, *, limit: int, level: str | None) -> AsyncIterator[bytes]:
+    frames = hub.recent(limit, min_level=level)
+    if not frames:
+        frames = [
+            {
+                "timestamp": dt.datetime.now(tz=dt.UTC).isoformat(timespec="milliseconds"),
+                "level": "info",
+                "event": "log.stream.empty",
+                "request_id": None,
+                "logger": "agentcook_app.logs",
+                "extra": {},
+            }
+        ]
+    for index, frame in enumerate(frames):
+        if index == len(frames) - 1:
+            frame = {**frame, "extra": {**frame["extra"], "finished": True}}
+        yield _encode(frame)
 
 
-async def _stream_log_frames(limit: int) -> AsyncIterator[bytes]:
-    """Yield ``limit`` SSE frames pacing roughly one per second.
-
-    SSE wire format: ``data: {json}\\n\\n``. The terminal frame carries
-    ``finished: true`` (in ``extra``) so B's LogStreamView can close
-    the EventSource cleanly.
-    """
-    for i in range(limit):
-        finished = i == limit - 1
-        frame = _build_frame(i)
-        # Stuff the closure marker into ``extra`` so the schema stays clean.
-        frame_dict = frame.model_dump()
-        if finished:
-            frame_dict["extra"] = {**frame_dict["extra"], "finished": True}
-        yield f"data: {json.dumps(frame_dict, ensure_ascii=False)}\n\n".encode()
-        if not finished:
-            await asyncio.sleep(_MOCK_FRAME_INTERVAL_SECS)
-
-
-# --------------------------------------------------------------------------
-# Routes
-# --------------------------------------------------------------------------
+async def _follow(hub: LogHub, *, history: int, level: str | None) -> AsyncIterator[bytes]:
+    subscription = hub.subscribe()
+    # Prime the subscription before replaying so nothing slips between.
+    next_frame: asyncio.Future[dict[str, Any]] = asyncio.ensure_future(subscription.__anext__())
+    try:
+        for frame in hub.recent(history, min_level=level) if history else []:
+            yield _encode(frame)
+        while True:
+            done, _ = await asyncio.wait({next_frame}, timeout=15)
+            if not done:
+                yield b": ping\n\n"
+                continue
+            frame = next_frame.result()
+            next_frame = asyncio.ensure_future(subscription.__anext__())
+            if _passes(frame, level):
+                yield _encode(frame)
+    finally:
+        next_frame.cancel()
+        await subscription.aclose()
 
 
 @router.get(
     "/stream",
     responses={
-        200: {
-            "description": "SSE stream of log frames.",
-            "content": {"text/event-stream": {}},
-        }
+        200: {"description": "SSE stream of log frames.", "content": {"text/event-stream": {}}},
+        403: {"model": ErrorEnvelope},
     },
-    summary="Stream recent log frames as Server-Sent Events",
+    summary="Stream live log frames as Server-Sent Events",
 )
 async def stream_logs(
     limit: int = Query(
-        default=_MOCK_DEFAULT_LIMIT,
-        ge=1,
-        le=_MOCK_MAX_LIMIT,
-        description="How many frames to emit before closing the stream.",
+        default=_DEFAULT_LIMIT, ge=1, le=_MAX_LIMIT, description="Snapshot size (follow=false)."
     ),
+    history: int = Query(
+        default=_DEFAULT_LIMIT, ge=0, le=_MAX_LIMIT, description="Frames replayed before tailing."
+    ),
+    follow: bool = Query(default=False, description="Keep streaming new lines."),
+    level: LogLevel | None = Query(default=None, description="Minimum level."),
+    container: AppContainer = Depends(get_container),
+    user: UserContext = Depends(get_current_user),
 ) -> StreamingResponse:
-    return StreamingResponse(
-        _stream_log_frames(limit),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+    if container.settings.auth_mode == "required" and not user.is_admin:
+        raise HTTPException(
+            status_code=403,
+            detail=ErrorEnvelope(
+                code="AUTH_FORBIDDEN", message="Admin scope required."
+            ).model_dump(),
+        )
+    body = (
+        _follow(container.log_hub, history=history, level=level)
+        if follow
+        else _snapshot(container.log_hub, limit=limit, level=level)
     )
+    return StreamingResponse(
+        body,
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+__all__ = ["router"]

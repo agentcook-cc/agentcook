@@ -17,6 +17,7 @@ from agentcook_core.types import ConnectorConfig, ConnectorKind
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _cfg(name: str = "test", kind: ConnectorKind = ConnectorKind.HTTP) -> ConnectorConfig:
     return ConnectorConfig(name=name, kind=kind, config={})
 
@@ -56,6 +57,7 @@ class FakeHttp:
 # create_connector factory
 # ---------------------------------------------------------------------------
 
+
 class TestCreateConnector:
     @pytest.mark.unit
     def test_http(self):
@@ -87,6 +89,7 @@ class TestCreateConnector:
 # HttpAdapter
 # ---------------------------------------------------------------------------
 
+
 class TestHttpAdapter:
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -108,6 +111,7 @@ class TestHttpAdapter:
 # ---------------------------------------------------------------------------
 # OAuthAdapter
 # ---------------------------------------------------------------------------
+
 
 class TestOAuthAdapter:
     @pytest.mark.unit
@@ -157,6 +161,7 @@ class TestOAuthAdapter:
 # McpAdapter
 # ---------------------------------------------------------------------------
 
+
 class TestMcpAdapter:
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -174,6 +179,7 @@ class TestMcpAdapter:
 # WebhookAdapter
 # ---------------------------------------------------------------------------
 
+
 class TestWebhookAdapter:
     @pytest.mark.unit
     @pytest.mark.asyncio
@@ -188,6 +194,7 @@ class TestWebhookAdapter:
 # ---------------------------------------------------------------------------
 # ConnectorManager
 # ---------------------------------------------------------------------------
+
 
 class TestConnectorManager:
     @pytest.mark.unit

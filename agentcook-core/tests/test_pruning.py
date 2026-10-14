@@ -334,7 +334,8 @@ class TestDuplicatePruning:
 class TestCompositePruning:
     def test_runs_strategies_in_order(self):
         # Stage 1: dedup → drops 1 empty assistant turn.
-        # Stage 2: relevance with min_score=1.1 (impossible) → drops everything except sys/protected.
+        # Stage 2: relevance with min_score=1.1 (impossible) → drops everything
+        # except sys/protected.
         sys_msg = _msg("system", "I am alice")
         msgs = [
             sys_msg,
@@ -342,14 +343,16 @@ class TestCompositePruning:
             _msg("assistant", ""),  # dropped by dedup
             _msg("assistant", "noise"),
         ]
-        composite = CompositePruning([
-            DuplicatePruning(protect_recent=0),
-            RelevancePruning(
-                ConstantSimilarityEmbedder(0.0),
-                min_score=0.5,
-                protect_recent=1,
-            ),
-        ])
+        composite = CompositePruning(
+            [
+                DuplicatePruning(protect_recent=0),
+                RelevancePruning(
+                    ConstantSimilarityEmbedder(0.0),
+                    min_score=0.5,
+                    protect_recent=1,
+                ),
+            ]
+        )
         result = composite.prune(msgs)
         # System message survives both stages.
         assert sys_msg in result.messages

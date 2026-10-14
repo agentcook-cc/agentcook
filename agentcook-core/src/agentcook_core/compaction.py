@@ -447,7 +447,9 @@ class TokenBudgetPruning:
                 summary_msg = [
                     Message(
                         role="system",
-                        content=f"[Context summary — {len(pruned)} messages pruned]\n{summary_text}",
+                        content=(
+                            f"[Context summary — {len(pruned)} messages pruned]\n{summary_text}"
+                        ),
                         metadata={
                             "compaction": "token_budget_summary",
                             "covers_messages": len(pruned),

@@ -15,9 +15,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-MemoryEventKindLit = Literal[
-    "observation", "decision", "tool_use", "user_input", "reflection"
-]
+MemoryEventKindLit = Literal["observation", "decision", "tool_use", "user_input", "reflection"]
 
 
 # --------------------------------------------------------------------------
@@ -32,9 +30,7 @@ class ErrorEnvelope(BaseModel):
 
     code: str = Field(..., description="Machine-readable error code (UPPER_SNAKE).")
     message: str = Field(..., description="Human-readable description.")
-    detail: dict[str, Any] | None = Field(
-        default=None, description="Optional structured context."
-    )
+    detail: dict[str, Any] | None = Field(default=None, description="Optional structured context.")
 
 
 # --------------------------------------------------------------------------
@@ -171,9 +167,9 @@ class SearchResponse(BaseModel):
 class FlushRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    confirm: Literal[
-        "I understand this deletes all events for this agent."
-    ] = Field(..., description="Exact string required to prevent accidental flush.")
+    confirm: Literal["I understand this deletes all events for this agent."] = Field(
+        ..., description="Exact string required to prevent accidental flush."
+    )
     preserve_identity_and_soul: bool = True
 
 

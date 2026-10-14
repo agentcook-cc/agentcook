@@ -88,6 +88,7 @@ def minimal_plugin_dir(tmp_path: Path) -> Path:
 # parse_manifest
 # ---------------------------------------------------------------------------
 
+
 class TestParseManifest:
     @pytest.mark.unit
     def test_valid(self, tmp_path: Path):
@@ -122,6 +123,7 @@ class TestParseManifest:
 # ---------------------------------------------------------------------------
 # load_plugin
 # ---------------------------------------------------------------------------
+
 
 class TestLoadPlugin:
     @pytest.mark.unit
@@ -176,7 +178,9 @@ class TestLoadPlugin:
     def test_sandbox_runner_attached(self, plugin_dir: Path):
         calls: list[tuple] = []
 
-        def fake_sandbox(plugin_dir, script_name, *, timeout=30, cpu_limit=0.5, memory_limit="512m"):
+        def fake_sandbox(
+            plugin_dir, script_name, *, timeout=30, cpu_limit=0.5, memory_limit="512m"
+        ):
             calls.append((plugin_dir, script_name))
             return None
 
@@ -187,6 +191,7 @@ class TestLoadPlugin:
 # ---------------------------------------------------------------------------
 # PluginEntry lifecycle
 # ---------------------------------------------------------------------------
+
 
 class TestPluginEntryLifecycle:
     @pytest.mark.unit
@@ -207,6 +212,7 @@ class TestPluginEntryLifecycle:
 # ---------------------------------------------------------------------------
 # PluginRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestPluginRegistry:
     @pytest.mark.unit
@@ -250,6 +256,7 @@ class TestPluginRegistry:
 # ---------------------------------------------------------------------------
 # AgentStub / ConnectorStub edge cases
 # ---------------------------------------------------------------------------
+
 
 class TestStubs:
     @pytest.mark.unit

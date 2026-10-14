@@ -7,7 +7,6 @@ import enum
 from typing import Annotated, Literal
 
 import pytest
-
 from agentcook_core import ToolProtocol, ToolResult
 from agentcook_core.tools import (
     DuplicateToolError,
@@ -57,7 +56,11 @@ def test_schema_from_signature_maps_types_defaults_and_docs() -> None:
     assert schema["required"] == ["query"]
     assert schema["additionalProperties"] is False
     assert props["query"] == {"type": "string", "description": "What to look for."}
-    assert props["limit"] == {"type": "integer", "description": "Max results to return.", "default": 5}
+    assert props["limit"] == {
+        "type": "integer",
+        "description": "Max results to return.",
+        "default": 5,
+    }
     assert props["ratio"]["type"] == "number"
     assert props["tags"] == {"type": "array", "items": {"type": "string"}, "default": None}
     assert props["mode"]["enum"] == ["fast", "deep"]

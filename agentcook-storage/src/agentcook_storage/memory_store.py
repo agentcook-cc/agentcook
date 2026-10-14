@@ -46,6 +46,7 @@ def _parse_iso(value: str) -> datetime:
     """
     return datetime.fromisoformat(value)
 
+
 Embedder = Callable[[str], Awaitable[Sequence[float]]]
 """Async callable returning a fixed-dimension embedding for *text*."""
 
@@ -120,12 +121,13 @@ class PgVectorMemoryStore:
 
     # ---- event stream -----------------------------------------------
 
-    async def append_event(self, agent_id: str, event: MemoryEvent) -> None:
+    async def append_event(self, agent_id: str, event: MemoryEvent) -> int:
+        """Insert *event*; returns the new row id (race-free via RETURNING)."""
         vec = await self._embed(event.content)
-        await self._store.execute(
+        row = await self._store.fetchrow(
             "INSERT INTO memory_events "
             "(agent_id, timestamp, kind, content, source, metadata, embedding) "
-            "VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::vector)",
+            "VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7::vector) RETURNING id",
             agent_id,
             _parse_iso(event.timestamp),
             event.kind,
@@ -134,6 +136,7 @@ class PgVectorMemoryStore:
             json.dumps(event.metadata, ensure_ascii=False),
             _format_vector(vec),
         )
+        return int(row["id"]) if row is not None else 0
 
     async def stream_events(
         self,
@@ -201,11 +204,7 @@ class PgVectorMemoryStore:
 def _row_to_event(row: Any) -> MemoryEvent:
     """Convert an asyncpg ``Record`` to a :class:`MemoryEvent`."""
     metadata_raw = row["metadata"]
-    metadata = (
-        metadata_raw
-        if isinstance(metadata_raw, dict)
-        else json.loads(metadata_raw or "{}")
-    )
+    metadata = metadata_raw if isinstance(metadata_raw, dict) else json.loads(metadata_raw or "{}")
     ts = row["timestamp"]
     timestamp = ts.isoformat() if hasattr(ts, "isoformat") else str(ts)
     kind: MemoryEventKind = row["kind"]

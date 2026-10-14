@@ -30,7 +30,6 @@ from agentcook_providers.zhipu_provider import (  # noqa: E402
     ZHIPU_BASE_URL,
 )
 
-
 # ---------------------------------------------------------------------------
 # Mock helpers (same shape as test_openai_provider_tracing.py)
 # ---------------------------------------------------------------------------

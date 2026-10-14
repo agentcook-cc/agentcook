@@ -73,7 +73,9 @@ class QuotaDecision:
     provider: str
     model: str | None
     remaining: int
-    reason: str  # "within_quota" | "exhausted" | "anonymous" | "config_override" | "java_unavailable"
+    reason: (
+        str  # "within_quota" | "exhausted" | "anonymous" | "config_override" | "java_unavailable"
+    )
 
 
 # ---------------------------------------------------------------------------

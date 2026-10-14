@@ -1,335 +1,214 @@
-"""Chat streaming endpoint.
+"""Chat endpoints — the agent loop over HTTP.
 
-Implements ``POST /api/v1/chat/stream`` — the primary SSE endpoint for
-B's ``useSseChat`` hook.
+- ``POST /api/v1/chat/stream`` — run one agent turn, stream frames (SSE).
+- ``POST /api/v1/chat``        — same turn, single JSON response.
+- ``POST /api/v1/chat/runs/{run_id}/cancel`` — stop a running turn.
 
-Phase 4.6 (2026-06-01): Real LLM provider integration via
-``agentcook_providers.create_provider()`` — default Qwen qwen-turbo per
-ADR-016. Mock generator retained as ``AGENTCOOK_CHAT_MOCK=true`` fallback
-for unit/contract tests + offline dev.
+Wire format (one JSON object per ``data:`` line)::
+
+    {"type":"start",       "session_id", "run_id", "metadata":{agent, model, …}}
+    {"type":"delta",       "content":"partial text"}
+    {"type":"tool_call",   "tool_call":{"id","name","arguments","status":"running"}}
+    {"type":"tool_result", "tool_call":{…, "status":"success|error","output","duration_ms"}}
+    {"type":"done",        "done":true, "metadata":{usage, model, turns, finish_reason, …}}
+    {"type":"error",       "done":true, "error":"…"}
+
+Every frame also carries the v1 fields ``role`` / ``content`` / ``done``,
+so v1 clients that only concatenate ``content`` keep working. Comment
+lines (``: ping``) are sent every 15s during long tool calls to keep
+proxies from closing the connection.
+
+The run itself is owned by the run manager, not by this response: a
+client disconnect does not abort it and its result is still persisted.
 """
 
 from __future__ import annotations
 
-import asyncio
-import os
-import time
-import uuid
+import json
 from collections.abc import AsyncIterator
 from typing import Any
 
-from fastapi import APIRouter, Header, HTTPException, status
+from agentcook_core.conversations import SessionAccessError
+from fastapi import APIRouter, Depends, Header, HTTPException, Path, status
 from fastapi.responses import StreamingResponse
 
+from agentcook_app.chat_service import (
+    AgentNotAvailableError,
+    ChatService,
+    ChatTurn,
+    ModelUnavailableError,
+)
+from agentcook_app.container import AppContainer, StorageNotReadyError, get_container
 from agentcook_app.middleware.turnstile import get_turnstile_verifier
+from agentcook_app.runs import RunHandle, SessionBusyError
 from agentcook_app.schemas import ErrorEnvelope
-from agentcook_app.schemas_chat import ChatStreamFrame, ChatStreamRequest
-from agentcook_core.types import Message
+from agentcook_app.schemas_chat import (
+    ChatCancelResponse,
+    ChatResponse,
+    ChatStreamRequest,
+    ToolCallView,
+)
+from agentcook_app.security import UserContext, get_current_user
 
 router = APIRouter(prefix="/api/v1/chat", tags=["chat"])
 
-
-# --------------------------------------------------------------------------
-# Provider singleton — lazy init on first request to avoid import-time cost
-# --------------------------------------------------------------------------
-
-_provider_cache: Any = None
-
-
-def _get_provider() -> Any:
-    """Lazy singleton. Reads AGENTCOOK_LLM_PROVIDER + provider-specific env
-    vars (QWEN_API_KEY / OPENAI_API_KEY / etc) via agentcook_providers factory.
-    """
-    global _provider_cache
-    if _provider_cache is None:
-        from agentcook_providers.factory import create_provider
-
-        _provider_cache = create_provider()
-    return _provider_cache
+SSE_HEADERS = {
+    "Cache-Control": "no-cache",
+    "X-Accel-Buffering": "no",
+    "Connection": "keep-alive",
+}
 
 
-def _use_mock() -> bool:
-    """Mock when AGENTCOOK_CHAT_MOCK=true (case-insensitive) or no provider env."""
-    flag = os.environ.get("AGENTCOOK_CHAT_MOCK", "").strip().lower()
-    if flag in ("true", "1", "yes"):
-        return True
-    # No provider configured → fall back to mock (CI / contract tests)
-    if not os.environ.get("AGENTCOOK_LLM_PROVIDER"):
-        return True
-    return False
-
-
-# --------------------------------------------------------------------------
-# Mock streaming generator — replaced by real LLM provider in Phase 5
-# --------------------------------------------------------------------------
-
-_MOCK_RESPONSES = [
-    "I'd be happy to help you with that! ",
-    "Let me think about this for a moment.\n\n",
-    "Based on my analysis, here's what I suggest:\n\n",
-    "1. **First**, we should consider the overall architecture.\n",
-    "2. **Second**, let's look at the implementation details.\n",
-    "3. **Third**, we can optimize for performance.\n\n",
-    "Would you like me to elaborate on any of these points?",
-]
-
-_MOCK_PLUGIN_RESPONSE = (
-    "I've activated the requested plugins. "
-    "Here's what I found using the tools available:\n\n"
-    "```python\nresult = plugin.execute(query)\nprint(result)\n```\n\n"
-    "The execution completed successfully."
-)
-
-
-async def _stream_mock_response(
-    request: ChatStreamRequest,
-) -> AsyncIterator[bytes]:
-    """Generate mock SSE frames simulating a streaming LLM response.
-
-    Frame format: ``data: {json}\n\n`` (standard SSE wire format).
-    Terminal frame has ``done: true`` + metadata (token usage, model).
-    """
-    session_id = request.session_id
-    model_used = request.model or "gpt-4o-mock"
-
-    # First frame: echo session_id
-    first_frame = ChatStreamFrame(
-        role="assistant",
-        content="",
-        done=False,
-        session_id=session_id,
+def _error(status_code: int, code: str, message: str, detail: Any = None) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail=ErrorEnvelope(code=code, message=message, detail=detail).model_dump(),
     )
-    yield f"data: {first_frame.model_dump_json()}\n\n".encode()
-    await asyncio.sleep(0.05)
-
-    # Content frames: stream response chunks
-    if request.plugin_ids:
-        chunks = [_MOCK_PLUGIN_RESPONSE]
-    else:
-        chunks = _MOCK_RESPONSES
-
-    for chunk in chunks:
-        # Simulate token-by-token for shorter chunks, or sentence-level
-        frame = ChatStreamFrame(role="assistant", content=chunk, done=False)
-        yield f"data: {frame.model_dump_json()}\n\n".encode()
-        await asyncio.sleep(0.08)
-
-    # Terminal frame: done + metadata
-    final_frame = ChatStreamFrame(
-        role="assistant",
-        content="",
-        done=True,
-        metadata={
-            "model": model_used,
-            "usage": {"input_tokens": 42, "output_tokens": len("".join(chunks))},
-            "request_id": uuid.uuid4().hex,
-            "duration_ms": round(len(chunks) * 80, 1),
-            "source": "mock",
-        },
-    )
-    yield f"data: {final_frame.model_dump_json()}\n\n".encode()
 
 
-# --------------------------------------------------------------------------
-# Real LLM streaming generator — Phase 4.6 (2026-06-01)
-# Calls agentcook_providers.create_provider().stream_chat() and wraps
-# ChatChunk → ChatStreamFrame to preserve B's useSseChat wire format.
-# --------------------------------------------------------------------------
-
-
-async def _stream_real_response(
-    request: ChatStreamRequest,
-    provider_override: str | None = None,
-) -> AsyncIterator[bytes]:
-    """Stream a real LLM response via the configured provider (default Qwen).
-
-    Wraps ``provider.stream_chat()`` chunks into ``ChatStreamFrame`` SSE.
-    Errors (rate limit / 5xx / timeout) emit a terminal frame with ``error``
-    set so the frontend can surface them without breaking the SSE contract.
-
-    :param provider_override: ADR-018 quota resolver hook — when set, builds
-        a fresh provider via ``agentcook_providers.create_provider(name)``
-        instead of using the cached singleton. ``None`` keeps the
-        Phase 4.6 single-provider behaviour.
-    """
-    session_id = request.session_id
-
-    # First frame is yielded before provider init so useSseChat always
-    # gets a session-bound frame even if provider creation later raises.
-    first_frame = ChatStreamFrame(
-        role="assistant",
-        content="",
-        done=False,
-        session_id=session_id,
-    )
-    yield f"data: {first_frame.model_dump_json()}\n\n".encode()
-
-    messages = [Message(role="user", content=request.message)]
-
-    started_ns = time.perf_counter_ns()
-    total_chars = 0
-    finish_reason: str | None = None
-    model_used: str = request.model or "unknown"
-    provider: Any = None
-
-    try:
-        # Provider init must stay inside the try: an ImportError or
-        # ConfigError otherwise propagates to starlette and closes the
-        # stream after headers with 0 bytes, surfacing as
-        # "No response received" in useSseChat instead of an error frame.
-        if provider_override:
-            from agentcook_providers.factory import create_provider as _create_provider
-
-            provider = _create_provider(provider=provider_override)
-        else:
-            provider = _get_provider()
-        if request.model is None:
-            model_used = getattr(provider, "model_name", "unknown")
-
-        stream_kwargs: dict[str, Any] = {}
-        if request.temperature is not None:
-            stream_kwargs["temperature"] = request.temperature
-        if request.max_tokens is not None:
-            stream_kwargs["max_tokens"] = request.max_tokens
-
-        async for chunk in provider.stream_chat(messages, **stream_kwargs):
-            if chunk.delta_content:
-                frame = ChatStreamFrame(
-                    role="assistant",
-                    content=chunk.delta_content,
-                    done=False,
-                )
-                yield f"data: {frame.model_dump_json()}\n\n".encode()
-                total_chars += len(chunk.delta_content)
-            if chunk.finish_reason:
-                finish_reason = chunk.finish_reason
-    except Exception as e:
-        error_frame = ChatStreamFrame(
-            role="assistant",
-            content="",
-            done=True,
-            error=f"{type(e).__name__}: {str(e)[:200]}",
-            metadata={"source": "provider", "model": model_used},
-        )
-        yield f"data: {error_frame.model_dump_json()}\n\n".encode()
+async def _check_turnstile(
+    container: AppContainer, token: str | None, forwarded_for: str | None
+) -> None:
+    settings = container.settings
+    if not settings.turnstile_enforce or settings.uses_mock_model:
         return
+    remote_ip = forwarded_for.split(",")[0].strip() if forwarded_for else None
+    decision = await get_turnstile_verifier().verify(token, remote_ip=remote_ip)
+    if not decision.verified:
+        raise _error(
+            status.HTTP_401_UNAUTHORIZED,
+            "TURNSTILE_REJECTED",
+            f"Turnstile verification failed: {decision.reason}",
+            {"reason": decision.reason, "error_codes": list(decision.error_codes)},
+        )
 
-    duration_ms = (time.perf_counter_ns() - started_ns) / 1_000_000
 
-    final_frame = ChatStreamFrame(
-        role="assistant",
-        content="",
-        done=True,
-        metadata={
-            "model": model_used,
-            "provider": provider.__class__.__name__ if provider else "unknown",
-            "request_id": uuid.uuid4().hex,
-            "duration_ms": round(duration_ms, 1),
-            "output_chars": total_chars,
-            "finish_reason": finish_reason,
-            "source": "provider",
-        },
+async def _start(container: AppContainer, user: UserContext, body: ChatStreamRequest) -> RunHandle:
+    turn = ChatTurn(
+        session_id=body.session_id,
+        message=body.message,
+        agent=body.agent,
+        plugin_ids=tuple(body.plugin_ids),
+        model=body.model,
+        temperature=body.temperature,
+        max_tokens=body.max_tokens,
     )
-    yield f"data: {final_frame.model_dump_json()}\n\n".encode()
+    try:
+        return await ChatService(container).start_turn(user, turn)
+    except AgentNotAvailableError as exc:
+        raise _error(404, "AGENT_NOT_FOUND", str(exc), {"available": exc.available}) from exc
+    except SessionAccessError as exc:
+        # Same response as "missing" so session ids can't be probed.
+        raise _error(404, "SESSION_NOT_FOUND", "Session not found.") from exc
+    except SessionBusyError as exc:
+        raise _error(
+            409,
+            "SESSION_BUSY",
+            "This session is already generating a reply; wait for it or cancel it.",
+            {"run_id": exc.run_id},
+        ) from exc
+    except ModelUnavailableError as exc:
+        if exc.client_error:
+            raise _error(400, "INVALID_MODEL", str(exc), {"model": exc.spec}) from exc
+        raise _error(503, "MODEL_UNAVAILABLE", str(exc), {"model": exc.spec}) from exc
+    except StorageNotReadyError as exc:
+        raise _error(503, "STORAGE_NOT_READY", str(exc)) from exc
 
 
-# --------------------------------------------------------------------------
-# Routes
-# --------------------------------------------------------------------------
-
-
-def _turnstile_enforced() -> bool:
-    """True when the chat endpoint should require a Turnstile token.
-
-    Default False so every existing test + Phase 5 dev path keeps
-    running without Cloudflare configured. Production sets
-    ``AGENTCOOK_TURNSTILE_ENFORCE=true`` once the Worker is wrangler-
-    deployed and the front-end widget is plumbed to send the header
-    (Phase 6 backlog #20 cascade — front-end side is the third hop).
-
-    Mock path (``AGENTCOOK_CHAT_MOCK=true``) intentionally never
-    enforces — contract tests + offline dev should keep working
-    without a Cloudflare account.
-    """
-    if _use_mock():
-        return False
-    return os.environ.get("AGENTCOOK_TURNSTILE_ENFORCE", "").strip().lower() in (
-        "true",
-        "1",
-        "yes",
-    )
+async def _sse(handle: RunHandle) -> AsyncIterator[bytes]:
+    async for frame in handle.frames():
+        if frame is None:
+            yield b": ping\n\n"
+            continue
+        yield f"data: {json.dumps(frame, ensure_ascii=False, default=str)}\n\n".encode()
 
 
 @router.post(
     "/stream",
     responses={
-        200: {
-            "description": "SSE stream of chat response frames.",
-            "content": {"text/event-stream": {}},
+        200: {"description": "SSE stream of chat frames.", "content": {"text/event-stream": {}}},
+        401: {
+            "model": ErrorEnvelope,
+            "description": "Missing/invalid token or Turnstile rejection.",
         },
-        400: {"description": "Invalid request body."},
-        401: {"description": "Turnstile token missing or rejected (when enforce mode is on)."},
+        404: {"model": ErrorEnvelope, "description": "Unknown agent or session."},
+        409: {"model": ErrorEnvelope, "description": "Session already has an active run."},
+        422: {"model": ErrorEnvelope, "description": "Invalid request body."},
     },
-    summary="Stream a chat response as Server-Sent Events",
+    summary="Run one agent turn and stream it as Server-Sent Events",
 )
 async def chat_stream(
-    request: ChatStreamRequest,
+    body: ChatStreamRequest,
+    container: AppContainer = Depends(get_container),
+    user: UserContext = Depends(get_current_user),
     x_turnstile_token: str | None = Header(default=None, alias="X-Turnstile-Token"),
     x_forwarded_for: str | None = Header(default=None, alias="X-Forwarded-For"),
 ) -> StreamingResponse:
-    """Stream an assistant response for the given user message.
+    await _check_turnstile(container, x_turnstile_token, x_forwarded_for)
+    handle = await _start(container, user, body)
+    return StreamingResponse(_sse(handle), media_type="text/event-stream", headers=SSE_HEADERS)
 
-    Accepts session_id + message + optional plugin_ids/model override.
-    Returns SSE frames: ``data: {"role":"assistant","content":"...","done":false}\\n\\n``
-    Final frame has ``done: true`` + metadata (token usage, model, request_id).
 
-    Phase 5: integrates real LLM provider via model_router + hook_runtime
-    pre/post hooks + sandbox_runner for tool execution.
-
-    Phase 6 (Buffer Day 68, backlog #20): when
-    ``AGENTCOOK_TURNSTILE_ENFORCE=true`` and the path is not on the
-    mock branch, the ``X-Turnstile-Token`` header is verified via the
-    middleware before any LLM call. Missing / rejected tokens get a
-    401 with the cloudflare error_codes pass-through so the front-end
-    can decide whether to re-challenge or surface a polite error.
-    """
-    if not request.session_id.strip():
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="session_id must not be empty",
-        )
-
-    if _turnstile_enforced():
-        # Take the first IP in the X-Forwarded-For chain if a proxy
-        # appended several; ignore the rest because Cloudflare only
-        # ever cares about the originating client.
-        remote_ip = (
-            x_forwarded_for.split(",")[0].strip() if x_forwarded_for else None
-        )
-        decision = await get_turnstile_verifier().verify(
-            x_turnstile_token, remote_ip=remote_ip
-        )
-        if not decision.verified:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail=ErrorEnvelope(
-                    code="TURNSTILE_REJECTED",
-                    message=f"Turnstile verification failed: {decision.reason}",
-                    detail={
-                        "reason": decision.reason,
-                        "error_codes": list(decision.error_codes),
-                    },
-                ).model_dump(),
-            )
-
-    generator = _stream_mock_response(request) if _use_mock() else _stream_real_response(request)
-
-    return StreamingResponse(
-        generator,
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-            "Connection": "keep-alive",
-        },
+@router.post(
+    "",
+    response_model=ChatResponse,
+    responses={
+        401: {"model": ErrorEnvelope},
+        404: {"model": ErrorEnvelope},
+        409: {"model": ErrorEnvelope},
+    },
+    summary="Run one agent turn and return the complete answer",
+)
+async def chat(
+    body: ChatStreamRequest,
+    container: AppContainer = Depends(get_container),
+    user: UserContext = Depends(get_current_user),
+    x_turnstile_token: str | None = Header(default=None, alias="X-Turnstile-Token"),
+    x_forwarded_for: str | None = Header(default=None, alias="X-Forwarded-For"),
+) -> ChatResponse:
+    await _check_turnstile(container, x_turnstile_token, x_forwarded_for)
+    handle = await _start(container, user, body)
+    content: list[str] = []
+    tools: dict[str, ToolCallView] = {}
+    final: dict[str, Any] = {}
+    async for frame in handle.frames():
+        if frame is None:
+            continue
+        kind = frame.get("type")
+        if kind == "delta":
+            content.append(frame["content"])
+        elif kind in ("tool_call", "tool_result"):
+            call = frame["tool_call"]
+            tools[call["id"]] = ToolCallView(**call)
+        elif kind in ("done", "error"):
+            final = frame
+    metadata = final.get("metadata", {})
+    return ChatResponse(
+        session_id=body.session_id,
+        run_id=final.get("run_id", handle.run_id),
+        agent=handle.agent,
+        content="".join(content),
+        tool_calls=list(tools.values()),
+        finish_reason=metadata.get("finish_reason") or ("error" if final.get("error") else None),
+        error=final.get("error"),
+        metadata=metadata,
     )
+
+
+@router.post(
+    "/runs/{run_id}/cancel",
+    response_model=ChatCancelResponse,
+    responses={404: {"model": ErrorEnvelope, "description": "No active run with this id."}},
+    summary="Stop an in-flight agent run (the UI's Stop button)",
+)
+async def cancel_run(
+    run_id: str = Path(..., pattern=r"^run_[a-f0-9]{16}$"),
+    container: AppContainer = Depends(get_container),
+    user: UserContext = Depends(get_current_user),
+) -> ChatCancelResponse:
+    if not container.runs.cancel(run_id, user_id=user.user_id):
+        raise _error(404, "RUN_NOT_FOUND", "No active run with this id.")
+    return ChatCancelResponse(run_id=run_id, cancelled=True)
+
+
+__all__ = ["router"]

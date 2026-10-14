@@ -17,7 +17,6 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 LogLevel = Literal["debug", "info", "warning", "error", "critical"]
 
 
@@ -30,7 +29,9 @@ class LogFrame(BaseModel):
     level: LogLevel = Field(..., description="Log severity level.")
     event: str = Field(..., description="Short human-readable event name.")
     request_id: str | None = Field(default=None, description="Per-request correlation id (hex).")
-    logger: str | None = Field(default=None, description="Logger name (e.g. ``agentcook_app.main``).")
+    logger: str | None = Field(
+        default=None, description="Logger name (e.g. ``agentcook_app.main``)."
+    )
     extra: dict[str, Any] = Field(default_factory=dict, description="Free-form structured fields.")
 
 

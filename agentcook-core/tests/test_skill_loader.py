@@ -62,6 +62,7 @@ def skill_dir(tmp_path: Path) -> Path:
 # parse_frontmatter
 # ---------------------------------------------------------------------------
 
+
 class TestParseFrontmatter:
     @pytest.mark.unit
     def test_valid(self):
@@ -90,7 +91,7 @@ class TestParseFrontmatter:
 
     @pytest.mark.unit
     def test_quoted_values_stripped(self):
-        text = '---\nname: "quoted"\ndescription: \'single\'\n---\n'
+        text = "---\nname: \"quoted\"\ndescription: 'single'\n---\n"
         meta, _ = parse_frontmatter(text)
         assert meta["name"] == "quoted"
         assert meta["description"] == "single"
@@ -111,6 +112,7 @@ class TestParseFrontmatter:
 # ---------------------------------------------------------------------------
 # manifest_from_frontmatter
 # ---------------------------------------------------------------------------
+
 
 class TestManifestFromFrontmatter:
     @pytest.mark.unit
@@ -142,6 +144,7 @@ class TestManifestFromFrontmatter:
 # SkillEntry
 # ---------------------------------------------------------------------------
 
+
 class TestSkillEntry:
     @pytest.mark.unit
     def test_satisfies_protocol(self, tmp_path: Path):
@@ -172,6 +175,7 @@ class TestSkillEntry:
 # ---------------------------------------------------------------------------
 # SkillRegistry
 # ---------------------------------------------------------------------------
+
 
 class TestSkillRegistry:
     @pytest.mark.unit

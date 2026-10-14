@@ -19,9 +19,13 @@ async def main() -> None:
     print(f"agentcook-core version: {core_version}")
 
     provider = EchoProvider(prefix="Demo")
-    print(f"EchoProvider satisfies LLMProviderProtocol: {isinstance(provider, LLMProviderProtocol)}")
+    print(
+        f"EchoProvider satisfies LLMProviderProtocol: {isinstance(provider, LLMProviderProtocol)}"
+    )
 
-    response = await provider.chat([Message(role="user", content="Hello from cross-package import!")])
+    response = await provider.chat(
+        [Message(role="user", content="Hello from cross-package import!")]
+    )
     print(f"chat() result: {response.message.content}")
 
     print("\n✅ Cross-package import works!")

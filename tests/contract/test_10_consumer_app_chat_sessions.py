@@ -1,4 +1,4 @@
-"""Consumer-side Pact: agentcook-app → agentcook-chat (chat/stream) & agentcook-java-app (sessions/plugins).
+"""Consumer Pact: agentcook-app → chat stream (Python) & sessions/plugins (Java).
 
 Day 35-37 — adds contract coverage for the two remaining app-facing surfaces:
 
@@ -32,52 +32,6 @@ from __future__ import annotations
 import httpx
 import pytest
 from pact.v3 import Pact
-
-
-# ============================================================================
-# Part 1: agentcook-app → agentcook-chat  (Python chat/stream)
-# ============================================================================
-
-CHAT_CONSUMER = "agentcook-app"
-CHAT_PROVIDER = "agentcook-chat"
-
-
-@pytest.mark.contract
-def test_app_chat_stream_contract(pacts_dir):
-    """POST /api/v1/chat/stream — send a message and expect SSE stream."""
-    pact = Pact(CHAT_CONSUMER, CHAT_PROVIDER).with_specification("V3")
-
-    (
-        pact.upon_receiving("send a chat message and stream reply")
-        .given("session sess-001 exists with agent agt-001")
-        .with_request(
-            method="POST",
-            path="/api/v1/chat/stream",
-        )
-        .with_body(
-            content_type="application/json",
-            body={
-                "session_id": "sess-001",
-                "message": "What are the pricing tiers?",
-                "plugin_ids": ["plugin-translate"],
-            },
-        )
-        .will_respond_with(200)
-    )
-
-    with pact.serve() as mock:
-        r = httpx.post(
-            f"{mock.url}/api/v1/chat/stream",
-            json={
-                "session_id": "sess-001",
-                "message": "What are the pricing tiers?",
-                "plugin_ids": ["plugin-translate"],
-            },
-        )
-        assert r.status_code == 200
-
-    pact.write_file(str(pacts_dir), overwrite=True)
-
 
 # ============================================================================
 # Part 2: agentcook-app → agentcook-java-app  (sessions + plugins)

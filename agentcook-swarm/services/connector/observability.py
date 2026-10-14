@@ -73,7 +73,7 @@ def _build_resource() -> object | None:
     )
 
 
-def setup_telemetry(app: "FastAPI" | None = None) -> bool:
+def setup_telemetry(app: FastAPI | None = None) -> bool:
     """Wire OTel SDK + FastAPI + gRPC client auto-instrumentation."""
     if not _OTEL_AVAILABLE:
         logger.info("OpenTelemetry SDK not installed — telemetry disabled")
@@ -93,9 +93,7 @@ def setup_telemetry(app: "FastAPI" | None = None) -> bool:
         OTLPMetricExporter(endpoint=endpoint, insecure=True),
         export_interval_millis=15_000,
     )
-    metrics.set_meter_provider(
-        MeterProvider(resource=_build_resource(), metric_readers=[reader])
-    )
+    metrics.set_meter_provider(MeterProvider(resource=_build_resource(), metric_readers=[reader]))
 
     if app is not None and _FASTAPI_AVAILABLE:
         from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor

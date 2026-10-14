@@ -14,6 +14,7 @@ from sandbox_runner import run_plugin_script
 
 PLUGIN_DIR = os.path.join(os.path.dirname(__file__), "example-plugin")
 
+
 class TestPluginSandbox(unittest.TestCase):
     """Test that the sandbox blocks all attack vectors."""
 
@@ -45,21 +46,16 @@ class TestPluginSandbox(unittest.TestCase):
 
     def test_memory_bomb(self):
         """Excessive memory allocation should be killed by OOM."""
-        result = run_plugin_script(
-            PLUGIN_DIR, "memory_bomb.py", timeout=15, memory_limit="64m"
-        )
+        result = run_plugin_script(PLUGIN_DIR, "memory_bomb.py", timeout=15, memory_limit="64m")
         # Should either OOM kill or get MemoryError
-        self.assertTrue(
-            result.oom_killed
-            or result.exit_code != 0
-            or "BLOCKED" in result.stdout
-        )
+        self.assertTrue(result.oom_killed or result.exit_code != 0 or "BLOCKED" in result.stdout)
 
     def test_write_host_filesystem(self):
         """Writing to read-only filesystem should fail."""
         result = run_plugin_script(PLUGIN_DIR, "write_host.py", timeout=10)
         self.assertIn("BLOCKED", result.stdout)
         self.assertNotIn("FAIL", result.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

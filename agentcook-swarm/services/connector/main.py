@@ -9,9 +9,11 @@ from __future__ import annotations
 import json
 import logging
 import os
+import secrets
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import FastAPI, HTTPException, status
 from pydantic import BaseModel, Field
@@ -45,8 +47,8 @@ class AgentCoreClient:
 
     async def connect(self) -> None:
         try:
-            import grpc
             import agentcook_pb2_grpc as pb2_grpc
+            import grpc
 
             self._channel = grpc.aio.insecure_channel(self._target)
             self._stub = pb2_grpc.ChatServiceStub(self._channel)
@@ -198,12 +200,14 @@ _connector_store = ConnectorStore()
 # Pre-register built-in connectors (loaded from config or discovery)
 _BUILTIN_CONNECTORS = json.loads(os.getenv("CONNECTOR_CONFIG", "[]"))
 for _cfg in _BUILTIN_CONNECTORS:
-    _connector_store.register(ConnectorEntry(
-        connector_id=_cfg.get("id", ""),
-        connector_type=_cfg.get("type", "http"),
-        name=_cfg.get("name", ""),
-        config=_cfg.get("config", {}),
-    ))
+    _connector_store.register(
+        ConnectorEntry(
+            connector_id=_cfg.get("id", ""),
+            connector_type=_cfg.get("type", "http"),
+            name=_cfg.get("name", ""),
+            config=_cfg.get("config", {}),
+        )
+    )
 
 
 async def _dispatch_action(connector: ConnectorEntry, action: str, params: dict[str, Any]) -> Any:
@@ -263,12 +267,15 @@ async def _handle_http_call_api(connector: ConnectorEntry, params: dict[str, Any
         raise ValueError("Connector config missing 'base_url'")
 
     import httpx
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         headers = connector.config.get("headers", {})
         response = await client.request(method, f"{base_url}{path}", headers=headers, json=body)
         return {
             "status_code": response.status_code,
-            "body": response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text,
+            "body": response.json()
+            if response.headers.get("content-type", "").startswith("application/json")
+            else response.text,
         }
 
 
@@ -281,6 +288,7 @@ async def _handle_http_health_check(connector: ConnectorEntry, params: dict[str,
         return {"healthy": False, "error": "No base_url configured"}
 
     import httpx
+
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(f"{base_url}{health_path}")
@@ -301,13 +309,16 @@ async def _handle_oauth_call_api(connector: ConnectorEntry, params: dict[str, An
         raise ValueError("Connector config missing 'base_url'")
 
     import httpx
+
     async with httpx.AsyncClient(timeout=30.0) as client:
         headers = {"Authorization": f"Bearer {access_token}"}
         headers.update(connector.config.get("headers", {}))
         response = await client.request(method, f"{base_url}{path}", headers=headers, json=body)
         return {
             "status_code": response.status_code,
-            "body": response.json() if response.headers.get("content-type", "").startswith("application/json") else response.text,
+            "body": response.json()
+            if response.headers.get("content-type", "").startswith("application/json")
+            else response.text,
         }
 
 
@@ -322,13 +333,17 @@ async def _handle_oauth_refresh_token(connector: ConnectorEntry, params: dict[st
         raise ValueError("Missing OAuth config (token_url, refresh_token, client_id)")
 
     import httpx
+
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.post(token_url, data={
-            "grant_type": "refresh_token",
-            "refresh_token": refresh_token,
-            "client_id": client_id,
-            "client_secret": client_secret,
-        })
+        response = await client.post(
+            token_url,
+            data={
+                "grant_type": "refresh_token",
+                "refresh_token": refresh_token,
+                "client_id": client_id,
+                "client_secret": client_secret,
+            },
+        )
         if response.status_code != 200:
             raise RuntimeError(f"Token refresh failed: {response.status_code}")
         token_data = response.json()
@@ -347,8 +362,21 @@ async def _handle_oauth_get_auth_url(connector: ConnectorEntry, params: dict[str
     if not auth_url or not client_id:
         raise ValueError("Missing OAuth config (authorize_url, client_id)")
 
-    url = f"{auth_url}?client_id={client_id}&redirect_uri={redirect_uri}&scope={scope}&response_type=code"
-    return {"auth_url": url}
+    # Query values must be URL-encoded (redirect URIs contain ':' and '/'), and
+    # `state` binds the callback to this request (OAuth CSRF protection) — the
+    # caller stores it and compares it on the callback.
+    state = params.get("state") or secrets.token_urlsafe(24)
+    query = urlencode(
+        {
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "scope": scope,
+            "response_type": "code",
+            "state": state,
+        }
+    )
+    separator = "&" if "?" in auth_url else "?"
+    return {"auth_url": f"{auth_url}{separator}{query}", "state": state}
 
 
 async def _handle_webhook_trigger(connector: ConnectorEntry, params: dict[str, Any]) -> Any:
@@ -359,6 +387,7 @@ async def _handle_webhook_trigger(connector: ConnectorEntry, params: dict[str, A
 
     payload = params.get("payload", {})
     import httpx
+
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.post(webhook_url, json=payload)
         return {"status_code": response.status_code, "delivered": response.status_code < 400}
@@ -380,11 +409,15 @@ async def _handle_webhook_unsubscribe(connector: ConnectorEntry, params: dict[st
     """Unsubscribe from a webhook event."""
     event_type = params.get("event_type", "")
     subscriptions = connector.config.get("subscriptions", [])
-    connector.config["subscriptions"] = [s for s in subscriptions if s.get("event_type") != event_type]
+    connector.config["subscriptions"] = [
+        s for s in subscriptions if s.get("event_type") != event_type
+    ]
     return {"unsubscribed": True, "event_type": event_type}
 
 
-async def _handle_webhook_list_subscriptions(connector: ConnectorEntry, params: dict[str, Any]) -> Any:
+async def _handle_webhook_list_subscriptions(
+    connector: ConnectorEntry, params: dict[str, Any]
+) -> Any:
     """List active webhook subscriptions."""
     return {"subscriptions": connector.config.get("subscriptions", [])}
 
@@ -527,4 +560,6 @@ async def chat_bridge(request: ChatBridgeRequest):
     except RuntimeError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc))
     except Exception as exc:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=f"agent-core unreachable: {exc}")
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY, detail=f"agent-core unreachable: {exc}"
+        )

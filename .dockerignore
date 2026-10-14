@@ -1,0 +1,18 @@
+# Build contexts rooted at the repo (agentcook/Dockerfile, the static-site
+# images) only need sources and lockfiles.
+**/node_modules
+**/.venv
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+**/dist
+**/target
+**/coverage
+**/test-results
+**/playwright-report
+.git
+.turbo
+.hypothesis
+**/.env

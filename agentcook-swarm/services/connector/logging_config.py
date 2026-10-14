@@ -38,7 +38,7 @@ import uuid
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import structlog
+    pass
 
 
 DEFAULT_LEVEL = "INFO"

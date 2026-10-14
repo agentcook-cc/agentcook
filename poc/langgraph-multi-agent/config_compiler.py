@@ -16,19 +16,23 @@ import yaml
 
 class AgentState(TypedDict):
     """State shared across all agents in the graph."""
+
     messages: list[dict[str, str]]
     current_agent: str
     task: str
 
+
 @dataclass
 class AgentConfig:
     """Parsed agent configuration."""
+
     name: str
     description: str
     trigger_patterns: list[str]
     model: str
     system_prompt: str
     is_fallback: bool = False
+
 
 def load_config(config_path: str) -> tuple[list[AgentConfig], str]:
     """Load and parse router YAML config."""
@@ -37,20 +41,24 @@ def load_config(config_path: str) -> tuple[list[AgentConfig], str]:
 
     agents = []
     for agent_data in raw["agents"]:
-        agents.append(AgentConfig(
-            name=agent_data["name"],
-            description=agent_data["description"],
-            trigger_patterns=agent_data.get("trigger_patterns", []),
-            model=agent_data.get("model", "gpt-4o-mini"),
-            system_prompt=agent_data.get("system_prompt", ""),
-            is_fallback=agent_data.get("is_fallback", False),
-        ))
+        agents.append(
+            AgentConfig(
+                name=agent_data["name"],
+                description=agent_data["description"],
+                trigger_patterns=agent_data.get("trigger_patterns", []),
+                model=agent_data.get("model", "gpt-4o-mini"),
+                system_prompt=agent_data.get("system_prompt", ""),
+                is_fallback=agent_data.get("is_fallback", False),
+            )
+        )
 
     routing_strategy = raw.get("routing_strategy", "pattern_match")
     return agents, routing_strategy
 
+
 def _make_router_node(agents: list[AgentConfig]):
     """Create router node that dispatches to the right agent."""
+
     def router(state: AgentState) -> AgentState:
         task = state["task"].lower()
         for agent in agents:
@@ -62,25 +70,27 @@ def _make_router_node(agents: list[AgentConfig]):
         # Fallback
         fallback = next((a for a in agents if a.is_fallback), agents[-1])
         return {**state, "current_agent": fallback.name}
+
     return router
+
 
 def _make_agent_node(agent_config: AgentConfig):
     """Create an agent node (POC: echo mode, no real LLM call)."""
+
     def agent_node(state: AgentState) -> AgentState:
         response = {
             "role": "assistant",
             "content": f"[{agent_config.name}] (model={agent_config.model}) "
-                       f"处理任务: {state['task']}"
+            f"处理任务: {state['task']}",
         }
-        return {
-            **state,
-            "messages": state["messages"] + [response]
-        }
+        return {**state, "messages": state["messages"] + [response]}
+
     return agent_node
+
 
 def compile_router_config(config_path: str):
     """Compile YAML config into a LangGraph StateGraph.
-    
+
     This is the core of agentcook's declarative multi-agent system.
     """
     from langgraph.graph import END, START, StateGraph

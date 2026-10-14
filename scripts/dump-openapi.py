@@ -35,10 +35,7 @@ def main() -> int:
     )
     paths_count = len(spec.get("paths", {}))
     schemas_count = len((spec.get("components") or {}).get("schemas") or {})
-    print(
-        f"Wrote {OUTPUT.relative_to(REPO_ROOT)}: "
-        f"{paths_count} paths, {schemas_count} schemas"
-    )
+    print(f"Wrote {OUTPUT.relative_to(REPO_ROOT)}: {paths_count} paths, {schemas_count} schemas")
     return 0
 
 

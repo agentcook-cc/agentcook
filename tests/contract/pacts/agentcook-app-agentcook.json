@@ -4,61 +4,170 @@
   },
   "interactions": [
     {
-      "description": "append a memory event",
-      "providerStates": [
-        {
-          "name": "agent agt-001 exists with a fresh diary"
-        }
-      ],
+      "description": "runtime info for the chat page",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/runtime"
+      },
+      "response": {
+        "body": {
+          "agents": ["assistant"],
+          "auth_mode": "optional",
+          "default_agent": "assistant",
+          "mock_model": true,
+          "version": "2.0.0"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "the agents a user can talk to",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/agents"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "default": true,
+              "delegates": ["researcher", "analyst"],
+              "description": "General-purpose assistant.",
+              "name": "assistant",
+              "title": "AgentCook Assistant",
+              "toolkits": ["core"]
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "the toolkits a user can enable",
+      "request": {
+        "method": "GET",
+        "path": "/api/v1/toolkits"
+      },
+      "response": {
+        "body": {
+          "items": [
+            {
+              "description": "Current time and exact arithmetic.",
+              "id": "core",
+              "name": "Core utilities",
+              "tools": [
+                {
+                  "description": "Evaluate an arithmetic expression.",
+                  "name": "calculator"
+                }
+              ]
+            }
+          ]
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.items": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type",
+                  "min": 1
+                }
+              ]
+            },
+            "$.items[*]": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.items[*].tools": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "one chat turn streamed as SSE",
       "request": {
         "body": {
-          "content": "user asked about pricing tiers",
-          "kind": "observation",
-          "source": "chat-ui"
+          "agent": "assistant",
+          "message": "what time is it?",
+          "session_id": "c-contract-0001"
         },
         "headers": {
           "Content-Type": "application/json"
         },
         "method": "POST",
-        "path": "/api/v1/agents/agt-001/memory/events"
+        "path": "/api/v1/chat/stream"
       },
       "response": {
-        "body": {
-          "content": "user asked about pricing tiers",
-          "event_id": "evt-12345",
-          "kind": "observation",
-          "source": "chat-ui",
-          "timestamp": "2026-05-31T12:00:00Z"
-        },
         "headers": {
-          "Content-Type": "application/json"
+          "Content-Type": "text/event-stream; charset=utf-8"
         },
-        "status": 201
-      }
-    },
-    {
-      "description": "fetch current soul config",
-      "providerStates": [
-        {
-          "name": "agent agt-001 has a soul configured"
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "path": "/api/v1/agents/agt-001/soul"
-      },
-      "response": {
-        "body": {
-          "custom_traits": {},
-          "language_style": "concise",
-          "tone": "warm",
-          "values": [
-            "honesty",
-            "clarity"
-          ]
-        },
-        "headers": {
-          "Content-Type": "application/json"
+        "matchingRules": {
+          "header": {
+            "Content-Type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^text/event-stream.*"
+                }
+              ]
+            }
+          }
         },
         "status": 200
       }

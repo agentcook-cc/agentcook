@@ -1,30 +1,38 @@
-"""Consumer-side Pact test: agentcook-admin → agentcook (real FastAPI shell).
+"""Consumer Pact: agentcook-admin → agentcook (Python agent runtime).
 
-Day 22 (Agent C) — scaffold for the **real** agentcook provider, separate
-from the echo-api sample. Day 24 Agent A freezes the OpenAPI; this file
-gets extended with chat / memory / agent_run interactions then.
+What the Vue admin console calls on the runtime:
 
-Today's single interaction targets the liveness probe Agent C shipped on
-Day 20: ``GET /health → 200 {"status": "ok"}`` — a stable contract that
-exists in code today, so the full link (consumer → publish → provider
-verify) actually runs end-to-end and proves the scaffolding works before
-the API surface is frozen.
+1. ``GET /health``                    — liveness on the dashboard
+2. ``GET /api/v1/skills``             — SkillListView grid
+3. ``GET /api/v1/skills/{id}``        — SkillDetailDrawer (adds the markdown body)
 
-Why a separate file from ``test_01_consumer_echo.py``: pact-python v3
-keys interactions by ``(consumer, provider)``. ``echo-api`` and
-``agentcook`` are different providers, so they need separate Pact handles
-— see the docstring in ``test_01_consumer_echo.py`` for the v3
-provider-state freezing constraint that forces this.
+Shapes use type matchers (``like`` / ``each_like``): the contract pins the
+fields and their types the admin reads, not the exact catalogue, so adding
+a skill on the provider never breaks it. Verified without a broker by
+``test_11_provider_verify_local.py`` against the live app.
+
+pact-python v3 keys a pact file by ``(consumer, provider)`` and
+``write_file`` replaces it wholesale, so every admin → agentcook
+interaction lives in this one test.
 """
 
 from __future__ import annotations
 
 import httpx
 import pytest
-from pact.v3 import Pact
+from pact.v3 import Pact, match
 
 CONSUMER = "agentcook-admin"
 PROVIDER = "agentcook"
+
+SKILL = {
+    "id": "summarize-conversation",
+    "name": "Summarize Conversation",
+    "description": "Condense a long chat into key bullet points.",
+    "version": "1.0.0",
+    "category": "memory",
+    "updated_at": "2026-06-03T09:00:00+00:00",
+}
 
 
 @pytest.mark.contract
@@ -33,18 +41,34 @@ def test_admin_agentcook_contract(pacts_dir):
 
     (
         pact.upon_receiving("a liveness probe")
-        .given("agentcook FastAPI runtime is alive")
         .with_request("GET", "/health")
         .will_respond_with(200)
+        .with_body({"status": "ok"}, content_type="application/json")
+    )
+    (
+        pact.upon_receiving("list skills for the SkillListView grid")
+        .with_request("GET", "/api/v1/skills")
+        .will_respond_with(200)
         .with_body(
+            {"items": match.each_like(match.like(SKILL), min=1), "total": match.integer(7)},
             content_type="application/json",
-            body={"status": "ok"},
+        )
+    )
+    (
+        pact.upon_receiving("fetch one skill with its body")
+        .with_request("GET", "/api/v1/skills/summarize-conversation")
+        .will_respond_with(200)
+        .with_body(
+            match.like({**SKILL, "body": "# Summarize a conversation\n..."}),
+            content_type="application/json",
         )
     )
 
     with pact.serve() as mock:
-        r = httpx.get(f"{mock.url}/health")
-        assert r.status_code == 200
-        assert r.json() == {"status": "ok"}
+        assert httpx.get(f"{mock.url}/health").json() == {"status": "ok"}
+        skills = httpx.get(f"{mock.url}/api/v1/skills").json()
+        assert skills["items"][0]["id"] == "summarize-conversation"
+        detail = httpx.get(f"{mock.url}/api/v1/skills/summarize-conversation").json()
+        assert detail["body"].startswith("# ")
 
     pact.write_file(str(pacts_dir), overwrite=True)

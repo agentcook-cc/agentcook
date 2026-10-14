@@ -7,6 +7,9 @@ const PY_API = process.env.AGENTCOOK_PY_API ?? "http://localhost:8000";
 const JAVA_API = process.env.AGENTCOOK_JAVA_API ?? "http://localhost:8080";
 
 export default defineConfig({
+  // Behind the swarm gateway the app is served under /app/ — set
+  // VITE_BASE_PATH=/app/ at build time so asset URLs and routes include it.
+  base: process.env.VITE_BASE_PATH ?? "/",
   plugins: [react()],
   resolve: {
     alias: {

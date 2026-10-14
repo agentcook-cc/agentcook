@@ -25,6 +25,7 @@ import pytest
 # (colima、Docker Desktop、Linux 原生)都能用。
 os.environ.setdefault("TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE", "/var/run/docker.sock")
 
+
 # docker-py (used by testcontainers) does not read `docker context` — it falls
 # back to /var/run/docker.sock when DOCKER_HOST is unset. On colima (default
 # install on macOS) the socket lives at ~/.colima/default/docker.sock instead,
@@ -124,3 +125,14 @@ def redis_client(redis_container) -> Iterator[object]:
     client.flushdb()
     yield client
     client.close()
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    """Every test not marked ``integration`` or ``contract`` is a ``unit`` test.
+
+    CI runs ``-m unit`` and ``-m integration`` as separate jobs; without this,
+    a test nobody remembered to mark would silently run in neither.
+    """
+    for item in items:
+        if not any(item.get_closest_marker(name) for name in ("integration", "contract")):
+            item.add_marker(pytest.mark.unit)

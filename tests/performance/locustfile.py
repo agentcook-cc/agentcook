@@ -39,7 +39,7 @@ import random
 import time
 from typing import Any
 
-from locust import FastHttpUser, HttpUser, User, between, tag, task
+from locust import FastHttpUser, User, between, tag, task
 
 JAVA_BASE = os.environ.get("LOCUST_JAVA_BASE", "http://127.0.0.1:8080")
 PYTHON_BASE = os.environ.get("LOCUST_PYTHON_BASE", "http://127.0.0.1:8000")

@@ -12,7 +12,7 @@ from config_compiler import AgentState, compile_router_config
 
 def main():
     config_path = os.path.join(os.path.dirname(__file__), "router_config.yaml")
-    
+
     # Compile YAML → LangGraph StateGraph
     graph = compile_router_config(config_path)
     print("✅ YAML config compiled to LangGraph StateGraph")
@@ -42,6 +42,7 @@ def main():
         print()
 
     print("✅ Multi-agent routing demo complete!")
+
 
 if __name__ == "__main__":
     main()

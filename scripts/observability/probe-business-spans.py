@@ -35,7 +35,9 @@ PROBE_SERVICE = "agentcook-python-probe"
 
 provider = TracerProvider(resource=Resource.create({"service.name": PROBE_SERVICE}))
 provider.add_span_processor(
-    BatchSpanProcessor(OTLPSpanExporter(endpoint=os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"], insecure=True))
+    BatchSpanProcessor(
+        OTLPSpanExporter(endpoint=os.environ["OTEL_EXPORTER_OTLP_ENDPOINT"], insecure=True)
+    )
 )
 trace.set_tracer_provider(provider)
 
@@ -51,7 +53,8 @@ from agentcook_core.types import Message  # noqa: E402
 
 def _stub_messages(n: int) -> list[Message]:
     return [
-        Message(role="user", content=f"msg {i}") if i % 2 == 0
+        Message(role="user", content=f"msg {i}")
+        if i % 2 == 0
         else Message(role="assistant", content=f"reply {i}")
         for i in range(n)
     ]
@@ -80,10 +83,7 @@ def main() -> int:
     # progress reviewer) can confirm the span tree without opening the UI.
     import urllib.request
 
-    url = (
-        "http://localhost:16686/api/traces"
-        "?service=agentcook-python-probe&limit=50&lookback=2m"
-    )
+    url = "http://localhost:16686/api/traces?service=agentcook-python-probe&limit=50&lookback=2m"
     with urllib.request.urlopen(url, timeout=5) as resp:
         data = json.load(resp)
 

@@ -1,8 +1,11 @@
-version: "3.9"
-
-# agentcook-swarm: Phase 4 microservice topology
+# agentcook-swarm: microservice topology
 # 6 services: gateway / agent-core / admin-bff / connector / admin-static / app-static
 # Traefik gateway + gRPC inter-service + etcd discovery
+#
+#   AGENTCOOK_JWT_SECRET=$(openssl rand -hex 32) AGENTCOOK_AUTH_ADMINS=admin \
+#     docker compose -f docker-compose.swarm.yml up --build
+#
+# App: http://localhost/app/   Admin: http://localhost/admin/
 
 services:
   gateway:
@@ -20,16 +23,37 @@ services:
     networks:
       - swarm-net
 
+  # Agent runtime (HTTP :8000 + gRPC :50051). Owns chat, conversations,
+  # agents, toolkits, skills, memory, logs and delegations.
   agent-core:
     build:
-      context: ../agentcook
-      dockerfile: Dockerfile
+      context: ..
+      dockerfile: agentcook-swarm/services/agent-core/Dockerfile
     environment:
+      - AGENTCOOK_ENV=production
+      - AGENTCOOK_AUTH_MODE=required
+      # The same secret signs tokens in admin-bff and verifies them here.
+      - AGENTCOOK_JWT_SECRET=${AGENTCOOK_JWT_SECRET:?set AGENTCOOK_JWT_SECRET (>= 32 bytes)}
+      - AGENTCOOK_JWT_ISSUER=agentcook-java
+      - AGENTCOOK_DATABASE_URL=postgresql://agentcook:${POSTGRES_PASSWORD:-agentcook_dev}@postgres:5432/agentcook_runtime
+      - AGENTCOOK_DB_AUTO_MIGRATE=true
+      - AGENTCOOK_REDIS_URL=redis://redis:6379/0
+      - AGENTCOOK_JAVA_BASE_URL=http://admin-bff:8080
+      - AGENTCOOK_QUOTA_ENABLED=${AGENTCOOK_QUOTA_ENABLED:-false}
+      # Model: e.g. "qwen,zhipu,mock". Unset/no keys → offline mock model.
+      - AGENTCOOK_LLM_PROVIDER=${AGENTCOOK_LLM_PROVIDER:-mock}
+      - DASHSCOPE_API_KEY=${DASHSCOPE_API_KEY:-}
+      - ZHIPU_API_KEY=${ZHIPU_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AGENTCOOK_CORS_ORIGINS=${AGENTCOOK_CORS_ORIGINS:-https://agentcook.cc}
       - OTEL_SERVICE_NAME=agent-core
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
+      - ETCD_HOST=etcd
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.agent.rule=PathPrefix(`/api/v1/chat`)"
+      - "traefik.http.routers.agent.rule=PathPrefix(`/api/v1/chat`) || PathPrefix(`/api/v1/conversations`) || PathPrefix(`/api/v1/agents`) || PathPrefix(`/api/v1/toolkits`) || PathPrefix(`/api/v1/runtime`) || PathPrefix(`/api/v1/skills`) || PathPrefix(`/api/v1/logs`)"
+      - "traefik.http.routers.agent.priority=20"
       - "traefik.http.routers.agent.middlewares=api-chain@file"
       - "traefik.http.services.agent.loadbalancer.server.port=8000"
     depends_on:
@@ -38,17 +62,25 @@ services:
     networks:
       - swarm-net
 
+  # Business backend: auth (login/register/refresh), users, quota, plugins,
+  # connectors, permissions, sessions.
   admin-bff:
     build:
       context: ../agentcook-java
       dockerfile: Dockerfile
     environment:
       - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/agentcook_business
+      - SPRING_DATASOURCE_PASSWORD=${POSTGRES_PASSWORD:-agentcook_dev}
+      - AGENTCOOK_AUTH_JWT_SECRET=${AGENTCOOK_JWT_SECRET:?set AGENTCOOK_JWT_SECRET (>= 32 bytes)}
+      - AGENTCOOK_AUTH_ADMINS=${AGENTCOOK_AUTH_ADMINS:-}
+      - PYTHON_UPSTREAM_URL=http://agent-core:8000
       - OTEL_SERVICE_NAME=admin-bff
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4317
     labels:
       - "traefik.enable=true"
-      - "traefik.http.routers.admin.rule=PathPrefix(`/api/v1/users`) || PathPrefix(`/api/v1/plugins`) || PathPrefix(`/api/v1/sessions`) || PathPrefix(`/api/v1/connectors`) || PathPrefix(`/api/v1/permissions`)"
+      - "traefik.http.routers.admin.rule=PathPrefix(`/api/v1/auth`) || PathPrefix(`/api/v1/users`) || PathPrefix(`/api/v1/quota`) || PathPrefix(`/api/v1/plugins`) || PathPrefix(`/api/v1/sessions`) || PathPrefix(`/api/v1/connectors`) || PathPrefix(`/api/v1/permissions`)"
+      - "traefik.http.routers.admin.priority=10"
       - "traefik.http.routers.admin.middlewares=api-chain@file"
       - "traefik.http.services.admin.loadbalancer.server.port=8080"
     depends_on:
@@ -65,15 +97,19 @@ services:
       - OTEL_SERVICE_NAME=connector
     labels:
       - "traefik.enable=true"
+      # Must beat admin-bff's /api/v1/connectors prefix (Traefik's default
+      # priority is the rule length, which the long admin rule would win).
       - "traefik.http.routers.connector.rule=PathPrefix(`/api/v1/connectors/exec`)"
+      - "traefik.http.routers.connector.priority=100"
+      - "traefik.http.routers.connector.middlewares=api-chain@file"
       - "traefik.http.services.connector.loadbalancer.server.port=8082"
     networks:
       - swarm-net
 
   admin-static:
     build:
-      context: ../../
-      dockerfile: agentcook-cc/agentcook-swarm/services/admin-static/Dockerfile
+      context: ..
+      dockerfile: agentcook-swarm/services/admin-static/Dockerfile
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.admin-static.rule=PathPrefix(`/admin`)"
@@ -85,8 +121,8 @@ services:
 
   app-static:
     build:
-      context: ../../
-      dockerfile: agentcook-cc/agentcook-swarm/services/app-static/Dockerfile
+      context: ..
+      dockerfile: agentcook-swarm/services/app-static/Dockerfile
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.app-static.rule=PathPrefix(`/app`)"
@@ -98,13 +134,15 @@ services:
 
   # Infrastructure
   postgres:
-    image: postgres:16-alpine
+    # pgvector: the runtime's memory store needs the vector extension.
+    image: pgvector/pgvector:pg16
     environment:
       POSTGRES_DB: agentcook_business
       POSTGRES_USER: agentcook
-      POSTGRES_PASSWORD: agentcook_dev
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-agentcook_dev}
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/10-runtime-db.sql:ro
     networks:
       - swarm-net
 

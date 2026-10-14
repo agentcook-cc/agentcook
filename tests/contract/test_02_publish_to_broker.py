@@ -61,10 +61,7 @@ def test_publish_consumer_pacts(broker_url, broker_auth, pacts_dir):
         provider = contract["provider"]["name"]
         version = _consumer_version_for(pact_file)
 
-        url = (
-            f"{broker_url}/pacts/provider/{provider}"
-            f"/consumer/{consumer}/version/{version}"
-        )
+        url = f"{broker_url}/pacts/provider/{provider}/consumer/{consumer}/version/{version}"
         resp = httpx.put(
             url,
             content=pact_file.read_bytes(),
@@ -74,6 +71,5 @@ def test_publish_consumer_pacts(broker_url, broker_auth, pacts_dir):
         )
         # 200 = updated existing, 201 = created new — both fine
         assert resp.status_code in (200, 201), (
-            f"Publish failed for {consumer}→{provider} v{version}: "
-            f"{resp.status_code} {resp.text}"
+            f"Publish failed for {consumer}→{provider} v{version}: {resp.status_code} {resp.text}"
         )

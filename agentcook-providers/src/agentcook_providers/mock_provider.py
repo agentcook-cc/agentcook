@@ -175,7 +175,9 @@ class MockProvider:
                 ):
                     return call(name, task=query)
 
-        if "sales_query" in tools and any(w in lowered for w in ("sales", "销售", "销量", "revenue")):
+        if "sales_query" in tools and any(
+            w in lowered for w in ("sales", "销售", "销量", "revenue")
+        ):
             return call("sales_query")
 
         if "competitor_prices" in tools and any(

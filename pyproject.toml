@@ -88,6 +88,7 @@ testpaths = [
     "agentcook-providers/tests",
     "agentcook-storage/tests",
     "agentcook/tests",
+    "agentcook-swarm/services/agent-core/tests",
 ]
 addopts = [
     "-ra",

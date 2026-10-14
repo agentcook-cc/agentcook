@@ -11,6 +11,7 @@ on:
       - "agentcook-providers/**"
       - "agentcook-storage/**"
       - "agentcook/**"
+      - "agentcook-swarm/**"
       - "tests/**"
       - "conftest.py"
       - "pyproject.toml"
@@ -24,6 +25,7 @@ on:
       - "agentcook-providers/**"
       - "agentcook-storage/**"
       - "agentcook/**"
+      - "agentcook-swarm/**"
       - "tests/**"
       - "conftest.py"
       - "pyproject.toml"
@@ -146,3 +148,21 @@ jobs:
         run: uv sync --group dev
       - name: Run integration tests (testcontainers PG/Redis)
         run: uv run pytest -m integration -v --no-cov
+
+  contracts:
+    # Consumer pacts (React app / Vue admin → runtime) are regenerated and
+    # verified against the live runtime with no broker; broker-only tests
+    # skip themselves. Catches API drift on every Python change.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          enable-cache: true
+      - name: Setup Python 3.12
+        run: uv python install 3.12
+      - name: Install dependencies
+        run: uv sync --group dev
+      - name: Consumer pacts + local provider verification
+        run: uv run pytest -m contract tests/contract -v --no-cov

@@ -24,3 +24,5 @@ test-results/
 playwright-report/
 storybook-static/
 scripts/e2e/screenshots/
+.turbo/
+.hypothesis/

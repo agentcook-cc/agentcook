@@ -21,11 +21,11 @@ def run_plugin_script(
     allowed_domains: list[str] | None = None,
     timeout: int = 30,
     cpu_limit: float = 0.5,
-    memory_limit: str = "512m"
+    memory_limit: str = "512m",
 ) -> SandboxResult:
     """
     在隔离的 Docker 容器中运行插件脚本
-    
+
     Args:
         plugin_dir: 插件目录路径
         script_name: 要执行的脚本名称
@@ -33,28 +33,37 @@ def run_plugin_script(
         timeout: 执行超时时间（秒）
         cpu_limit: CPU 限制（核数）
         memory_limit: 内存限制（如 "512m"）
-    
+
     Returns:
         SandboxResult 包含执行结果
     """
     # 生成唯一的容器名称以便追踪
     import uuid
+
     container_name = f"plugin-sandbox-{uuid.uuid4().hex[:8]}"
-    
+
     # 构建 docker run 命令
     cmd = [
-        "docker", "run",
-        "--name", container_name,
+        "docker",
+        "run",
+        "--name",
+        container_name,
         "--rm",
         "--read-only",
-        "--tmpfs", "/tmp:size=64m",
-        "-v", f"{plugin_dir}:/plugin:ro",
-        "--cpus", str(cpu_limit),
-        "--memory", memory_limit,
-        "--security-opt", "no-new-privileges",
-        "--user", "sandbox"
+        "--tmpfs",
+        "/tmp:size=64m",
+        "-v",
+        f"{plugin_dir}:/plugin:ro",
+        "--cpus",
+        str(cpu_limit),
+        "--memory",
+        memory_limit,
+        "--security-opt",
+        "no-new-privileges",
+        "--user",
+        "sandbox",
     ]
-    
+
     # 网络配置
     if allowed_domains:
         # POC 阶段：简化实现为启用默认网络
@@ -63,53 +72,37 @@ def run_plugin_script(
         cmd.extend(["--network", "bridge"])
     else:
         cmd.extend(["--network", "none"])
-    
+
     # 添加镜像和入口点
-    cmd.extend([
-        "agentcook-plugin-sandbox",
-        f"/plugin/scripts/{script_name}"
-    ])
-    
+    cmd.extend(["agentcook-plugin-sandbox", f"/plugin/scripts/{script_name}"])
+
     try:
         # 执行命令
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=timeout
-        )
-        
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
+
         exit_code = result.returncode
         stdout = result.stdout
         stderr = result.stderr
         timed_out = False
         oom_killed = _check_oom_status(container_name)
-        
+
     except subprocess.TimeoutExpired:
         # 超时，强制停止并清理容器
-        subprocess.run(
-            ["docker", "stop", container_name],
-            capture_output=True,
-            timeout=5
-        )
-        subprocess.run(
-            ["docker", "rm", "-f", container_name],
-            capture_output=True,
-            timeout=5
-        )
-        
+        subprocess.run(["docker", "stop", container_name], capture_output=True, timeout=5)
+        subprocess.run(["docker", "rm", "-f", container_name], capture_output=True, timeout=5)
+
         stdout = ""
         stderr = f"Execution timed out after {timeout} seconds"
         exit_code = -1
         timed_out = True
         oom_killed = False
-    
+
     return SandboxResult(
         stdout=stdout,
         stderr=stderr,
         exit_code=exit_code,
         timed_out=timed_out,
-        oom_killed=oom_killed
+        oom_killed=oom_killed,
     )
 
 
@@ -143,6 +136,7 @@ def _check_oom_status(container_name: str) -> bool:
 if __name__ == "__main__":
     # 示例用法
     import sys
+
     if len(sys.argv) >= 3:
         plugin_dir = sys.argv[1]
         script_name = sys.argv[2]

@@ -4,1362 +4,2397 @@
  */
 
 export interface paths {
-    "/api/v1/agents/{agent_id}/identity": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read an Agent's immutable identity card (ADR-011 layer 1). */
-        get: operations["get_identity_api_v1_agents__agent_id__identity_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/api/v1/agents": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/agents/{agent_id}/memory/events": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List memory events (cursor pagination, oldest → newest within page). */
-        get: operations["list_memory_events_api_v1_agents__agent_id__memory_events_get"];
-        put?: never;
-        /** Append a memory event (ADR-011 layer 3 event stream). */
-        post: operations["append_memory_event_api_v1_agents__agent_id__memory_events_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List available agents */
+    get: operations["list_agents_api_v1_agents_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/delegations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/agents/{agent_id}/memory/flush": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Flush memory events; Identity preserved (immutable). Soul optionally preserved. */
-        post: operations["flush_memory_api_v1_agents__agent_id__memory_flush_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Delegation graph for one agent (catalog topology + recent delegations) */
+    get: operations["get_delegations_api_v1_agents__agent_id__delegations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/identity": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/agents/{agent_id}/memory/search": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Semantic recall (v1 cosine; hybrid BM25 fusion Day 22). */
-        post: operations["search_memory_api_v1_agents__agent_id__memory_search_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Read an Agent's immutable identity card (ADR-011 layer 1). */
+    get: operations["get_identity_api_v1_agents__agent_id__identity_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/memory/events": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/agents/{agent_id}/soul": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Read the current (latest) SoulConfig version. */
-        get: operations["get_soul_latest_api_v1_agents__agent_id__soul_get"];
-        put?: never;
-        /** Append a new SoulConfig version (ADR-011 layer 2, append-only). */
-        post: operations["append_soul_api_v1_agents__agent_id__soul_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List memory events (cursor pagination, oldest → newest within page). */
+    get: operations["list_memory_events_api_v1_agents__agent_id__memory_events_get"];
+    put?: never;
+    /** Append a memory event (ADR-011 layer 3 event stream). */
+    post: operations["append_memory_event_api_v1_agents__agent_id__memory_events_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/memory/flush": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/agents/{agent_id}/soul/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List all SoulConfig versions (oldest → newest), capped. */
-        get: operations["list_soul_history_api_v1_agents__agent_id__soul_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Flush memory events; Identity preserved (immutable). Soul optionally preserved. */
+    post: operations["flush_memory_api_v1_agents__agent_id__memory_flush_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/memory/search": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/skills": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * List available skills
-         * @description Return all registered skills (no pagination today — B's Day 28
-         *     view caps at < 100 items; revisit when that no longer holds).
-         */
-        get: operations["list_skills_api_v1_skills_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    put?: never;
+    /** Semantic recall (v1 cosine; hybrid BM25 fusion Day 22). */
+    post: operations["search_memory_api_v1_agents__agent_id__memory_search_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/soul": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/skills/{skill_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Fetch a single skill's manifest + body */
-        get: operations["get_skill_api_v1_skills__skill_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Read the current (latest) SoulConfig version. */
+    get: operations["get_soul_latest_api_v1_agents__agent_id__soul_get"];
+    put?: never;
+    /** Append a new SoulConfig version (ADR-011 layer 2, append-only). */
+    post: operations["append_soul_api_v1_agents__agent_id__soul_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{agent_id}/soul/history": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/skills/{skill_id}/test/stream": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Execute a skill with test input and stream the result via SSE */
-        post: operations["test_skill_stream_api_v1_skills__skill_id__test_stream_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** List all SoulConfig versions (oldest → newest), capped. */
+    get: operations["list_soul_history_api_v1_agents__agent_id__soul_history_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/agents/{name}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /** Describe one agent, including its effective tool list */
+    get: operations["get_agent_api_v1_agents__name__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/chat": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run one agent turn and return the complete answer */
+    post: operations["chat_api_v1_chat_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/chat/runs/{run_id}/cancel": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Stop an in-flight agent run (the UI's Stop button) */
+    post: operations["cancel_run_api_v1_chat_runs__run_id__cancel_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/chat/stream": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Run one agent turn and stream it as Server-Sent Events */
+    post: operations["chat_stream_api_v1_chat_stream_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/conversations": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List the caller's conversations */
+    get: operations["list_conversations_api_v1_conversations_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/conversations/{session_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get a conversation's transcript */
+    get: operations["get_conversation_api_v1_conversations__session_id__get"];
+    put?: never;
+    post?: never;
+    /** Delete a conversation (cancels its active run first) */
+    delete: operations["delete_conversation_api_v1_conversations__session_id__delete"];
+    options?: never;
+    head?: never;
+    /** Rename a conversation */
+    patch: operations["rename_conversation_api_v1_conversations__session_id__patch"];
+    trace?: never;
+  };
+  "/api/v1/logs/stream": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Stream live log frames as Server-Sent Events */
+    get: operations["stream_logs_api_v1_logs_stream_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/runtime": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Runtime configuration summary (no secrets) */
+    get: operations["runtime_info_api_v1_runtime_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/skills": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List available skills */
+    get: operations["list_skills_api_v1_skills_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/skills/{skill_id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Fetch a single skill's manifest + body */
+    get: operations["get_skill_api_v1_skills__skill_id__get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/skills/{skill_id}/test/stream": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Execute a skill with test input and stream the result via SSE */
+    post: operations["test_skill_stream_api_v1_skills__skill_id__test_stream_post"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/toolkits": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List executable toolkits */
+    get: operations["list_toolkits_api_v1_toolkits_get"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /**
-         * ErrorEnvelope
-         * @description Flat error shape — matches frontend-conventions §7.6 (B canonical).
-         */
-        ErrorEnvelope: {
-            /**
-             * Code
-             * @description Machine-readable error code (UPPER_SNAKE).
-             */
-            code: string;
-            /**
-             * Detail
-             * @description Optional structured context.
-             */
-            detail?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Message
-             * @description Human-readable description.
-             */
-            message: string;
-        };
-        /** FlushRequest */
-        FlushRequest: {
-            /**
-             * Confirm
-             * @description Exact string required to prevent accidental flush.
-             * @constant
-             */
-            confirm: "I understand this deletes all events for this agent.";
-            /**
-             * Preserve Identity And Soul
-             * @default true
-             */
-            preserve_identity_and_soul: boolean;
-        };
-        /** FlushResponse */
-        FlushResponse: {
-            /** Deleted Event Count */
-            deleted_event_count: number;
-            /** Identity Preserved */
-            identity_preserved: boolean;
-            /** Soul Preserved */
-            soul_preserved: boolean;
-        };
-        /** HTTPValidationError */
-        HTTPValidationError: {
-            /** Detail */
-            detail?: components["schemas"]["ValidationError"][];
-        };
-        /** IdentityResponse */
-        IdentityResponse: {
-            /**
-             * Created At
-             * @description ISO-8601 UTC timestamp
-             */
-            created_at: string;
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            };
-            /** Name */
-            name: string;
-            /** Role */
-            role: string;
-            /** Scopes */
-            scopes?: string[];
-        };
-        /**
-         * MemoryEventCreate
-         * @description Body for ``POST /agents/{id}/memory/events``.
-         *
-         *     Server assigns ``id`` and (if omitted) ``timestamp``.
-         */
-        MemoryEventCreate: {
-            /** Content */
-            content: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "observation" | "decision" | "tool_use" | "user_input" | "reflection";
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            };
-            /** Source */
-            source?: string | null;
-            /**
-             * Timestamp
-             * @description ISO-8601 UTC. If omitted, server sets it at write time.
-             */
-            timestamp?: string | null;
-        };
-        /**
-         * MemoryEventListResponse
-         * @description Cursor-pagination response.
-         *
-         *     Note: per `frontend-conventions §7.6` constraint #5 list endpoints
-         *     should expose ``{items, total, page, size}``. Memory event listing
-         *     intentionally uses **cursor pagination** instead (event streams are
-         *     append-only — page/size becomes unstable as new events arrive).
-         *     Documented exception; flagged in §7 increment to B.
-         */
-        MemoryEventListResponse: {
-            /** Items */
-            items?: components["schemas"]["MemoryEventResponse"][];
-            /** Next Cursor */
-            next_cursor?: string | null;
-        };
-        /** MemoryEventResponse */
-        MemoryEventResponse: {
-            /** Content */
-            content: string;
-            /**
-             * Id
-             * @description String id to avoid enumeration attacks.
-             */
-            id: string;
-            /**
-             * Kind
-             * @enum {string}
-             */
-            kind: "observation" | "decision" | "tool_use" | "user_input" | "reflection";
-            /** Metadata */
-            metadata?: {
-                [key: string]: unknown;
-            };
-            /** Source */
-            source?: string | null;
-            /** Timestamp */
-            timestamp: string;
-        };
-        /** MemoryHitResponse */
-        MemoryHitResponse: {
-            /** Content */
-            content: string;
-            event?: components["schemas"]["MemoryEventResponse"] | null;
-            /** Score */
-            score: number;
-        };
-        /** SearchRequest */
-        SearchRequest: {
-            /** Query */
-            query: string;
-            /**
-             * Top K
-             * @default 5
-             */
-            top_k: number;
-        };
-        /** SearchResponse */
-        SearchResponse: {
-            /** Hits */
-            hits?: components["schemas"]["MemoryHitResponse"][];
-            /** Query */
-            query: string;
-        };
-        /**
-         * SkillDetailResponse
-         * @description ``GET /api/v1/skills/{id}`` — adds the skill body (markdown + frontmatter).
-         */
-        SkillDetailResponse: {
-            /**
-             * Body
-             * @description Raw skill body (markdown). Empty for placeholder skills.
-             */
-            body: string;
-            /**
-             * Category
-             * @description Loose grouping (memory / nlp / chat / ...).
-             */
-            category: string;
-            /**
-             * Description
-             * @description One-line summary.
-             */
-            description: string;
-            /**
-             * Id
-             * @description Stable skill identifier (kebab-case).
-             */
-            id: string;
-            /**
-             * Name
-             * @description Display name.
-             */
-            name: string;
-            /**
-             * Updated At
-             * @description ISO-8601 UTC timestamp of last edit.
-             */
-            updated_at: string;
-            /**
-             * Version
-             * @description Semver string from the skill manifest.
-             */
-            version: string;
-        };
-        /**
-         * SkillListResponse
-         * @description Envelope for the skill list endpoint.
-         */
-        SkillListResponse: {
-            /**
-             * Items
-             * @description Skills, ordered as the registry yields them.
-             */
-            items: components["schemas"]["SkillSummary"][];
-            /**
-             * Total
-             * @description Total count — equals ``len(items)`` until pagination lands.
-             */
-            total: number;
-        };
-        /**
-         * SkillSummary
-         * @description One row in ``GET /api/v1/skills`` — what B's SkillListView shows.
-         */
-        SkillSummary: {
-            /**
-             * Category
-             * @description Loose grouping (memory / nlp / chat / ...).
-             */
-            category: string;
-            /**
-             * Description
-             * @description One-line summary.
-             */
-            description: string;
-            /**
-             * Id
-             * @description Stable skill identifier (kebab-case).
-             */
-            id: string;
-            /**
-             * Name
-             * @description Display name.
-             */
-            name: string;
-            /**
-             * Updated At
-             * @description ISO-8601 UTC timestamp of last edit.
-             */
-            updated_at: string;
-            /**
-             * Version
-             * @description Semver string from the skill manifest.
-             */
-            version: string;
-        };
-        /**
-         * SkillTestRequest
-         * @description Body for ``POST /api/v1/skills/{id}/test/stream``.
-         *
-         *     The ``input`` is whatever the SkillTestDialog's textarea contains;
-         *     structured ``args`` may be added later (Phase 5 once real skill
-         *     schemas are loaded). Today the SSE mock ignores ``args`` and just
-         *     echoes ``input`` back through the streamed chunks.
-         */
-        SkillTestRequest: {
-            /**
-             * Args
-             * @description Optional structured args (Phase 5).
-             */
-            args?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Input
-             * @description Free-form test input the skill will receive.
-             */
-            input: string;
-        };
-        /** SoulConfigBody */
-        SoulConfigBody: {
-            /** Custom Traits */
-            custom_traits?: {
-                [key: string]: string;
-            };
-            /**
-             * Language Style
-             * @default concise
-             */
-            language_style: string;
-            /**
-             * Tone
-             * @default neutral
-             */
-            tone: string;
-            /** Values */
-            values?: string[];
-        };
-        /** SoulHistoryResponse */
-        SoulHistoryResponse: {
-            /** Items */
-            items?: components["schemas"]["SoulVersionResponse"][];
-        };
-        /**
-         * SoulResponse
-         * @description Returned with the persisted version (echoes input on POST).
-         */
-        SoulResponse: {
-            /** Custom Traits */
-            custom_traits?: {
-                [key: string]: string;
-            };
-            /**
-             * Language Style
-             * @default concise
-             */
-            language_style: string;
-            /**
-             * Tone
-             * @default neutral
-             */
-            tone: string;
-            /** Values */
-            values?: string[];
-        };
-        /**
-         * SoulVersionResponse
-         * @description A single point in the per-agent soul history.
-         */
-        SoulVersionResponse: {
-            config: components["schemas"]["SoulConfigBody"];
-            /** Created At */
-            created_at: string;
-            /** Version */
-            version: number;
-        };
-        /** ValidationError */
-        ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
-            /** Location */
-            loc: (string | number)[];
-            /** Message */
-            msg: string;
-            /** Error Type */
-            type: string;
-        };
+  schemas: {
+    /** AgentDetail */
+    AgentDetail: {
+      /** Default */
+      default: boolean;
+      /** Delegates */
+      delegates: string[];
+      /** Description */
+      description: string;
+      /** Instance Id */
+      instance_id: string;
+      /** Instructions */
+      instructions: string;
+      /** Max Turns */
+      max_turns: number;
+      /** Memory */
+      memory: boolean;
+      /** Name */
+      name: string;
+      /** Skills */
+      skills: string[];
+      /** Title */
+      title: string;
+      /** Toolkits */
+      toolkits: string[];
+      /** Tools */
+      tools: components["schemas"]["ToolInfo"][];
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** AgentInfo */
+    AgentInfo: {
+      /** Default */
+      default: boolean;
+      /** Delegates */
+      delegates: string[];
+      /** Description */
+      description: string;
+      /** Instance Id */
+      instance_id: string;
+      /** Memory */
+      memory: boolean;
+      /** Name */
+      name: string;
+      /** Skills */
+      skills: string[];
+      /** Title */
+      title: string;
+      /** Toolkits */
+      toolkits: string[];
+    };
+    /** AgentListResponse */
+    AgentListResponse: {
+      /** Default Agent */
+      default_agent: string;
+      /** Items */
+      items: components["schemas"]["AgentInfo"][];
+    };
+    /** ChatCancelResponse */
+    ChatCancelResponse: {
+      /** Cancelled */
+      cancelled: boolean;
+      /** Run Id */
+      run_id: string;
+    };
+    /**
+     * ChatResponse
+     * @description Non-streaming result of ``POST /api/v1/chat``.
+     */
+    ChatResponse: {
+      /** Agent */
+      agent: string;
+      /** Content */
+      content: string;
+      /** Error */
+      error?: string | null;
+      /** Finish Reason */
+      finish_reason?: string | null;
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      };
+      /** Run Id */
+      run_id: string;
+      /** Session Id */
+      session_id: string;
+      /** Tool Calls */
+      tool_calls?: components["schemas"]["ToolCallView"][];
+    };
+    /**
+     * ChatStreamRequest
+     * @description Request body for ``POST /api/v1/chat/stream`` and ``POST /api/v1/chat``.
+     */
+    ChatStreamRequest: {
+      /**
+       * Agent
+       * @description Agent to talk to (see GET /api/v1/agents); defaults to the default agent.
+       */
+      agent?: string | null;
+      /** Max Tokens */
+      max_tokens?: number | null;
+      /**
+       * Message
+       * @description User message content.
+       */
+      message: string;
+      /**
+       * Model
+       * @description Provider override such as 'qwen:qwen-plus' or 'mock'. Ignored in production.
+       */
+      model?: string | null;
+      /**
+       * Plugin Ids
+       * @description Extra toolkit ids to enable for this turn (see GET /api/v1/toolkits).
+       */
+      plugin_ids?: string[];
+      /**
+       * Session Id
+       * @description Conversation id. Created on first use; must belong to the caller.
+       */
+      session_id: string;
+      /** Temperature */
+      temperature?: number | null;
+    };
+    /**
+     * DelegationEdge
+     * @description A single delegation event from ``from_id`` to ``to_id`` (a reactflow edge).
+     */
+    DelegationEdge: {
+      /**
+       * Completed At
+       * @description ISO-8601 UTC; null while in-flight.
+       */
+      completed_at?: string | null;
+      /**
+       * From Id
+       * @description Delegator agent id.
+       */
+      from_id: string;
+      /**
+       * Id
+       * @description Stable edge identifier.
+       */
+      id: string;
+      /**
+       * Started At
+       * @description ISO-8601 UTC timestamp.
+       */
+      started_at: string;
+      /**
+       * Status
+       * @description Lifecycle state of the delegation.
+       * @enum {string}
+       */
+      status: "pending" | "running" | "succeeded" | "failed" | "cancelled";
+      /**
+       * Task
+       * @description Short description of the delegated task.
+       */
+      task: string;
+      /**
+       * To Id
+       * @description Delegate agent id.
+       */
+      to_id: string;
+    };
+    /**
+     * DelegationGraphResponse
+     * @description ``GET /api/v1/agents/{agent_id}/delegations`` envelope.
+     */
+    DelegationGraphResponse: {
+      /**
+       * Agent Id
+       * @description Root agent the graph is centred on.
+       */
+      agent_id: string;
+      /**
+       * Edges
+       * @description Delegation events, oldest first.
+       */
+      edges: components["schemas"]["DelegationEdge"][];
+      /**
+       * Nodes
+       * @description All agents that participated.
+       */
+      nodes: components["schemas"]["DelegationNode"][];
+    };
+    /**
+     * DelegationNode
+     * @description One agent in the delegation graph (a reactflow node).
+     */
+    DelegationNode: {
+      /**
+       * Id
+       * @description Stable agent identifier within this graph.
+       */
+      id: string;
+      /**
+       * Name
+       * @description Display label.
+       */
+      name: string;
+      /**
+       * Role
+       * @description Agent role (planner / coder / reviewer / ...).
+       */
+      role: string;
+    };
+    /**
+     * ErrorEnvelope
+     * @description Flat error shape — matches frontend-conventions §7.6 (B canonical).
+     */
+    ErrorEnvelope: {
+      /**
+       * Code
+       * @description Machine-readable error code (UPPER_SNAKE).
+       */
+      code: string;
+      /**
+       * Detail
+       * @description Optional structured context.
+       */
+      detail?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Message
+       * @description Human-readable description.
+       */
+      message: string;
+    };
+    /** FlushRequest */
+    FlushRequest: {
+      /**
+       * Confirm
+       * @description Exact string required to prevent accidental flush.
+       * @constant
+       */
+      confirm: "I understand this deletes all events for this agent.";
+      /**
+       * Preserve Identity And Soul
+       * @default true
+       */
+      preserve_identity_and_soul: boolean;
+    };
+    /** FlushResponse */
+    FlushResponse: {
+      /** Deleted Event Count */
+      deleted_event_count: number;
+      /** Identity Preserved */
+      identity_preserved: boolean;
+      /** Soul Preserved */
+      soul_preserved: boolean;
+    };
+    /** IdentityResponse */
+    IdentityResponse: {
+      /**
+       * Created At
+       * @description ISO-8601 UTC timestamp
+       */
+      created_at: string;
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      };
+      /** Name */
+      name: string;
+      /** Role */
+      role: string;
+      /** Scopes */
+      scopes?: string[];
+    };
+    /**
+     * MemoryEventCreate
+     * @description Body for ``POST /agents/{id}/memory/events``.
+     *
+     *     Server assigns ``id`` and (if omitted) ``timestamp``.
+     */
+    MemoryEventCreate: {
+      /** Content */
+      content: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "observation" | "decision" | "tool_use" | "user_input" | "reflection";
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      };
+      /** Source */
+      source?: string | null;
+      /**
+       * Timestamp
+       * @description ISO-8601 UTC. If omitted, server sets it at write time.
+       */
+      timestamp?: string | null;
+    };
+    /**
+     * MemoryEventListResponse
+     * @description Cursor-pagination response.
+     *
+     *     Note: per `frontend-conventions §7.6` constraint #5 list endpoints
+     *     should expose ``{items, total, page, size}``. Memory event listing
+     *     intentionally uses **cursor pagination** instead (event streams are
+     *     append-only — page/size becomes unstable as new events arrive).
+     *     Documented exception; flagged in §7 increment to B.
+     */
+    MemoryEventListResponse: {
+      /** Items */
+      items?: components["schemas"]["MemoryEventResponse"][];
+      /** Next Cursor */
+      next_cursor?: string | null;
+    };
+    /** MemoryEventResponse */
+    MemoryEventResponse: {
+      /** Content */
+      content: string;
+      /**
+       * Id
+       * @description String id to avoid enumeration attacks.
+       */
+      id: string;
+      /**
+       * Kind
+       * @enum {string}
+       */
+      kind: "observation" | "decision" | "tool_use" | "user_input" | "reflection";
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      };
+      /** Source */
+      source?: string | null;
+      /** Timestamp */
+      timestamp: string;
+    };
+    /** MemoryHitResponse */
+    MemoryHitResponse: {
+      /** Content */
+      content: string;
+      event?: components["schemas"]["MemoryEventResponse"] | null;
+      /** Score */
+      score: number;
+    };
+    /** RenameSessionRequest */
+    RenameSessionRequest: {
+      /** Title */
+      title: string;
+    };
+    /** SearchRequest */
+    SearchRequest: {
+      /** Query */
+      query: string;
+      /**
+       * Top K
+       * @default 5
+       */
+      top_k: number;
+    };
+    /** SearchResponse */
+    SearchResponse: {
+      /** Hits */
+      hits?: components["schemas"]["MemoryHitResponse"][];
+      /** Query */
+      query: string;
+    };
+    /** SessionListResponse */
+    SessionListResponse: {
+      /** Items */
+      items: components["schemas"]["SessionSummary"][];
+      /** Total */
+      total: number;
+    };
+    /** SessionSummary */
+    SessionSummary: {
+      /** Active Run Id */
+      active_run_id?: string | null;
+      /** Agent */
+      agent: string;
+      /** Created At */
+      created_at: string;
+      /** Id */
+      id: string;
+      /** Message Count */
+      message_count: number;
+      /** Title */
+      title: string;
+      /** Updated At */
+      updated_at: string;
+    };
+    /**
+     * SkillDetailResponse
+     * @description ``GET /api/v1/skills/{id}`` — adds the skill body (markdown + frontmatter).
+     */
+    SkillDetailResponse: {
+      /**
+       * Body
+       * @description Raw skill body (markdown). Empty for placeholder skills.
+       */
+      body: string;
+      /**
+       * Category
+       * @description Loose grouping (memory / nlp / chat / ...).
+       */
+      category: string;
+      /**
+       * Description
+       * @description One-line summary.
+       */
+      description: string;
+      /**
+       * Id
+       * @description Stable skill identifier (kebab-case).
+       */
+      id: string;
+      /**
+       * Name
+       * @description Display name.
+       */
+      name: string;
+      /**
+       * Updated At
+       * @description ISO-8601 UTC timestamp of last edit.
+       */
+      updated_at: string;
+      /**
+       * Version
+       * @description Semver string from the skill manifest.
+       */
+      version: string;
+    };
+    /**
+     * SkillListResponse
+     * @description Envelope for the skill list endpoint.
+     */
+    SkillListResponse: {
+      /**
+       * Items
+       * @description Skills, ordered as the registry yields them.
+       */
+      items: components["schemas"]["SkillSummary"][];
+      /**
+       * Total
+       * @description Total count — equals ``len(items)`` until pagination lands.
+       */
+      total: number;
+    };
+    /**
+     * SkillSummary
+     * @description One row in ``GET /api/v1/skills`` — what B's SkillListView shows.
+     */
+    SkillSummary: {
+      /**
+       * Category
+       * @description Loose grouping (memory / nlp / chat / ...).
+       */
+      category: string;
+      /**
+       * Description
+       * @description One-line summary.
+       */
+      description: string;
+      /**
+       * Id
+       * @description Stable skill identifier (kebab-case).
+       */
+      id: string;
+      /**
+       * Name
+       * @description Display name.
+       */
+      name: string;
+      /**
+       * Updated At
+       * @description ISO-8601 UTC timestamp of last edit.
+       */
+      updated_at: string;
+      /**
+       * Version
+       * @description Semver string from the skill manifest.
+       */
+      version: string;
+    };
+    /**
+     * SkillTestRequest
+     * @description Body for ``POST /api/v1/skills/{id}/test/stream``.
+     *
+     *     The ``input`` is whatever the SkillTestDialog's textarea contains;
+     *     structured ``args`` may be added later (Phase 5 once real skill
+     *     schemas are loaded). Today the SSE mock ignores ``args`` and just
+     *     echoes ``input`` back through the streamed chunks.
+     */
+    SkillTestRequest: {
+      /**
+       * Args
+       * @description Optional structured args (Phase 5).
+       */
+      args?: {
+        [key: string]: unknown;
+      } | null;
+      /**
+       * Input
+       * @description Free-form test input the skill will receive.
+       */
+      input: string;
+    };
+    /** SoulConfigBody */
+    SoulConfigBody: {
+      /** Custom Traits */
+      custom_traits?: {
+        [key: string]: string;
+      };
+      /**
+       * Language Style
+       * @default concise
+       */
+      language_style: string;
+      /**
+       * Tone
+       * @default neutral
+       */
+      tone: string;
+      /** Values */
+      values?: string[];
+    };
+    /** SoulHistoryResponse */
+    SoulHistoryResponse: {
+      /** Items */
+      items?: components["schemas"]["SoulVersionResponse"][];
+    };
+    /**
+     * SoulResponse
+     * @description Returned with the persisted version (echoes input on POST).
+     */
+    SoulResponse: {
+      /** Custom Traits */
+      custom_traits?: {
+        [key: string]: string;
+      };
+      /**
+       * Language Style
+       * @default concise
+       */
+      language_style: string;
+      /**
+       * Tone
+       * @default neutral
+       */
+      tone: string;
+      /** Values */
+      values?: string[];
+    };
+    /**
+     * SoulVersionResponse
+     * @description A single point in the per-agent soul history.
+     */
+    SoulVersionResponse: {
+      config: components["schemas"]["SoulConfigBody"];
+      /** Created At */
+      created_at: string;
+      /** Version */
+      version: number;
+    };
+    /**
+     * ToolCallView
+     * @description A tool call as rendered in the chat UI.
+     */
+    ToolCallView: {
+      /** Arguments */
+      arguments?: {
+        [key: string]: unknown;
+      };
+      /** Duration Ms */
+      duration_ms?: number | null;
+      /** Error */
+      error?: string | null;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Output */
+      output?: string | null;
+      /**
+       * Status
+       * @enum {string}
+       */
+      status: "running" | "success" | "error";
+      /** Turn */
+      turn?: number | null;
+    };
+    /** ToolInfo */
+    ToolInfo: {
+      /** Description */
+      description: string;
+      /** Name */
+      name: string;
+      /** Parameters */
+      parameters?: {
+        [key: string]: unknown;
+      };
+    };
+    /** ToolkitInfo */
+    ToolkitInfo: {
+      /** Description */
+      description: string;
+      /** Id */
+      id: string;
+      /** Name */
+      name: string;
+      /** Tools */
+      tools: components["schemas"]["ToolInfo"][];
+    };
+    /** ToolkitListResponse */
+    ToolkitListResponse: {
+      /** Items */
+      items: components["schemas"]["ToolkitInfo"][];
+    };
+    /**
+     * TranscriptMessage
+     * @description A transcript entry. Tool results are folded into ``tool_calls`` of
+     *     the assistant message that requested them, matching the live UI.
+     */
+    TranscriptMessage: {
+      /** Content */
+      content: string;
+      /** Created At */
+      created_at?: string | null;
+      /** Id */
+      id: string;
+      /** Metadata */
+      metadata?: {
+        [key: string]: unknown;
+      };
+      /**
+       * Role
+       * @enum {string}
+       */
+      role: "user" | "assistant";
+      /** Tool Calls */
+      tool_calls?: components["schemas"]["ToolCallView"][];
+    };
+    /** TranscriptResponse */
+    TranscriptResponse: {
+      /** Messages */
+      messages: components["schemas"]["TranscriptMessage"][];
+      session: components["schemas"]["SessionSummary"];
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    get_identity_api_v1_agents__agent_id__identity_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["IdentityResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
+  list_agents_api_v1_agents_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
     };
-    list_memory_events_api_v1_agents__agent_id__memory_events_get: {
-        parameters: {
-            query?: {
-                /** @description ISO-8601 UTC lower bound. */
-                since?: string | null;
-                kind?: ("observation" | "decision" | "tool_use" | "user_input" | "reflection") | null;
-                limit?: number;
-                cursor?: string | null;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemoryEventListResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["AgentListResponse"];
         };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
     };
-    append_memory_event_api_v1_agents__agent_id__memory_events_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["MemoryEventCreate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MemoryEventResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
+  };
+  get_delegations_api_v1_agents__agent_id__delegations_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        agent_id: string;
+      };
+      cookie?: never;
     };
-    flush_memory_api_v1_agents__agent_id__memory_flush_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["FlushRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["DelegationGraphResponse"];
         };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["FlushResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Confirm string missing or wrong. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
+      };
+      /** @description Agent not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
     };
-    search_memory_api_v1_agents__agent_id__memory_search_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SearchRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SearchResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
+  };
+  get_identity_api_v1_agents__agent_id__identity_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
     };
-    get_soul_latest_api_v1_agents__agent_id__soul_get: {
-        parameters: {
-            query?: never;
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SoulResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["IdentityResponse"];
         };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
     };
-    append_soul_api_v1_agents__agent_id__soul_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                "x-confirm-identity-change"?: boolean | null;
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SoulConfigBody"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SoulVersionResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description X-Confirm-Identity-Change header required to mutate Soul. */
-            412: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-        };
+  };
+  list_memory_events_api_v1_agents__agent_id__memory_events_get: {
+    parameters: {
+      query?: {
+        /** @description ISO-8601 UTC lower bound. */
+        since?: string | null;
+        kind?: ("observation" | "decision" | "tool_use" | "user_input" | "reflection") | null;
+        limit?: number;
+        cursor?: string | null;
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
     };
-    list_soul_history_api_v1_agents__agent_id__soul_history_get: {
-        parameters: {
-            query?: {
-                limit?: number;
-            };
-            header?: {
-                authorization?: string | null;
-            };
-            path: {
-                /** @description Agent identifier */
-                agent_id: string;
-            };
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SoulHistoryResponse"];
-                };
-            };
-            /** @description Malformed request body (e.g. invalid JSON). */
-            400: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Missing or invalid access token. */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Authenticated user lacks required scope. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Agent not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description HTTP method not allowed on this path. */
-            405: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Path / query / body validation failed. */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
-            /** @description Internal server error. */
-            500: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorEnvelope"];
-                };
-            };
+        content: {
+          "application/json": components["schemas"]["MemoryEventListResponse"];
         };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
     };
-    list_skills_api_v1_skills_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillListResponse"];
-                };
-            };
-        };
+  };
+  append_memory_event_api_v1_agents__agent_id__memory_events_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
     };
-    get_skill_api_v1_skills__skill_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Skill identifier */
-                skill_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SkillDetailResponse"];
-                };
-            };
-            /** @description Skill not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["MemoryEventCreate"];
+      };
     };
-    test_skill_stream_api_v1_skills__skill_id__test_stream_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                /** @description Skill identifier */
-                skill_id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SkillTestRequest"];
-            };
+        content: {
+          "application/json": components["schemas"]["MemoryEventResponse"];
         };
-        responses: {
-            /** @description SSE stream of skill execution chunks. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": unknown;
-                    "text/event-stream": unknown;
-                };
-            };
-            /** @description Skill not found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
     };
+  };
+  flush_memory_api_v1_agents__agent_id__memory_flush_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["FlushRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["FlushResponse"];
+        };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  search_memory_api_v1_agents__agent_id__memory_search_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SearchRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SearchResponse"];
+        };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  get_soul_latest_api_v1_agents__agent_id__soul_get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SoulResponse"];
+        };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  append_soul_api_v1_agents__agent_id__soul_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "x-confirm-identity-change"?: boolean | null;
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SoulConfigBody"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SoulVersionResponse"];
+        };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description X-Confirm-Identity-Change header required to mutate Soul. */
+      412: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  list_soul_history_api_v1_agents__agent_id__soul_history_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Agent identifier */
+        agent_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SoulHistoryResponse"];
+        };
+      };
+      /** @description Malformed request body (e.g. invalid JSON). */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Missing or invalid access token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Authenticated user lacks required scope. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Agent not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description HTTP method not allowed on this path. */
+      405: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Internal server error. */
+      500: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  get_agent_api_v1_agents__name__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        name: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["AgentDetail"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  chat_api_v1_chat_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Turnstile-Token"?: string | null;
+        "X-Forwarded-For"?: string | null;
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChatStreamRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChatResponse"];
+        };
+      };
+      /** @description Unauthorized */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Not Found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Conflict */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  cancel_run_api_v1_chat_runs__run_id__cancel_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        run_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ChatCancelResponse"];
+        };
+      };
+      /** @description No active run with this id. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  chat_stream_api_v1_chat_stream_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        "X-Turnstile-Token"?: string | null;
+        "X-Forwarded-For"?: string | null;
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ChatStreamRequest"];
+      };
+    };
+    responses: {
+      /** @description SSE stream of chat frames. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+          "text/event-stream": unknown;
+        };
+      };
+      /** @description Missing/invalid token or Turnstile rejection. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Unknown agent or session. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Session already has an active run. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  list_conversations_api_v1_conversations_get: {
+    parameters: {
+      query?: {
+        limit?: number;
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionListResponse"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  get_conversation_api_v1_conversations__session_id__get: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Conversation id */
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["TranscriptResponse"];
+        };
+      };
+      /** @description Conversation not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  delete_conversation_api_v1_conversations__session_id__delete: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Conversation id */
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Conversation not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  rename_conversation_api_v1_conversations__session_id__patch: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Conversation id */
+        session_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RenameSessionRequest"];
+      };
+    };
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SessionSummary"];
+        };
+      };
+      /** @description Conversation not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  stream_logs_api_v1_logs_stream_get: {
+    parameters: {
+      query?: {
+        /** @description Snapshot size (follow=false). */
+        limit?: number;
+        /** @description Frames replayed before tailing. */
+        history?: number;
+        /** @description Keep streaming new lines. */
+        follow?: boolean;
+        /** @description Minimum level. */
+        level?: ("debug" | "info" | "warning" | "error" | "critical") | null;
+      };
+      header?: {
+        authorization?: string | null;
+      };
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description SSE stream of log frames. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+          "text/event-stream": unknown;
+        };
+      };
+      /** @description Forbidden */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  runtime_info_api_v1_runtime_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": {
+            [key: string]: unknown;
+          };
+        };
+      };
+    };
+  };
+  list_skills_api_v1_skills_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SkillListResponse"];
+        };
+      };
+    };
+  };
+  get_skill_api_v1_skills__skill_id__get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        /** @description Skill identifier */
+        skill_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["SkillDetailResponse"];
+        };
+      };
+      /** @description Skill not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  test_skill_stream_api_v1_skills__skill_id__test_stream_post: {
+    parameters: {
+      query?: never;
+      header?: {
+        authorization?: string | null;
+      };
+      path: {
+        /** @description Skill identifier */
+        skill_id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["SkillTestRequest"];
+      };
+    };
+    responses: {
+      /** @description SSE stream of skill execution chunks. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": unknown;
+          "text/event-stream": unknown;
+        };
+      };
+      /** @description Skill not found */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+      /** @description Request validation failed. */
+      422: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ErrorEnvelope"];
+        };
+      };
+    };
+  };
+  list_toolkits_api_v1_toolkits_get: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Successful Response */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "application/json": components["schemas"]["ToolkitListResponse"];
+        };
+      };
+    };
+  };
 }

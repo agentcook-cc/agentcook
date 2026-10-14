@@ -104,9 +104,7 @@ def agentcook_provider_server() -> Iterator[str]:
     ),
     strict=False,
 )
-def test_agentcook_satisfies_broker_contracts(
-    broker_url, broker_auth, agentcook_provider_server
-):
+def test_agentcook_satisfies_broker_contracts(broker_url, broker_auth, agentcook_provider_server):
     user, password = broker_auth
 
     cmd = [

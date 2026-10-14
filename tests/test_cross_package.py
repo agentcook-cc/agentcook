@@ -52,10 +52,17 @@ def test_core_x_storage_pgvector_satisfies_memory_store_protocol() -> None:
 
     # Smoke-construct with stubs (no live PG required for structural check).
     class _StubPg:
-        async def execute(self, *a, **k): return "OK"
-        async def fetch(self, *a, **k): return []
-        async def fetchrow(self, *a, **k): return None
-        async def close(self): pass
+        async def execute(self, *a, **k):
+            return "OK"
+
+        async def fetch(self, *a, **k):
+            return []
+
+        async def fetchrow(self, *a, **k):
+            return None
+
+        async def close(self):
+            pass
 
     async def stub_embed(text: str) -> list[float]:
         return [0.0, 0.0, 0.0]
@@ -82,10 +89,17 @@ def test_providers_x_storage_embedder_wiring_shape() -> None:
     e: Embedder = dim3_embedder
 
     class _StubPg:
-        async def execute(self, *a, **k): return "OK"
-        async def fetch(self, *a, **k): return []
-        async def fetchrow(self, *a, **k): return None
-        async def close(self): pass
+        async def execute(self, *a, **k):
+            return "OK"
+
+        async def fetch(self, *a, **k):
+            return []
+
+        async def fetchrow(self, *a, **k):
+            return None
+
+        async def close(self):
+            pass
 
     store = PgVectorMemoryStore(_StubPg(), e, vector_dim=3)  # type: ignore[arg-type]
     assert callable(e)
@@ -100,8 +114,14 @@ def test_core_x_agentcook_pg_runtime_satisfies_agent_runtime_protocol() -> None:
     # Structural check via attribute presence (PgAgentRuntime constructor
     # needs a live store; we only assert the class shape here).
     runtime_methods = {
-        "get_identity", "get_soul_latest", "append_soul", "list_soul_history",
-        "append_memory_event", "list_memory_events", "search_memory", "flush_memory",
+        "get_identity",
+        "get_soul_latest",
+        "append_soul",
+        "list_soul_history",
+        "append_memory_event",
+        "list_memory_events",
+        "search_memory",
+        "flush_memory",
     }
     assert runtime_methods <= set(dir(PgAgentRuntime))
 
@@ -114,6 +134,7 @@ def test_core_x_agentcook_pg_runtime_satisfies_agent_runtime_protocol() -> None:
 def _docker_available() -> bool:
     try:
         import docker
+
         docker.from_env(timeout=2).ping()
         return True
     except Exception:
@@ -136,6 +157,7 @@ def _pgvector_dsn() -> Iterator[str]:
 
         async def _ping() -> None:
             import asyncpg
+
             deadline = time.time() + 60
             while time.time() < deadline:
                 try:
@@ -207,6 +229,7 @@ async def test_core_x_agentcook_end_to_end_via_http_and_pgvector(_pgvector_dsn: 
         # Run `alembic upgrade head` against the ephemeral test DB instead
         # of the now-deleted PgAgentRuntime.ensure_schema().
         import subprocess
+
         alembic_dir = os.path.join(os.path.dirname(__file__), "..", "agentcook")
         psycopg_dsn = _pgvector_dsn.replace("postgresql://", "postgresql+psycopg://")
         subprocess.run(

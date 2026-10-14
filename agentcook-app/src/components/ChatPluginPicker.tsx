@@ -1,96 +1,93 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { javaClient } from "@/api/client";
-
-interface PluginDto {
-  id: string;
-  name: string;
-  kind: string;
-  status: string;
-}
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useToolkits } from "@/hooks/useRuntimeData";
 
 interface ChatPluginPickerProps {
+  /** Toolkit ids sent as `plugin_ids` with the next turn. */
   selectedIds: string[];
   onChange: (ids: string[]) => void;
+  /** Toolkits the current agent already has (shown as always-on). */
+  builtIn?: string[];
 }
 
-const MOCK_PLUGINS: PluginDto[] = [
-  { id: "p1", name: "Code Interpreter", kind: "MCP", status: "PUBLISHED" },
-  { id: "p2", name: "GitHub Connector", kind: "OAUTH", status: "PUBLISHED" },
-  { id: "p3", name: "Web Search", kind: "HTTP", status: "PUBLISHED" },
-];
-
-export default function ChatPluginPicker({ selectedIds, onChange }: ChatPluginPickerProps) {
-  const [plugins, setPlugins] = useState<PluginDto[]>([]);
+/**
+ * Picks extra *toolkits* for a turn — executable tool bundles reported by
+ * the runtime (`GET /api/v1/toolkits`). Unlike the plugin catalog in the
+ * admin console (installable packages managed by agentcook-java), every
+ * entry here can actually run right now.
+ */
+export default function ChatPluginPicker({ selectedIds, onChange, builtIn = [] }: ChatPluginPickerProps) {
+  const { t } = useTranslation();
+  const { data } = useToolkits();
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await javaClient.get<PluginDto[]>("/api/v1/plugins");
-        setPlugins(data.filter((p) => p.status === "PUBLISHED"));
-      } catch {
-        setPlugins(MOCK_PLUGINS);
-      }
-    }
-    load();
-  }, []);
+  const toolkits = data?.items ?? [];
 
   useEffect(() => {
     if (!open) return;
-    function handleClickOutside(event: MouseEvent) {
-      if (rootRef.current && !rootRef.current.contains(event.target as Node)) {
-        setOpen(false);
-      }
+    function onClick(event: MouseEvent) {
+      if (rootRef.current && !rootRef.current.contains(event.target as Node)) setOpen(false);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
   }, [open]);
 
   const toggle = useCallback(
     (id: string) => {
-      const next = selectedIds.includes(id)
-        ? selectedIds.filter((x) => x !== id)
-        : [...selectedIds, id];
-      onChange(next);
+      onChange(selectedIds.includes(id) ? selectedIds.filter((x) => x !== id) : [...selectedIds, id]);
     },
     [selectedIds, onChange],
   );
 
-  return (
-    <div ref={rootRef} className="relative">
-      <button
-        onClick={() => setOpen(!open)}
-        className="flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 transition hover:border-blue-400 hover:text-blue-600"
-        type="button"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-        </svg>
-        Plugins{selectedIds.length > 0 && ` (${selectedIds.length})`}
-      </button>
+  const activeCount = new Set([...builtIn, ...selectedIds]).size;
 
+  return (
+    <div ref={rootRef} className="relative shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lg border border-gray-200 px-2.5 py-1 text-xs text-gray-600 transition hover:border-gray-300 hover:bg-gray-50"
+        aria-expanded={open}
+        data-testid="toolkit-picker"
+      >
+        <span className="whitespace-nowrap">🧰 {t("plugin.selector")}</span>
+        {activeCount > 0 && (
+          <span className="rounded-full bg-blue-100 px-1.5 text-[10px] font-semibold text-blue-700">{activeCount}</span>
+        )}
+      </button>
       {open && (
-        <div className="absolute bottom-full left-0 z-20 mb-2 w-60 rounded-lg border border-gray-200 bg-white p-2 shadow-lg">
-          <p className="mb-1.5 px-2 text-xs font-medium text-gray-500">Select tools for this chat</p>
-          {plugins.length === 0 && (
-            <p className="px-2 py-3 text-center text-xs text-gray-400">No plugins available</p>
-          )}
-          {plugins.map((plugin) => (
-            <label
-              key={plugin.id}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 transition hover:bg-gray-50"
-            >
-              <input
-                type="checkbox"
-                checked={selectedIds.includes(plugin.id)}
-                onChange={() => toggle(plugin.id)}
-                className="h-3.5 w-3.5 rounded border-gray-300 text-blue-600"
-              />
-              <span className="flex-1 truncate text-sm text-gray-700">{plugin.name}</span>
-              <span className="shrink-0 text-[10px] text-gray-400">{plugin.kind}</span>
-            </label>
-          ))}
+        <div className="absolute bottom-full left-0 z-20 mb-2 w-80 rounded-xl border border-gray-200 bg-white p-2 shadow-lg">
+          {toolkits.length === 0 && <p className="px-2 py-3 text-xs text-gray-400">{t("plugin.noPlugins")}</p>}
+          {toolkits.map((kit) => {
+            const always = builtIn.includes(kit.id);
+            const checked = always || selectedIds.includes(kit.id);
+            return (
+              <label
+                key={kit.id}
+                className={`flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 hover:bg-gray-50 ${always ? "opacity-70" : ""}`}
+              >
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={checked}
+                  disabled={always}
+                  onChange={() => toggle(kit.id)}
+                />
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-gray-800">
+                    {kit.name}
+                    {always && (
+                      <span className="ml-1 text-[10px] font-normal text-gray-400">({t("plugin.builtIn")})</span>
+                    )}
+                  </span>
+                  <span className="block text-xs text-gray-500">{kit.description}</span>
+                  <span className="mt-0.5 block font-mono text-[10px] text-gray-400">
+                    {kit.tools.map((tool) => tool.name).join(" · ")}
+                  </span>
+                </span>
+              </label>
+            );
+          })}
         </div>
       )}
     </div>

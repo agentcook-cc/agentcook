@@ -6,8 +6,8 @@
         <el-tag v-if="dataSource === 'live'" type="success" size="small" effect="plain">
           live · /api/v1/logs/stream
         </el-tag>
-        <el-tag v-else type="warning" size="small" effect="plain">
-          mock · Python /api/v1/logs/stream unreachable
+        <el-tag v-else-if="dataSource === 'error'" type="danger" size="small" effect="plain">
+          {{ connectionError || "runtime unreachable" }}
         </el-tag>
         <span class="counter">{{ visibleLines.length }}/{{ allLines.length }} lines</span>
       </div>
@@ -25,24 +25,9 @@
         size="small"
         style="width: 280px"
       />
-      <el-switch
-        v-model="autoScroll"
-        active-text="Auto-scroll"
-        inline-prompt
-        size="small"
-      />
-      <el-button
-        v-if="streaming"
-        type="warning"
-        size="small"
-        :icon="VideoPause"
-        @click="pause"
-      >
-        Pause
-      </el-button>
-      <el-button v-else type="primary" size="small" :icon="VideoPlay" @click="resume">
-        Resume
-      </el-button>
+      <el-switch v-model="autoScroll" active-text="Auto-scroll" inline-prompt size="small" />
+      <el-button v-if="streaming" type="warning" size="small" :icon="VideoPause" @click="pause"> Pause </el-button>
+      <el-button v-else type="primary" size="small" :icon="VideoPlay" @click="resume"> Resume </el-button>
       <el-button size="small" :icon="Delete" @click="clearLog">Clear</el-button>
     </div>
 
@@ -66,21 +51,26 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onBeforeUnmount, nextTick } from "vue";
+import { ref, computed, onMounted, onBeforeUnmount, nextTick } from "vue";
 import { Search, VideoPause, VideoPlay, Delete } from "@element-plus/icons-vue";
-import { useSseStream } from "@/composables/useSseStream";
+import { useAuthStore } from "@/stores/auth";
 import {
   LOG_LEVELS,
   LEVEL_COLOR,
-  parseLogLine,
+  fromLogFrame,
   shouldShow,
-  makeMockLogStream,
   type LogLevel,
   type LogLine,
+  type RuntimeLogFrame,
 } from "./monitoring/logTypes";
 
-const PYTHON_BASE =
-  import.meta.env.VITE_PYTHON_API_BASE_URL || "http://localhost:8000";
+/**
+ * Live tail of the runtime's log hub (`?follow=true`): replays recent
+ * history, then streams new lines as they happen. fetch() is used instead
+ * of EventSource so the Authorization header can be sent.
+ */
+const PYTHON_BASE = import.meta.env.VITE_PYTHON_API_BASE_URL || "";
+const MAX_LINES = 2_000;
 
 const viewportRef = ref<HTMLDivElement | null>(null);
 const allLines = ref<LogLine[]>([]);
@@ -88,13 +78,11 @@ const minLevel = ref<LogLevel>("INFO");
 const search = ref("");
 const autoScroll = ref(true);
 const streaming = ref(false);
-const dataSource = ref<"live" | "mock">("mock");
+const dataSource = ref<"live" | "error" | "connecting">("connecting");
+const connectionError = ref("");
+let controller: AbortController | null = null;
 
-const { accumulated, running, error, start, cancel, reset } = useSseStream();
-
-const visibleLines = computed(() =>
-  allLines.value.filter((line) => shouldShow(line, minLevel.value, search.value)),
-);
+const visibleLines = computed(() => allLines.value.filter((line) => shouldShow(line, minLevel.value, search.value)));
 
 function formatTs(iso: string) {
   try {
@@ -104,86 +92,86 @@ function formatTs(iso: string) {
   }
 }
 
-// Each SSE chunk may contain N newline-separated log lines — re-parse on
-// every reactive accumulated update; track the offset we've consumed so we
-// don't re-emit existing lines.
-let consumedOffset = 0;
-watch(accumulated, (raw) => {
-  if (!raw) return;
-  const next = raw.slice(consumedOffset);
-  consumedOffset = raw.length;
-  for (const rawLine of next.split("\n")) {
-    const parsed = parseLogLine(rawLine);
-    if (parsed) allLines.value.push(parsed);
-  }
+function append(line: LogLine) {
+  allLines.value.push(line);
+  if (allLines.value.length > MAX_LINES) allLines.value.splice(0, allLines.value.length - MAX_LINES);
   if (autoScroll.value) {
     nextTick(() => {
-      if (viewportRef.value) {
-        viewportRef.value.scrollTop = viewportRef.value.scrollHeight;
-      }
+      if (viewportRef.value) viewportRef.value.scrollTop = viewportRef.value.scrollHeight;
     });
   }
-});
-
-watch(running, (r) => {
-  streaming.value = r;
-});
+}
 
 async function connect() {
-  consumedOffset = 0;
-  reset();
+  controller?.abort();
+  controller = new AbortController();
+  streaming.value = true;
+  dataSource.value = "connecting";
+  connectionError.value = "";
   try {
-    await start({
-      url: `${PYTHON_BASE}/api/v1/logs/stream`,
-      heartbeatMs: 60_000,
+    const token = useAuthStore().accessToken;
+    const response = await fetch(`${PYTHON_BASE}/api/v1/logs/stream?follow=true&history=200`, {
+      headers: { Accept: "text/event-stream", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      signal: controller.signal,
     });
+    if (!response.ok || !response.body) {
+      const body = await response.json().catch(() => ({}));
+      throw new Error(body.message || `HTTP ${response.status}`);
+    }
     dataSource.value = "live";
-  } catch {
-    dataSource.value = "mock";
-    allLines.value = makeMockLogStream();
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true }).replace(/\r\n?/g, "\n");
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        for (const line of block.split("\n")) {
+          if (!line.startsWith("data:")) continue;
+          try {
+            append(fromLogFrame(JSON.parse(line.slice(5).trim()) as RuntimeLogFrame));
+          } catch {
+            // not a log frame — ignore
+          }
+        }
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  } catch (err) {
+    if (controller?.signal.aborted) return;
+    dataSource.value = "error";
+    connectionError.value = err instanceof Error ? err.message : "connection failed";
+  } finally {
+    streaming.value = false;
   }
 }
 
 function pause() {
-  cancel();
+  controller?.abort();
   streaming.value = false;
 }
 
 function resume() {
-  connect();
+  void connect();
 }
 
 function clearLog() {
   allLines.value = [];
-  consumedOffset = 0;
 }
 
 function onScroll() {
   if (!viewportRef.value) return;
-  const atBottom =
-    viewportRef.value.scrollHeight - viewportRef.value.scrollTop - viewportRef.value.clientHeight <
-    20;
-  // If user scrolls up manually, disable auto-scroll so we don't fight them.
-  if (!atBottom) autoScroll.value = false;
+  const el = viewportRef.value;
+  // Scrolling up pauses auto-scroll so we don't fight the reader.
+  autoScroll.value = el.scrollHeight - el.scrollTop - el.clientHeight < 20;
 }
 
-onMounted(async () => {
-  // First try the real SSE; if backend returns an error within 1s, fall back.
-  const probe = setTimeout(() => {
-    if (allLines.value.length === 0 && !running.value) {
-      dataSource.value = "mock";
-      allLines.value = makeMockLogStream();
-    }
-  }, 1500);
-  await connect();
-  if (error.value) {
-    dataSource.value = "mock";
-    if (allLines.value.length === 0) allLines.value = makeMockLogStream();
-  }
-  clearTimeout(probe);
-});
-
-onBeforeUnmount(() => cancel());
+onMounted(() => void connect());
+onBeforeUnmount(() => controller?.abort());
 </script>
 
 <style scoped>

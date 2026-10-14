@@ -7,12 +7,7 @@ import VChart from "vue-echarts";
 import { use } from "echarts/core";
 import { CanvasRenderer } from "echarts/renderers";
 import { LineChart, PieChart } from "echarts/charts";
-import {
-  TitleComponent,
-  TooltipComponent,
-  LegendComponent,
-  GridComponent,
-} from "echarts/components";
+import { TitleComponent, TooltipComponent, LegendComponent, GridComponent } from "echarts/components";
 import type { ComposeOption } from "echarts/core";
 import type { LineSeriesOption } from "echarts/charts";
 import type { PieSeriesOption } from "echarts/charts";
@@ -25,8 +20,12 @@ import type {
 
 use([CanvasRenderer, LineChart, PieChart, TitleComponent, TooltipComponent, LegendComponent, GridComponent]);
 
-type LineEChartsOption = ComposeOption<LineSeriesOption | TitleComponentOption | TooltipComponentOption | GridComponentOption>;
-type PieEChartsOption = ComposeOption<PieSeriesOption | TitleComponentOption | TooltipComponentOption | LegendComponentOption>;
+type LineEChartsOption = ComposeOption<
+  LineSeriesOption | TitleComponentOption | TooltipComponentOption | GridComponentOption
+>;
+type PieEChartsOption = ComposeOption<
+  PieSeriesOption | TitleComponentOption | TooltipComponentOption | LegendComponentOption
+>;
 
 const authStore = useAuthStore();
 
@@ -77,7 +76,7 @@ const PALETTE = {
  *
  * Mapping:
  * - Users   → Java GET /api/v1/users (array length)
- * - Agents  → Python GET /api/v1/agents (array length; A endpoint pending — falls back if 404)
+ * - Agents  → Python GET /api/v1/agents (`items` length)
  * - Plugins → Java GET /api/v1/plugins (array length)
  * - Sessions → Java GET /api/v1/sessions (array length)
  */
@@ -88,15 +87,12 @@ async function fetchStats() {
 
   const [usersRes, agentsRes, pluginsRes, sessionsRes] = await Promise.allSettled([
     javaClient.get<UserDto[]>("/api/v1/users"),
-    pythonClient.get<unknown[]>("/api/v1/agents"),
+    pythonClient.get<{ items: unknown[] }>("/api/v1/agents").then((d) => d.items),
     javaClient.get<PluginDto[]>("/api/v1/plugins"),
     javaClient.get<SessionDto[]>("/api/v1/sessions"),
   ]);
 
-  function countOrMark(
-    res: PromiseSettledResult<unknown[]>,
-    cardName: keyof DashboardStats,
-  ): number {
+  function countOrMark(res: PromiseSettledResult<unknown[]>, cardName: keyof DashboardStats): number {
     if (res.status === "fulfilled" && Array.isArray(res.value)) {
       return res.value.length;
     }
@@ -202,12 +198,7 @@ onMounted(fetchStats);
           <template #header>
             <div class="card-header">
               <span>{{ card.label }}</span>
-              <el-tag
-                v-if="!loading && isCardMocked(card.key)"
-                type="warning"
-                size="small"
-                effect="plain"
-              >
+              <el-tag v-if="!loading && isCardMocked(card.key)" type="warning" size="small" effect="plain">
                 mock
               </el-tag>
             </div>

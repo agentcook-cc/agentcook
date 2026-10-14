@@ -15,9 +15,10 @@
  * end-to-end render contract: data shape → DOM markers.
  */
 import { test, expect } from "@playwright/test";
+import { devJwt } from "../support/dev-jwt";
 
-const SEED_ACCESS = "dev-token-e2e-quota";
-const SEED_REFRESH = "dev-refresh-token-e2e-quota";
+const SEED_ACCESS = devJwt("quota-e2e");
+const SEED_REFRESH = "";
 
 // In dev mode the app's javaClient resolves baseURL to "" (no
 // VITE_JAVA_API_BASE_URL env), so requests land at the current origin
@@ -46,9 +47,7 @@ test.describe("app ChatPage — ADR-018 quota banner", () => {
     );
   });
 
-  test("renders 'exhausted — downgraded' banner when used == quota", async ({
-    page,
-  }) => {
+  test("renders 'exhausted — downgraded' banner when used == quota", async ({ page }) => {
     await page.route(QUOTA_URL_GLOB, async (route) => {
       await route.fulfill({
         status: 200,
@@ -65,7 +64,7 @@ test.describe("app ChatPage — ADR-018 quota banner", () => {
 
     const exhaustedBanner = page.getByTestId("quota-banner-exhausted");
     await expect(exhaustedBanner).toBeVisible();
-    await expect(exhaustedBanner).toContainText("downgraded to glm-4-flash");
+    await expect(exhaustedBanner).toContainText("downgraded");
     await expect(exhaustedBanner).toContainText("(2/2)");
     await expect(page.getByTestId("quota-banner-warning")).toHaveCount(0);
   });

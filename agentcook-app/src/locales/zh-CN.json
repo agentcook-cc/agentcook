@@ -12,11 +12,20 @@
   },
   "chat": {
     "newChat": "新建对话",
-    "placeholder": "输入消息...",
+    "placeholder": "输入消息，Enter 发送，Shift+Enter 换行",
     "thinking": "思考中...",
     "streamError": "网络中断,请重试",
     "noSession": "选择左侧会话或新建一个开始聊天",
-    "tokensUsed": "已使用 {count} tokens"
+    "tokensUsed": "已使用 {{count}} tokens",
+    "stop": "停止",
+    "stopped": "已停止生成",
+    "newMessages": "有新消息",
+    "tokens": "{{count}} tokens",
+    "emptyTitle": "今天想让 Agent 做什么？",
+    "emptyTitleAgent": "和 {{agent}} 开始对话",
+    "emptyHint": "Agent 会自己决定何时调用工具、加载技能或把任务委派给专家 Agent。对话自动保存。",
+    "examples": ["计算 1299 * 0.85 - 50", "现在几点？", "请让分析师看看我们的销售数据", "记住：我在亚马逊卖蓝牙耳机"],
+    "loadFailed": "加载会话失败，请稍后重试"
   },
   "session": {
     "title": "会话",
@@ -24,13 +33,16 @@
     "exportMarkdown": "导出 Markdown",
     "exportPdf": "导出 PDF",
     "delete": "删除会话",
-    "deleteConfirm": "确认删除会话「{title}」?此操作无法恢复。"
+    "deleteConfirm": "确认删除会话「{{title}}」？此操作无法恢复。",
+    "empty": "还没有对话",
+    "running": "正在生成回复"
   },
   "plugin": {
-    "selector": "选择插件",
+    "selector": "工具包",
     "active": "已激活",
     "inactive": "未激活",
-    "noPlugins": "暂无可用插件"
+    "noPlugins": "暂无可用工具包",
+    "builtIn": "Agent 内置"
   },
   "skill": {
     "callPending": "执行中",
@@ -42,6 +54,37 @@
   "auth": {
     "signedIn": "已登录",
     "signOut": "退出登录",
-    "sessionExpired": "登录已过期,请重新登录"
+    "sessionExpired": "登录已过期,请重新登录",
+    "signIn": "登录"
+  },
+  "time": {
+    "justNow": "刚刚",
+    "minutesAgo": "{{count}} 分钟前",
+    "hoursAgo": "{{count}} 小时前",
+    "daysAgo": "{{count}} 天前"
+  },
+  "tool": {
+    "delegate": "委派给 {{agent}}",
+    "loadSkill": "加载技能：{{skill}}",
+    "input": "输入",
+    "output": "输出",
+    "error": "错误",
+    "status": {
+      "running": "执行中",
+      "success": "完成",
+      "error": "失败"
+    }
+  },
+  "agent": {
+    "label": "Agent"
+  },
+  "runtime": {
+    "mock": "离线演示模式",
+    "mockHint": "当前使用离线 Mock 模型：完整走通 Agent 循环和工具调用，但不调用真实大模型。设置 AGENTCOOK_LLM_PROVIDER 切换到真实模型。",
+    "unreachable": "无法连接 Agent 运行时（Python 服务），请确认它已启动。"
+  },
+  "quota": {
+    "exhausted": "免费额度已用完（{{used}}/{{quota}}），回复已降级到免费模型。",
+    "lastOne": "还剩 1 次免费提问（{{used}}/{{quota}}）。"
   }
 }

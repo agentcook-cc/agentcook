@@ -1,17 +1,9 @@
 <template>
-  <el-drawer
-    v-model="visible"
-    title="Skill Detail"
-    direction="rtl"
-    size="640px"
-    @close="reset"
-  >
+  <el-drawer v-model="visible" title="Skill Detail" direction="rtl" size="640px" @close="reset">
     <template #header>
       <div class="drawer-header">
         <span>Skill Detail</span>
-        <el-tag v-if="source === 'backend'" type="success" size="small" effect="plain">
-          live · backend
-        </el-tag>
+        <el-tag v-if="source === 'backend'" type="success" size="small" effect="plain"> live · backend </el-tag>
         <el-tag v-else-if="source === 'cached'" type="warning" size="small" effect="plain">
           cached · GET /api/v1/skills/{id} 404
         </el-tag>
@@ -24,23 +16,12 @@
       <el-descriptions :column="2" border>
         <el-descriptions-item label="Name">{{ skill.name }}</el-descriptions-item>
         <el-descriptions-item label="Version">{{ skill.version }}</el-descriptions-item>
-        <el-descriptions-item label="Kind">
-          <el-tag size="small" type="info" effect="plain">{{ skill.kind }}</el-tag>
+        <el-descriptions-item label="ID">
+          <el-tag size="small" type="info" effect="plain">{{ skill.id }}</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="Category">{{ skill.category }}</el-descriptions-item>
-        <el-descriptions-item v-if="skill.author" label="Author">
-          {{ skill.author }}
-        </el-descriptions-item>
-        <el-descriptions-item v-if="skill.tags && skill.tags.length" label="Tags">
-          <el-tag
-            v-for="tag in skill.tags"
-            :key="tag"
-            size="small"
-            type="info"
-            style="margin-right: 4px"
-          >
-            {{ tag }}
-          </el-tag>
+        <el-descriptions-item v-if="skill.updated_at" label="Updated" :span="2">
+          {{ skill.updated_at }}
         </el-descriptions-item>
         <el-descriptions-item label="Description" :span="2">
           {{ skill.description }}
@@ -118,10 +99,7 @@ function toYaml(s: SkillManifest, indent = 0): string {
         lines.push(`${pad}  ${k}: ${typeof v === "string" ? v : JSON.stringify(v)}`);
       }
     } else {
-      const escaped =
-        typeof value === "string" && /[:\n#]/.test(value)
-          ? JSON.stringify(value)
-          : value;
+      const escaped = typeof value === "string" && /[:\n#]/.test(value) ? JSON.stringify(value) : value;
       lines.push(`${pad}${key}: ${escaped}`);
     }
   }
@@ -142,9 +120,7 @@ async function load() {
   }
   loading.value = true;
   try {
-    skill.value = await pythonClient.get<SkillManifest>(
-      `/api/v1/skills/${props.skillId}`,
-    );
+    skill.value = await pythonClient.get<SkillManifest>(`/api/v1/skills/${props.skillId}`);
     source.value = "backend";
   } catch {
     if (props.fallback) {

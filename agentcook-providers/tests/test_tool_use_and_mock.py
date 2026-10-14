@@ -408,3 +408,16 @@ def test_factory_mock_and_chain(monkeypatch: pytest.MonkeyPatch) -> None:
         create_provider_chain("nope")
     with pytest.raises(ValueError, match="No usable provider"):
         create_provider_chain(" , ")
+
+
+async def test_mock_provider_commerce_rules_and_chinese_delegation() -> None:
+    sales = tool(lambda product=None: [], name="sales_query")
+    rivals = tool(lambda category: [], name="competitor_prices")
+    delegate = tool(lambda task: task, name="delegate_to_analyst")
+    provider = MockProvider()
+    _, calls = provider._decide([Message(role="user", content="看看本月销售数据")], [sales])
+    assert calls[0].name == "sales_query"
+    _, calls = provider._decide([Message(role="user", content="竞品榨汁机定价")], [rivals])
+    assert calls[0].arguments == {"category": "blender"}
+    _, calls = provider._decide([Message(role="user", content="请让分析师看看")], [delegate])
+    assert calls[0].name == "delegate_to_analyst"

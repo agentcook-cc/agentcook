@@ -3,8 +3,8 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath, URL } from "node:url";
 
-const PY_API = "http://localhost:8000";
-const JAVA_API = "http://localhost:8080";
+const PY_API = process.env.AGENTCOOK_PY_API ?? "http://localhost:8000";
+const JAVA_API = process.env.AGENTCOOK_JAVA_API ?? "http://localhost:8080";
 
 export default defineConfig({
   plugins: [react()],
@@ -45,24 +45,23 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
     proxy: {
-      "/api/v1/agent": { target: PY_API, changeOrigin: true },
-      "/api/v1/agents": { target: PY_API, changeOrigin: true },
-      "/api/v1/memory": { target: PY_API, changeOrigin: true },
-      "/api/v1/skills": { target: PY_API, changeOrigin: true },
-      "/api/v1/plugins": { target: PY_API, changeOrigin: true },
+      // Python agent runtime (docs/api/v1.yaml)
       "/api/v1/chat": { target: PY_API, changeOrigin: true },
-      "/api/v1/delegations": { target: PY_API, changeOrigin: true },
+      "/api/v1/conversations": { target: PY_API, changeOrigin: true },
+      "/api/v1/agents": { target: PY_API, changeOrigin: true },
+      "/api/v1/toolkits": { target: PY_API, changeOrigin: true },
+      "/api/v1/runtime": { target: PY_API, changeOrigin: true },
+      "/api/v1/skills": { target: PY_API, changeOrigin: true },
       "/api/v1/logs": { target: PY_API, changeOrigin: true },
       "/health": { target: PY_API, changeOrigin: true },
       "/metrics": { target: PY_API, changeOrigin: true },
+      // Java business backend (docs/api/java-v1.yaml)
+      "/api/v1/auth": { target: JAVA_API, changeOrigin: true },
       "/api/v1/users": { target: JAVA_API, changeOrigin: true },
       "/api/v1/sessions": { target: JAVA_API, changeOrigin: true },
+      "/api/v1/plugins": { target: JAVA_API, changeOrigin: true },
       "/api/v1/connectors": { target: JAVA_API, changeOrigin: true },
       "/api/v1/permissions": { target: JAVA_API, changeOrigin: true },
-      "/api/v1/auth": { target: JAVA_API, changeOrigin: true },
-      // ADR-018 cascade — A Day 56 landed Java QuotaController but the
-      // dev proxy wasn't synced; closed here by Phase 6 #26 (the gap
-      // was flagged Day 67 偏差 #17).
       "/api/v1/quota": { target: JAVA_API, changeOrigin: true },
     },
   },

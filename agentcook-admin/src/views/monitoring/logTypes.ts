@@ -85,3 +85,36 @@ export function makeMockLogStream(): LogLine[] {
     module: "agentcook_app.main",
   }));
 }
+
+/** One frame from the runtime's `GET /api/v1/logs/stream` (LogFrame schema). */
+export interface RuntimeLogFrame {
+  timestamp: string;
+  level: string;
+  event: string;
+  request_id?: string | null;
+  logger?: string | null;
+  extra?: Record<string, unknown>;
+}
+
+const RUNTIME_LEVEL: Record<string, LogLevel> = {
+  debug: "DEBUG",
+  info: "INFO",
+  warning: "WARN",
+  warn: "WARN",
+  error: "ERROR",
+  critical: "CRITICAL",
+};
+
+/** Map a runtime LogFrame onto the viewer's LogLine (extras appended as k=v). */
+export function fromLogFrame(frame: RuntimeLogFrame): LogLine {
+  const extras = Object.entries(frame.extra ?? {})
+    .filter(([key]) => key !== "finished")
+    .map(([key, value]) => `${key}=${typeof value === "string" ? value : JSON.stringify(value)}`);
+  if (frame.request_id) extras.push(`request_id=${frame.request_id.slice(0, 8)}`);
+  return {
+    level: RUNTIME_LEVEL[String(frame.level).toLowerCase()] ?? "INFO",
+    ts: frame.timestamp,
+    message: extras.length ? `${frame.event}  ${extras.join(" ")}` : frame.event,
+    module: frame.logger ?? undefined,
+  };
+}

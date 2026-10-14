@@ -12,11 +12,25 @@
   },
   "chat": {
     "newChat": "New chat",
-    "placeholder": "Type a message...",
+    "placeholder": "Message the agent — Enter to send, Shift+Enter for a new line",
     "thinking": "Thinking...",
     "streamError": "Connection interrupted — please retry",
     "noSession": "Pick a session on the left or start a new one",
-    "tokensUsed": "{count} tokens used"
+    "tokensUsed": "{{count}} tokens used",
+    "stop": "Stop",
+    "stopped": "Generation stopped",
+    "newMessages": "New messages",
+    "tokens": "{{count}} tokens",
+    "emptyTitle": "What should the agent do today?",
+    "emptyTitleAgent": "Start a conversation with {{agent}}",
+    "emptyHint": "The agent decides when to call tools, load skills or delegate to specialist agents. Conversations are saved automatically.",
+    "examples": [
+      "calculate 1299 * 0.85 - 50",
+      "what time is it?",
+      "please ask the analyst to review our sales",
+      "remember that I sell earbuds on Amazon"
+    ],
+    "loadFailed": "Couldn't load this conversation. Please try again."
   },
   "session": {
     "title": "Sessions",
@@ -24,13 +38,16 @@
     "exportMarkdown": "Export Markdown",
     "exportPdf": "Export PDF",
     "delete": "Delete session",
-    "deleteConfirm": "Delete session \"{title}\"? This cannot be undone."
+    "deleteConfirm": "Delete \"{{title}}\"? This cannot be undone.",
+    "empty": "No conversations yet",
+    "running": "Generating a reply"
   },
   "plugin": {
-    "selector": "Select plugin",
+    "selector": "Toolkits",
     "active": "Active",
     "inactive": "Inactive",
-    "noPlugins": "No plugins available"
+    "noPlugins": "No toolkits available",
+    "builtIn": "built into agent"
   },
   "skill": {
     "callPending": "Running",
@@ -42,6 +59,37 @@
   "auth": {
     "signedIn": "Signed in",
     "signOut": "Sign out",
-    "sessionExpired": "Session expired — please sign in again"
+    "sessionExpired": "Session expired — please sign in again",
+    "signIn": "Sign in"
+  },
+  "time": {
+    "justNow": "Just now",
+    "minutesAgo": "{{count}}m ago",
+    "hoursAgo": "{{count}}h ago",
+    "daysAgo": "{{count}}d ago"
+  },
+  "tool": {
+    "delegate": "Delegated to {{agent}}",
+    "loadSkill": "Loaded skill: {{skill}}",
+    "input": "Input",
+    "output": "Output",
+    "error": "Error",
+    "status": {
+      "running": "Running",
+      "success": "Done",
+      "error": "Failed"
+    }
+  },
+  "agent": {
+    "label": "Agent"
+  },
+  "runtime": {
+    "mock": "Offline demo mode",
+    "mockHint": "Running the offline mock model: the full agent loop and tool calls run for real, but no LLM is called. Set AGENTCOOK_LLM_PROVIDER to use a real model.",
+    "unreachable": "Can't reach the agent runtime (Python service). Make sure it is running."
+  },
+  "quota": {
+    "exhausted": "Free quota used ({{used}}/{{quota}}). Replies are downgraded to the free model.",
+    "lastOne": "1 free question left ({{used}}/{{quota}})."
   }
 }

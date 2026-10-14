@@ -9,13 +9,9 @@ import { useAuthStore } from "@/stores/auth";
  * 共享：401 拦截、token 注入、错误归一。区别仅在 baseURL。
  */
 
-const PYTHON_BASE_URL =
-  import.meta.env.VITE_PYTHON_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "";
+const PYTHON_BASE_URL = import.meta.env.VITE_PYTHON_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
 
-const JAVA_BASE_URL =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "";
+const JAVA_BASE_URL = import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 interface ClientFlavor {
   name: "python" | "java";
@@ -32,16 +28,22 @@ function attachInterceptors(instance: AxiosInstance, flavor: ClientFlavor): Axio
 
   instance.interceptors.response.use(
     (response) => response,
-    (error) => {
+    async (error) => {
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
+        const original = error.config as (AxiosRequestConfig & { _retried?: boolean }) | undefined;
         if (status === 401) {
+          // Try one silent refresh, then replay the request once.
+          const auth = useAuthStore.getState();
+          if (original && !original._retried && auth.refreshToken && (await auth.refreshAccessToken())) {
+            original._retried = true;
+            return instance.request(original);
+          }
           useAuthStore.getState().clearAuth();
-          window.location.href = "/login";
+          if (!window.location.pathname.startsWith("/login")) window.location.href = "/login";
           return Promise.reject(error);
         }
-        const message =
-          error.response?.data?.message || error.message || "An unexpected error occurred";
+        const message = error.response?.data?.message || error.message || "An unexpected error occurred";
         // eslint-disable-next-line no-console
         console.error(`[API Error · ${flavor.name}] ${status}: ${message}`);
       }

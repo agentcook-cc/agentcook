@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
-    "lint": "eslint src",
+    "lint": "eslint src --ext .ts,.vue --max-warnings 0",
     "test": "vitest run",
     "gen:api:python": "openapi-typescript ../docs/api/v1.yaml -o src/api/types.python.gen.ts",
     "gen:api:java": "openapi-typescript ../docs/api/java-v1.yaml -o src/api/types.java.gen.ts",

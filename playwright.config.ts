@@ -28,8 +28,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 const ADMIN_BASE = process.env.PLAYWRIGHT_BASE_URL_ADMIN ?? "http://localhost:5173";
 const APP_BASE = process.env.PLAYWRIGHT_BASE_URL_APP ?? "http://localhost:5174";
-const SMOKE_BASE =
-  process.env.PLAYWRIGHT_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL_ADMIN ?? "http://localhost:5173";
+const SMOKE_BASE = process.env.PLAYWRIGHT_BASE_URL ?? process.env.PLAYWRIGHT_BASE_URL_ADMIN ?? "http://localhost:5173";
 
 const APP_CROSS_BROWSER = process.env.PLAYWRIGHT_APP_CROSS_BROWSER === "1";
 
@@ -69,6 +68,11 @@ export default defineConfig({
   use: {
     trace: "on-first-retry",
     screenshot: "only-on-failure",
+    // Use a pre-installed Chromium (e.g. a container image whose browser
+    // build doesn't match this Playwright version) instead of downloading.
+    ...(process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE
+      ? { launchOptions: { executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE } }
+      : {}),
   },
   projects: [
     {

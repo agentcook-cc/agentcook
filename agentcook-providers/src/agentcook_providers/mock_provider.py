@@ -14,6 +14,7 @@ Rules (first match wins, only for tools that are actually available):
 - arithmetic expression / "calculate" / "计算" → ``calculator``
 - time / date / "几点" / "日期" → ``current_time``
 - "remember …" / "记住…" → ``remember``; "recall" / "还记得" → ``recall``
+- "sales" / "销售" → ``sales_query``; "competitor" / "竞品" → ``competitor_prices``
 - "search" / "搜索" / "查" → any tool whose name contains ``search``
 - "delegate to X" / "ask X" / "让X" → ``delegate_to_X``
 - a tool's exact name appears in the message → that tool
@@ -48,6 +49,11 @@ _SEARCH_WORDS = ("search", "look up", "find", "搜索", "查一下", "查询", "
 _REMEMBER = re.compile(
     r"^\s*(?:please\s+)?(?:remember(?: that)?|记住|请记住)[\s:：,，]*(.+)$", re.I
 )
+# Chinese names for the bundled specialist agents, so "请让分析师…" delegates.
+_AGENT_ALIASES: dict[str, tuple[str, ...]] = {
+    "analyst": ("分析师", "数据分析"),
+    "researcher": ("研究员", "调研员", "研究"),
+}
 _RECALL_WORDS = ("recall", "do you remember", "what do you know about me", "还记得", "回忆")
 
 
@@ -159,14 +165,24 @@ class MockProvider:
         if "current_time" in tools and any(w in lowered for w in _TIME_WORDS):
             return call("current_time", timezone="Asia/Shanghai" if _is_cjk(query) else "UTC")
 
-        for name, tool in tools.items():
+        for name in tools:
             if name.startswith("delegate_to_"):
                 target = name.removeprefix("delegate_to_").lower()
                 target_words = {target, target.replace("_", " "), target.replace("-", " ")}
+                target_words.update(_AGENT_ALIASES.get(target, ()))
                 if any(w in lowered for w in target_words) and any(
                     k in lowered for k in ("delegate", "ask", "让", "请", "交给")
                 ):
                     return call(name, task=query)
+
+        if "sales_query" in tools and any(w in lowered for w in ("sales", "销售", "销量", "revenue")):
+            return call("sales_query")
+
+        if "competitor_prices" in tools and any(
+            w in lowered for w in ("competitor", "竞品", "竞争", "pricing", "定价")
+        ):
+            blender = any(w in lowered for w in ("blender", "榨汁", "搅拌"))
+            return call("competitor_prices", category="blender" if blender else "earbuds")
 
         if any(w in lowered for w in _SEARCH_WORDS):
             for name, tool in tools.items():

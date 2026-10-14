@@ -111,11 +111,18 @@ class ChatChunk:
 
     Empty ``delta_content`` is valid (e.g. when only emitting tool-call
     fragments). ``finish_reason`` is set on the terminal chunk.
+
+    ``delta_tool_calls`` carries *complete* tool calls: providers buffer
+    the wire-level argument fragments and emit each call once its JSON is
+    whole, so consumers never have to re-assemble partial arguments.
+    ``usage`` is populated on (at most) one chunk per stream — whichever
+    chunk the vendor reports token accounting on.
     """
 
     delta_content: str = ""
     delta_tool_calls: tuple[ToolCall, ...] = ()
     finish_reason: FinishReason | None = None
+    usage: TokenUsage | None = None
     raw: dict[str, Any] | None = None
 
 

@@ -7,7 +7,11 @@
  * over-abstraction; infrastructure adapters implement those domain
  * interfaces directly.</p>
  *
- * <p>This package will host non-repository outbound ports as they emerge
- * (e.g. external gateways, message publishers).</p>
+ * <p>This package hosts the non-repository outbound ports:
+ * {@link cc.agentcook.application.port.out.PasswordHasher} and
+ * {@link cc.agentcook.application.port.out.AuthTokenIssuer}. Their adapters
+ * live next to Spring Security in {@code agentcook-api}
+ * ({@code cc.agentcook.api.auth}), which already owns the JWT signing key
+ * shared with the resource-server decoder.</p>
  */
 package cc.agentcook.application.port.out;

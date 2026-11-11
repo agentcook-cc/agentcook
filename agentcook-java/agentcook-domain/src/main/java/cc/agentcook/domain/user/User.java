@@ -10,7 +10,13 @@ import java.util.Objects;
 
 /**
  * User Aggregate Root.
- * Manages user identity, profile, and lifecycle state transitions.
+ * Manages user identity, profile, credentials and lifecycle state transitions.
+ *
+ * <p>Credentials are held only as an opaque password <em>hash</em> produced
+ * by the application layer's {@code PasswordHasher} port — the aggregate
+ * never sees a raw password. Rows created before password authentication
+ * existed (seed data, the old any-password dev login) carry no hash;
+ * {@link #hasPassword()} lets the login flow tell them apart.</p>
  */
 public class User {
 
@@ -29,12 +35,14 @@ public class User {
     private Instant updatedAt;
     private int freeQuestionsUsed;
     private int freeQuestionsQuota;
+    private String passwordHash;
 
     private final List<Object> domainEvents = new ArrayList<>();
 
     private User(UserId id, String email, String nickname, UserStatus status,
                  Instant createdAt, Instant updatedAt,
-                 int freeQuestionsUsed, int freeQuestionsQuota) {
+                 int freeQuestionsUsed, int freeQuestionsQuota,
+                 String passwordHash) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.email = Objects.requireNonNull(email, "email must not be null");
         this.nickname = nickname;
@@ -49,6 +57,7 @@ public class User {
         }
         this.freeQuestionsUsed = freeQuestionsUsed;
         this.freeQuestionsQuota = freeQuestionsQuota;
+        this.passwordHash = (passwordHash == null || passwordHash.isBlank()) ? null : passwordHash;
     }
 
     /**
@@ -62,21 +71,37 @@ public class User {
         UserId id = UserId.generate();
         Instant now = Instant.now();
         User user = new User(id, email, nickname, UserStatus.ACTIVE, now, now,
-                0, DEFAULT_FREE_QUOTA);
+                0, DEFAULT_FREE_QUOTA, null);
         user.domainEvents.add(new UserCreatedEvent(id, email, now));
         return user;
     }
 
     /**
      * Reconstitute from persistence (no events raised). Carries the
-     * stored quota counters back into the aggregate exactly — the DB
-     * is the source of truth for usage once a row exists.
+     * stored quota counters and password hash back into the aggregate
+     * exactly — the DB is the source of truth once a row exists.
+     *
+     * @param passwordHash stored hash, or {@code null} for legacy rows
+     *                     that never had a password set
+     */
+    public static User reconstitute(UserId id, String email, String nickname, UserStatus status,
+                                    Instant createdAt, Instant updatedAt,
+                                    int freeQuestionsUsed, int freeQuestionsQuota,
+                                    String passwordHash) {
+        return new User(id, email, nickname, status, createdAt, updatedAt,
+                freeQuestionsUsed, freeQuestionsQuota, passwordHash);
+    }
+
+    /**
+     * Compatibility overload (pre-V5 fixtures): reconstitutes without a
+     * password hash, i.e. the state of a row created before password
+     * authentication existed.
      */
     public static User reconstitute(UserId id, String email, String nickname, UserStatus status,
                                     Instant createdAt, Instant updatedAt,
                                     int freeQuestionsUsed, int freeQuestionsQuota) {
-        return new User(id, email, nickname, status, createdAt, updatedAt,
-                freeQuestionsUsed, freeQuestionsQuota);
+        return reconstitute(id, email, nickname, status, createdAt, updatedAt,
+                freeQuestionsUsed, freeQuestionsQuota, null);
     }
 
     /**
@@ -115,6 +140,39 @@ public class User {
     public void updateProfile(String nickname) {
         this.nickname = nickname;
         this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Set or replace the stored password hash. The value is opaque to the
+     * domain (whatever the application layer's hasher produced); only
+     * blank values are rejected so a user can never be left with an
+     * "empty password" that every input would match.
+     *
+     * @throws IllegalArgumentException when the hash is null or blank
+     * @throws IllegalStateException    when the user is deleted
+     */
+    public void changePasswordHash(String passwordHash) {
+        if (passwordHash == null || passwordHash.isBlank()) {
+            throw new IllegalArgumentException("passwordHash must not be blank");
+        }
+        if (this.status == UserStatus.DELETED) {
+            throw new IllegalStateException("Cannot set a password on a deleted user");
+        }
+        this.passwordHash = passwordHash;
+        this.updatedAt = Instant.now();
+    }
+
+    /**
+     * Whether this user has a password hash. {@code false} for legacy /
+     * seeded rows created before password authentication existed.
+     */
+    public boolean hasPassword() {
+        return passwordHash != null;
+    }
+
+    /** Whether the account may authenticate and use the product. */
+    public boolean isActive() {
+        return status == UserStatus.ACTIVE;
     }
 
     /**
@@ -157,6 +215,8 @@ public class User {
     public Instant getUpdatedAt() { return updatedAt; }
     public int getFreeQuestionsUsed() { return freeQuestionsUsed; }
     public int getFreeQuestionsQuota() { return freeQuestionsQuota; }
+    /** Opaque password hash, or {@code null} when {@link #hasPassword()} is false. */
+    public String getPasswordHash() { return passwordHash; }
 
     public List<Object> getDomainEvents() {
         return Collections.unmodifiableList(domainEvents);

@@ -46,7 +46,7 @@ public class OAuthCallbackController {
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     public ResponseEntity<OAuthCallbackResponse> callback(@Valid @RequestBody OAuthCallbackRequest body) {
         if (!SUPPORTED_PROVIDERS.contains(body.provider())) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("Unsupported provider: " + body.provider());
         }
         String accessToken = "dev-" + body.provider() + "-" + UUID.randomUUID();
         return ResponseEntity.ok(new OAuthCallbackResponse(

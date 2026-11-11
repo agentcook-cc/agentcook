@@ -43,6 +43,10 @@ public class UserEntity {
     @Column(name = "free_questions_quota", nullable = false)
     private int freeQuestionsQuota;
 
+    // V5 — opaque password hash; NULL for rows that never set a password.
+    @Column(name = "password_hash", length = 255)
+    private String passwordHash;
+
     protected UserEntity() {
     }
 
@@ -50,6 +54,15 @@ public class UserEntity {
                       cc.agentcook.domain.user.UserStatus status,
                       Instant createdAt, Instant updatedAt,
                       int freeQuestionsUsed, int freeQuestionsQuota) {
+        this(id, email, nickname, status, createdAt, updatedAt,
+                freeQuestionsUsed, freeQuestionsQuota, null);
+    }
+
+    public UserEntity(UUID id, String email, String nickname,
+                      cc.agentcook.domain.user.UserStatus status,
+                      Instant createdAt, Instant updatedAt,
+                      int freeQuestionsUsed, int freeQuestionsQuota,
+                      String passwordHash) {
         this.id = id;
         this.email = email;
         this.nickname = nickname;
@@ -58,6 +71,7 @@ public class UserEntity {
         this.updatedAt = updatedAt;
         this.freeQuestionsUsed = freeQuestionsUsed;
         this.freeQuestionsQuota = freeQuestionsQuota;
+        this.passwordHash = passwordHash;
     }
 
     public UUID getId() { return id; }
@@ -68,6 +82,7 @@ public class UserEntity {
     public Instant getUpdatedAt() { return updatedAt; }
     public int getFreeQuestionsUsed() { return freeQuestionsUsed; }
     public int getFreeQuestionsQuota() { return freeQuestionsQuota; }
+    public String getPasswordHash() { return passwordHash; }
 
     public void setEmail(String email) { this.email = email; }
     public void setNickname(String nickname) { this.nickname = nickname; }
@@ -75,4 +90,5 @@ public class UserEntity {
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setFreeQuestionsUsed(int freeQuestionsUsed) { this.freeQuestionsUsed = freeQuestionsUsed; }
     public void setFreeQuestionsQuota(int freeQuestionsQuota) { this.freeQuestionsQuota = freeQuestionsQuota; }
+    public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
 }

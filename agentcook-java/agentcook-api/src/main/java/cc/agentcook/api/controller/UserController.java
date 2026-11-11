@@ -1,9 +1,14 @@
 package cc.agentcook.api.controller;
 
+import cc.agentcook.api.auth.CurrentUser;
 import cc.agentcook.api.dto.ApiError;
 import cc.agentcook.api.dto.CreateUserRequest;
+import cc.agentcook.api.dto.CurrentUserResponse;
 import cc.agentcook.api.dto.UpdateUserRequest;
 import cc.agentcook.api.dto.UserResponse;
+import cc.agentcook.application.exception.UserNotFoundException;
+import cc.agentcook.application.port.in.ActivateUserCommand;
+import cc.agentcook.application.port.in.ActivateUserUseCase;
 import cc.agentcook.application.port.in.CreateUserCommand;
 import cc.agentcook.application.port.in.CreateUserUseCase;
 import cc.agentcook.application.port.in.ListUsersQuery;
@@ -22,7 +27,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -39,6 +43,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * User aggregate endpoints. {@code GET /me} is open to every authenticated
+ * caller; everything else is user management and requires
+ * {@code ROLE_ADMIN} (see {@link cc.agentcook.api.config.SecurityConfig}).
+ */
 @RestController
 @RequestMapping("/api/v1/users")
 @Tag(name = "Users", description = "User aggregate lifecycle.")
@@ -47,17 +56,20 @@ public class UserController {
     private final CreateUserUseCase createUserUseCase;
     private final UpdateUserUseCase updateUserUseCase;
     private final SuspendUserUseCase suspendUserUseCase;
+    private final ActivateUserUseCase activateUserUseCase;
     private final ListUsersUseCase listUsersUseCase;
     private final UserRepository userRepository;
 
     public UserController(CreateUserUseCase createUserUseCase,
                           UpdateUserUseCase updateUserUseCase,
                           SuspendUserUseCase suspendUserUseCase,
+                          ActivateUserUseCase activateUserUseCase,
                           ListUsersUseCase listUsersUseCase,
                           UserRepository userRepository) {
         this.createUserUseCase = createUserUseCase;
         this.updateUserUseCase = updateUserUseCase;
         this.suspendUserUseCase = suspendUserUseCase;
+        this.activateUserUseCase = activateUserUseCase;
         this.listUsersUseCase = listUsersUseCase;
         this.userRepository = userRepository;
     }
@@ -85,22 +97,18 @@ public class UserController {
     }
 
     @GetMapping("/me")
-    @Operation(summary = "Fetch the currently-authenticated user. JWT subject is the user UUID.")
+    @Operation(summary = "Fetch the currently-authenticated user and the roles of the presented token. "
+            + "JWT subject is the user UUID.")
     @ApiResponse(responseCode = "200", description = "User found.",
-            content = @Content(schema = @Schema(implementation = UserResponse.class)))
-    @ApiResponse(responseCode = "404", description = "JWT subject does not resolve to a known user.",
+            content = @Content(schema = @Schema(implementation = CurrentUserResponse.class)))
+    @ApiResponse(responseCode = "404", description = "USER_NOT_FOUND — JWT subject does not resolve to a known user.",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    public ResponseEntity<UserResponse> getCurrentUser(Authentication authentication) {
-        UUID id;
-        try {
-            id = UUID.fromString(authentication.getName());
-        } catch (IllegalArgumentException ex) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
-        }
-        return userRepository.findById(UserId.from(id))
-                .map(UserResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    public CurrentUserResponse getCurrentUser(Authentication authentication) {
+        CurrentUser caller = CurrentUser.from(authentication);
+        UserId id = UserId.from(caller.requireId());
+        return userRepository.findById(id)
+                .map(user -> CurrentUserResponse.from(user, caller.roles()))
+                .orElseThrow(() -> new UserNotFoundException(id));
     }
 
     @GetMapping("/{id}")
@@ -109,11 +117,11 @@ public class UserController {
             content = @Content(schema = @Schema(implementation = UserResponse.class)))
     @ApiResponse(responseCode = "404", description = "User not found.",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    public ResponseEntity<UserResponse> getUser(@PathVariable("id") UUID id) {
-        return userRepository.findById(UserId.from(id))
+    public UserResponse getUser(@PathVariable("id") UUID id) {
+        UserId userId = UserId.from(id);
+        return userRepository.findById(userId)
                 .map(UserResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> new UserNotFoundException(userId));
     }
 
     @PutMapping("/{id}")
@@ -127,6 +135,26 @@ public class UserController {
             @Valid @RequestBody UpdateUserRequest body) {
         var updated = updateUserUseCase.execute(new UpdateUserCommand(id.toString(), body.nickname()));
         return ResponseEntity.ok(UserResponse.from(updated));
+    }
+
+    @PutMapping("/{id}/suspend")
+    @Operation(summary = "Suspend a user: login, refresh and quota consumption are refused until re-activated.")
+    @ApiResponse(responseCode = "200", description = "User suspended.",
+            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(responseCode = "404", description = "User not found.",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public UserResponse suspendUser(@PathVariable("id") UUID id) {
+        return UserResponse.from(suspendUserUseCase.execute(new SuspendUserCommand(id.toString())));
+    }
+
+    @PutMapping("/{id}/activate")
+    @Operation(summary = "Re-activate a suspended user.")
+    @ApiResponse(responseCode = "200", description = "User active.",
+            content = @Content(schema = @Schema(implementation = UserResponse.class)))
+    @ApiResponse(responseCode = "404", description = "User not found.",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public UserResponse activateUser(@PathVariable("id") UUID id) {
+        return UserResponse.from(activateUserUseCase.execute(new ActivateUserCommand(id.toString())));
     }
 
     @DeleteMapping("/{id}")

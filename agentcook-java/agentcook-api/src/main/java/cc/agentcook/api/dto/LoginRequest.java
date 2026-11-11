@@ -3,14 +3,16 @@ package cc.agentcook.api.dto;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 
-@Schema(description = "Phase 3 dev login payload (Phase 4 Day 31-32 replaces with OAuth2 / B3 tokens).")
+@Schema(description = "Password login payload.")
 public record LoginRequest(
 
-        @Schema(example = "alice")
+        @Schema(example = "alice",
+                description = "E-mail address, or a bare username (3-32 of letters, digits, `_`, `.`, `-`) "
+                        + "which is the account `<username>@dev.local`.")
         @NotBlank
         String username,
 
-        @Schema(example = "dev")
+        @Schema(example = "correct-horse-battery")
         @NotBlank
         String password,
 
@@ -22,4 +24,9 @@ public record LoginRequest(
                 nullable = true)
         String turnstileToken
 ) {
+
+    @Override
+    public String toString() {
+        return "LoginRequest[username=" + username + "]";
+    }
 }

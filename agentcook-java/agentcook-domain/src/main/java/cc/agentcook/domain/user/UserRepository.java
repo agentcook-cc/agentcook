@@ -11,6 +11,17 @@ public interface UserRepository {
 
     Optional<User> findById(UserId id);
 
+    /**
+     * Load a user for a read-modify-write and hold a row-level write lock
+     * on it until the surrounding transaction ends. Concurrent callers
+     * block until the lock holder commits and then see its changes, so
+     * two writers can never both start from the same stale snapshot
+     * (e.g. two parallel quota consumptions both reading {@code used=1}).
+     *
+     * <p>Must be called inside a transaction. Never served from a cache.</p>
+     */
+    Optional<User> findByIdForUpdate(UserId id);
+
     Optional<User> findByEmail(String email);
 
     List<User> findAll();

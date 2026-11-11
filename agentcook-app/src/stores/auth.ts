@@ -15,6 +15,7 @@ interface AuthState {
   setUser: (user: UserInfo) => void;
   clearAuth: () => void;
   login: (username: string, password: string, turnstileToken?: string | null) => Promise<void>;
+  register: (username: string, password: string, turnstileToken?: string | null) => Promise<void>;
   refreshAccessToken: () => Promise<boolean>;
   fetchUserInfo: () => Promise<void>;
 }
@@ -45,6 +46,33 @@ export function toUserInfo(raw: Record<string, unknown>): UserInfo {
   return { id, username, displayName };
 }
 
+/** A failed login / sign-up, carrying agentcook-java's ApiError code when present. */
+export class AuthError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string | null,
+    message: string,
+  ) {
+    super(message);
+    this.name = "AuthError";
+  }
+}
+
+async function authRequest(path: string, body: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const response = await fetch(`${javaBase()}${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!response.ok) {
+    const code = typeof data.code === "string" ? data.code : null;
+    const message = typeof data.message === "string" ? data.message : `HTTP ${response.status}`;
+    throw new AuthError(response.status, code, message);
+  }
+  return data;
+}
+
 /** Accept both camelCase (Java) and snake_case token envelopes. */
 function readTokens(data: Record<string, unknown>): { access?: string; refresh?: string } {
   const access = (data.accessToken ?? data.access_token) as string | undefined;
@@ -52,91 +80,105 @@ function readTokens(data: Record<string, unknown>): { access?: string; refresh?:
   return { access, refresh };
 }
 
-export const useAuthStore = create<AuthState>((set, get) => ({
-  accessToken: readStored(ACCESS_KEY),
-  refreshToken: readStored(REFRESH_KEY),
-  user: null,
-  isAuthenticated: !!readStored(ACCESS_KEY),
-
-  setTokens(access: string, refresh?: string | null) {
-    localStorage.setItem(ACCESS_KEY, access);
-    if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
-    else localStorage.removeItem(REFRESH_KEY);
-    set({ accessToken: access, refreshToken: refresh ?? null, isAuthenticated: true });
-  },
-
-  setUser(user: UserInfo) {
-    set({ user });
-  },
-
-  clearAuth() {
-    localStorage.removeItem(ACCESS_KEY);
-    localStorage.removeItem(REFRESH_KEY);
-    set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
-  },
-
-  async login(username: string, password: string, turnstileToken?: string | null) {
-    const response = await fetch(`${javaBase()}/api/v1/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ username, password, turnstileToken: turnstileToken ?? undefined }),
-    });
-    if (!response.ok) throw new Error(response.status === 401 ? "Invalid credentials" : "Login failed");
-    const data = (await response.json()) as Record<string, unknown>;
+export const useAuthStore = create<AuthState>((set, get) => {
+  /** Store the tokens from a login / register response and load the profile. */
+  function acceptSession(data: Record<string, unknown>) {
     const { access, refresh } = readTokens(data);
-    if (!access) throw new Error("Login response carried no access token");
+    if (!access) throw new AuthError(500, null, "The response carried no access token");
     get().setTokens(access, refresh);
     if (data.user && typeof data.user === "object") {
       set({ user: toUserInfo(data.user as Record<string, unknown>) });
     } else {
       void get().fetchUserInfo();
     }
-  },
+  }
 
-  async refreshAccessToken(): Promise<boolean> {
-    const { refreshToken, clearAuth, setTokens } = get();
-    if (!refreshToken) return false;
-    try {
-      const response = await fetch(`${javaBase()}/api/v1/auth/refresh`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+  return {
+    accessToken: readStored(ACCESS_KEY),
+    refreshToken: readStored(REFRESH_KEY),
+    user: null,
+    isAuthenticated: !!readStored(ACCESS_KEY),
+
+    setTokens(access: string, refresh?: string | null) {
+      localStorage.setItem(ACCESS_KEY, access);
+      if (refresh) localStorage.setItem(REFRESH_KEY, refresh);
+      else localStorage.removeItem(REFRESH_KEY);
+      set({ accessToken: access, refreshToken: refresh ?? null, isAuthenticated: true });
+    },
+
+    setUser(user: UserInfo) {
+      set({ user });
+    },
+
+    clearAuth() {
+      localStorage.removeItem(ACCESS_KEY);
+      localStorage.removeItem(REFRESH_KEY);
+      set({ accessToken: null, refreshToken: null, user: null, isAuthenticated: false });
+    },
+
+    async login(username: string, password: string, turnstileToken?: string | null) {
+      const data = await authRequest("/api/v1/auth/login", {
+        username,
+        password,
+        turnstileToken: turnstileToken ?? undefined,
       });
-      if (!response.ok) {
-        clearAuth();
-        return false;
-      }
-      const { access, refresh } = readTokens((await response.json()) as Record<string, unknown>);
-      if (!access) {
-        clearAuth();
-        return false;
-      }
-      setTokens(access, refresh ?? refreshToken);
-      return true;
-    } catch {
-      clearAuth();
-      return false;
-    }
-  },
+      acceptSession(data);
+    },
 
-  async fetchUserInfo() {
-    const { accessToken, refreshAccessToken, clearAuth } = get();
-    if (!accessToken) return;
-    const load = (token: string) =>
-      fetch(`${javaBase()}/api/v1/users/me`, { headers: { Authorization: `Bearer ${token}` } });
-    try {
-      let response = await load(accessToken);
-      if (response.status === 401) {
-        if (!(await refreshAccessToken())) return;
-        response = await load(get().accessToken ?? "");
+    async register(username: string, password: string, turnstileToken?: string | null) {
+      const data = await authRequest("/api/v1/auth/register", {
+        username,
+        password,
+        turnstileToken: turnstileToken ?? undefined,
+      });
+      acceptSession(data);
+    },
+
+    async refreshAccessToken(): Promise<boolean> {
+      const { refreshToken, clearAuth, setTokens } = get();
+      if (!refreshToken) return false;
+      try {
+        const response = await fetch(`${javaBase()}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken }),
+        });
         if (!response.ok) {
           clearAuth();
-          return;
+          return false;
         }
+        const { access, refresh } = readTokens((await response.json()) as Record<string, unknown>);
+        if (!access) {
+          clearAuth();
+          return false;
+        }
+        setTokens(access, refresh ?? refreshToken);
+        return true;
+      } catch {
+        clearAuth();
+        return false;
       }
-      if (response.ok) set({ user: toUserInfo((await response.json()) as Record<string, unknown>) });
-    } catch {
-      // Java unreachable — keep the token; the display name stays empty.
-    }
-  },
-}));
+    },
+
+    async fetchUserInfo() {
+      const { accessToken, refreshAccessToken, clearAuth } = get();
+      if (!accessToken) return;
+      const load = (token: string) =>
+        fetch(`${javaBase()}/api/v1/users/me`, { headers: { Authorization: `Bearer ${token}` } });
+      try {
+        let response = await load(accessToken);
+        if (response.status === 401) {
+          if (!(await refreshAccessToken())) return;
+          response = await load(get().accessToken ?? "");
+          if (!response.ok) {
+            clearAuth();
+            return;
+          }
+        }
+        if (response.ok) set({ user: toUserInfo((await response.json()) as Record<string, unknown>) });
+      } catch {
+        // Java unreachable — keep the token; the display name stays empty.
+      }
+    },
+  };
+});

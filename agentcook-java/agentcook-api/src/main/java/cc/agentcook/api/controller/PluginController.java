@@ -4,6 +4,8 @@ import cc.agentcook.api.dto.ActivatePluginRequest;
 import cc.agentcook.api.dto.ApiError;
 import cc.agentcook.api.dto.ConnectorResponse;
 import cc.agentcook.api.dto.PluginResponse;
+import cc.agentcook.application.exception.InvalidPluginPackageException;
+import cc.agentcook.application.exception.PluginNotFoundException;
 import cc.agentcook.application.port.in.ActivatePluginCommand;
 import cc.agentcook.application.port.in.ActivatePluginUseCase;
 import cc.agentcook.application.port.in.RegisterPluginCommand;
@@ -22,7 +24,6 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -40,7 +41,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/plugins")
-@Tag(name = "Plugins", description = "Plugin registry and activation.")
+@Tag(name = "Plugins", description = "Plugin registry and activation (listing for every user, changes admin only).")
 public class PluginController {
 
     private final ActivatePluginUseCase activatePluginUseCase;
@@ -68,7 +69,7 @@ public class PluginController {
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     public ResponseEntity<PluginResponse> uploadPlugin(@RequestParam("file") MultipartFile file) throws IOException {
         if (file == null || file.isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new InvalidPluginPackageException("the uploaded file is empty");
         }
         Plugin plugin = registerPluginUseCase.execute(
                 new RegisterPluginCommand(
@@ -98,14 +99,11 @@ public class PluginController {
             content = @Content(schema = @Schema(implementation = ApiError.class)))
     @ApiResponse(responseCode = "409", description = "Plugin cannot be published (already deprecated).",
             content = @Content(schema = @Schema(implementation = ApiError.class)))
-    public ResponseEntity<PluginResponse> publishPlugin(@PathVariable("id") UUID pluginId) {
-        return pluginRepository.findById(PluginId.from(pluginId))
-                .map(plugin -> {
-                    plugin.publish();
-                    Plugin saved = pluginRepository.save(plugin);
-                    return ResponseEntity.ok(PluginResponse.from(saved));
-                })
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+    public PluginResponse publishPlugin(@PathVariable("id") UUID pluginId) {
+        PluginId id = PluginId.from(pluginId);
+        Plugin plugin = pluginRepository.findById(id).orElseThrow(() -> new PluginNotFoundException(id));
+        plugin.publish();
+        return PluginResponse.from(pluginRepository.save(plugin));
     }
 
     @PostMapping("/{id}/activate")

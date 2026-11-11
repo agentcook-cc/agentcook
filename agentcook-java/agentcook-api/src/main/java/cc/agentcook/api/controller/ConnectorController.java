@@ -5,6 +5,7 @@ import cc.agentcook.api.dto.ConnectorPingResponse;
 import cc.agentcook.api.dto.ConnectorResponse;
 import cc.agentcook.api.dto.CreateConnectorRequest;
 import cc.agentcook.api.dto.UpdateConnectorConfigRequest;
+import cc.agentcook.application.exception.ConnectorNotFoundException;
 import cc.agentcook.application.port.in.CreateConnectorCommand;
 import cc.agentcook.application.port.in.CreateConnectorUseCase;
 import cc.agentcook.application.port.in.DeleteConnectorCommand;
@@ -26,7 +27,6 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -44,7 +44,7 @@ import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/connectors")
-@Tag(name = "Connectors", description = "Connector lifecycle (admin path).")
+@Tag(name = "Connectors", description = "Connector lifecycle (admin only).")
 public class ConnectorController {
 
     private final ListConnectorsUseCase listConnectorsUseCase;
@@ -94,11 +94,13 @@ public class ConnectorController {
 
     @GetMapping("/{id}")
     @Operation(summary = "Fetch a connector by id.")
-    public ResponseEntity<ConnectorResponse> getConnector(@PathVariable("id") UUID id) {
-        return connectorRepository.findById(ConnectorId.from(id))
+    @ApiResponse(responseCode = "404", description = "Connector not found.",
+            content = @Content(schema = @Schema(implementation = ApiError.class)))
+    public ConnectorResponse getConnector(@PathVariable("id") UUID id) {
+        ConnectorId connectorId = ConnectorId.from(id);
+        return connectorRepository.findById(connectorId)
                 .map(ConnectorResponse::from)
-                .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.status(HttpStatus.NOT_FOUND).build());
+                .orElseThrow(() -> new ConnectorNotFoundException(connectorId));
     }
 
     @PutMapping("/{id}/config")

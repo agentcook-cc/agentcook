@@ -22,7 +22,9 @@ public class UpdateUserUseCaseImpl implements UpdateUserUseCase {
     @Override
     public User execute(UpdateUserCommand command) {
         UserId userId = UserId.from(command.userId());
-        User user = userRepository.findById(userId)
+        // Locked read: a concurrent writer (e.g. quota consumption) must not
+        // have its change overwritten by this save of a stale snapshot.
+        User user = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(() -> new UserNotFoundException(userId));
         user.updateProfile(command.nickname());
         return userRepository.save(user);

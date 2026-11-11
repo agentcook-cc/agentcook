@@ -166,4 +166,78 @@ class UserTest {
         assertEquals(0, user.getFreeQuestionsUsed());
         assertEquals(User.DEFAULT_FREE_QUOTA, user.getFreeQuestionsQuota());
     }
+    // --- Password hash (V5) ---
+
+    @Test
+    void createUser_hasNoPasswordUntilOneIsSet() {
+        User user = User.create("pw@example.com", "Pw");
+        assertFalse(user.hasPassword());
+        assertNull(user.getPasswordHash());
+    }
+
+    @Test
+    void changePasswordHash_storesHashAndBumpsUpdatedAt() throws InterruptedException {
+        User user = User.create("pw2@example.com", "Pw2");
+        java.time.Instant before = user.getUpdatedAt();
+        Thread.sleep(2);
+
+        user.changePasswordHash("$2a$10$hash");
+
+        assertTrue(user.hasPassword());
+        assertEquals("$2a$10$hash", user.getPasswordHash());
+        assertTrue(user.getUpdatedAt().isAfter(before));
+    }
+
+    @Test
+    void changePasswordHash_rejectsBlankHash() {
+        User user = User.create("pw3@example.com", "Pw3");
+        assertThrows(IllegalArgumentException.class, () -> user.changePasswordHash(null));
+        assertThrows(IllegalArgumentException.class, () -> user.changePasswordHash("  "));
+        assertFalse(user.hasPassword());
+    }
+
+    @Test
+    void changePasswordHash_onDeletedUser_shouldThrow() {
+        User user = User.create("pw4@example.com", "Pw4");
+        user.markDeleted();
+        assertThrows(IllegalStateException.class, () -> user.changePasswordHash("$2a$10$hash"));
+    }
+
+    @Test
+    void reconstitute_withPasswordHash_carriesItBack() {
+        java.time.Instant now = java.time.Instant.now();
+        User user = User.reconstitute(UserId.generate(), "pw5@example.com", "Pw5", UserStatus.ACTIVE,
+                now, now, 0, 2, "$2a$10$stored");
+        assertTrue(user.hasPassword());
+        assertEquals("$2a$10$stored", user.getPasswordHash());
+    }
+
+    @Test
+    void reconstitute_legacyOverloads_haveNoPassword() {
+        java.time.Instant now = java.time.Instant.now();
+        User eightArg = User.reconstitute(UserId.generate(), "a@example.com", "A", UserStatus.ACTIVE,
+                now, now, 0, 2);
+        User sixArg = User.reconstitute(UserId.generate(), "b@example.com", "B", UserStatus.ACTIVE,
+                now, now);
+        User blankHash = User.reconstitute(UserId.generate(), "c@example.com", "C", UserStatus.ACTIVE,
+                now, now, 0, 2, "");
+        assertFalse(eightArg.hasPassword());
+        assertFalse(sixArg.hasPassword());
+        assertFalse(blankHash.hasPassword(), "a blank stored hash must not count as a password");
+    }
+
+    @Test
+    void toString_neverIncludesPasswordHash() {
+        User user = User.create("pw6@example.com", "Pw6");
+        user.changePasswordHash("$2a$10$secret-hash");
+        assertFalse(user.toString().contains("secret-hash"));
+    }
+
+    @Test
+    void isActive_reflectsStatus() {
+        User user = User.create("act@example.com", "Act");
+        assertTrue(user.isActive());
+        user.suspend();
+        assertFalse(user.isActive());
+    }
 }

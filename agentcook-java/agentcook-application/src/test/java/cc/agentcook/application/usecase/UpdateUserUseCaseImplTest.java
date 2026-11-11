@@ -35,7 +35,7 @@ class UpdateUserUseCaseImplTest {
         User existing = User.reconstitute(
                 userId, "alice@example.com", "Alice",
                 UserStatus.ACTIVE, Instant.now(), Instant.now());
-        when(userRepository.findById(userId)).thenReturn(Optional.of(existing));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(existing));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User updated = useCase.execute(new UpdateUserCommand(userId.value().toString(), "Alice2"));
@@ -55,7 +55,7 @@ class UpdateUserUseCaseImplTest {
     @Test
     void rejectsUnknownUserId() {
         UserId userId = UserId.from(UUID.randomUUID());
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class,
                 () -> useCase.execute(new UpdateUserCommand(userId.value().toString(), "x")));

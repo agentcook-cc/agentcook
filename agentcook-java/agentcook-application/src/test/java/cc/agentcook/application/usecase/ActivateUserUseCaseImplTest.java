@@ -34,7 +34,7 @@ class ActivateUserUseCaseImplTest {
         UserId userId = UserId.generate();
         User suspended = User.reconstitute(userId, "u@x.com", "U",
                 UserStatus.SUSPENDED, Instant.now(), Instant.now());
-        when(userRepository.findById(userId)).thenReturn(Optional.of(suspended));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(suspended));
         when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
         User activated = useCase.execute(new ActivateUserCommand(userId.value().toString()));
@@ -46,7 +46,7 @@ class ActivateUserUseCaseImplTest {
     @Test
     void rejectsUnknownUserId() {
         UserId userId = UserId.from(UUID.randomUUID());
-        when(userRepository.findById(userId)).thenReturn(Optional.empty());
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.empty());
 
         assertThrows(UserNotFoundException.class,
                 () -> useCase.execute(new ActivateUserCommand(userId.value().toString())));
@@ -59,7 +59,7 @@ class ActivateUserUseCaseImplTest {
         UserId userId = UserId.generate();
         User deleted = User.reconstitute(userId, "u@x.com", "U",
                 UserStatus.DELETED, Instant.now(), Instant.now());
-        when(userRepository.findById(userId)).thenReturn(Optional.of(deleted));
+        when(userRepository.findByIdForUpdate(userId)).thenReturn(Optional.of(deleted));
 
         assertThrows(IllegalStateException.class,
                 () -> useCase.execute(new ActivateUserCommand(userId.value().toString())));

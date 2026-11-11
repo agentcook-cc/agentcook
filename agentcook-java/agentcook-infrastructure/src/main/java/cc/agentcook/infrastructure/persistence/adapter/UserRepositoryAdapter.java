@@ -30,6 +30,17 @@ public class UserRepositoryAdapter implements UserRepository {
         return jpa.findById(id.value()).map(mapper::toDomain);
     }
 
+    /**
+     * Deliberately not {@code @Cacheable}: a locked read must see the
+     * committed row, never a cached snapshot. The lock is released when
+     * the caller's transaction commits; {@link #save} then evicts the
+     * cached copy as usual.
+     */
+    @Override
+    public Optional<User> findByIdForUpdate(UserId id) {
+        return jpa.findByIdForUpdate(id.value()).map(mapper::toDomain);
+    }
+
     @Override
     public Optional<User> findByEmail(String email) {
         return jpa.findByEmail(email).map(mapper::toDomain);

@@ -60,7 +60,29 @@
     "signedIn": "Signed in",
     "signOut": "Sign out",
     "sessionExpired": "Session expired — please sign in again",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "brand": "AgentCook",
+    "mode": "Account action",
+    "login": "Sign In",
+    "register": "Create Account",
+    "loginDescription": "Sign in to continue your conversations",
+    "registerDescription": "Create an account to work with your agents",
+    "username": "Username or email",
+    "usernamePlaceholder": "Enter username or email",
+    "password": "Password",
+    "passwordPlaceholder": "Enter password",
+    "passwordHint": "Use 8–128 characters",
+    "submitting": "Submitting…",
+    "guest": "Try without signing in",
+    "errors": {
+      "credentials": "Incorrect username or password. Please try again.",
+      "disabled": "This account is disabled. Contact your administrator.",
+      "exists": "This username or email is already registered. Please sign in.",
+      "validation": "Enter a valid email or a 3–32 character username (letters, digits, _, ., -). Registration requires an 8–128 character password.",
+      "turnstile": "Complete the verification challenge and try again.",
+      "network": "Unable to connect. Check your connection and try again.",
+      "server": "Unable to complete the request. Please try again later."
+    }
   },
   "time": {
     "justNow": "Just now",

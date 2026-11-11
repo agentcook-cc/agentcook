@@ -64,7 +64,12 @@ async function authRequest(path: string, body: Record<string, unknown>): Promise
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
   });
-  const data = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+  let data: Record<string, unknown> = {};
+  try {
+    data = await response.json();
+  } catch {
+    // An empty or non-JSON error response still carries its HTTP status.
+  }
   if (!response.ok) {
     const code = typeof data.code === "string" ? data.code : null;
     const message = typeof data.message === "string" ? data.message : `HTTP ${response.status}`;

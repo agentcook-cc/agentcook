@@ -22,16 +22,11 @@ function setTurnstileContainer(el: unknown) {
 function describeError(err: unknown): string {
   if (axios.isAxiosError(err)) {
     const status = err.response?.status;
-    const serverMessage = (
-      err.response?.data as { message?: string } | undefined
-    )?.message;
+    const serverMessage = (err.response?.data as { message?: string } | undefined)?.message;
     if (status === 401) return serverMessage || "Invalid username or password.";
-    if (status === 403)
-      return serverMessage || "Account disabled. Contact admin.";
-    if (status === 400)
-      return serverMessage || "Bad request. Check your inputs.";
-    if (status && status >= 500)
-      return `Server error (${status}). Try again later.`;
+    if (status === 403) return serverMessage || "Account disabled. Contact admin.";
+    if (status === 400) return serverMessage || "Bad request. Check your inputs.";
+    if (status && status >= 500) return `Server error (${status}). Try again later.`;
     if (err.code === "ERR_NETWORK" || !err.response) {
       return "Cannot reach Java backend. Is it running on http://localhost:8080?";
     }
@@ -46,18 +41,13 @@ async function handleLogin() {
     return;
   }
   if (!turnstile.token.value) {
-    errorMessage.value =
-      "Please complete the Turnstile challenge before signing in";
+    errorMessage.value = "Please complete the Turnstile challenge before signing in";
     return;
   }
   loading.value = true;
   errorMessage.value = "";
   try {
-    await authStore.login(
-      form.value.username,
-      form.value.password,
-      turnstile.token.value,
-    );
+    await authStore.login(form.value.username, form.value.password, turnstile.token.value);
     const redirect = (route.query.redirect as string) || "/dashboard";
     router.push(redirect);
   } catch (err) {
@@ -76,13 +66,16 @@ async function handleLogin() {
       <p class="login-subtitle">Sign in to continue</p>
 
       <el-alert
-        v-if="errorMessage"
-        :title="errorMessage"
+        v-if="errorMessage || authStore.authError"
+        :title="errorMessage || authStore.authError"
         type="error"
         show-icon
         closable
         style="margin-bottom: 16px"
-        @close="errorMessage = ''"
+        @close="
+          errorMessage = '';
+          authStore.authError = '';
+        "
       />
 
       <el-form @submit.prevent="handleLogin" label-position="top">
@@ -106,11 +99,7 @@ async function handleLogin() {
             autocomplete="current-password"
           />
         </el-form-item>
-        <div
-          :ref="setTurnstileContainer"
-          data-testid="turnstile-container"
-          style="margin: 12px 0"
-        ></div>
+        <div :ref="setTurnstileContainer" data-testid="turnstile-container" style="margin: 12px 0"></div>
         <el-alert
           v-if="turnstile.error.value"
           :title="turnstile.error.value"

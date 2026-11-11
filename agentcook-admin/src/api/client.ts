@@ -10,12 +10,9 @@ import { ElNotification } from "element-plus";
  */
 
 const PYTHON_BASE_URL =
-  import.meta.env.VITE_PYTHON_API_BASE_URL ||
-  import.meta.env.VITE_API_BASE_URL ||
-  "http://localhost:8000";
+  import.meta.env.VITE_PYTHON_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
-const JAVA_BASE_URL =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+const JAVA_BASE_URL = import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
 
 interface ClientFlavor {
   name: "python" | "java";
@@ -36,8 +33,10 @@ function attachInterceptors(instance: AxiosInstance, flavor: ClientFlavor): Axio
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         const message =
-          error.response?.data?.message || error.message || "An unexpected error occurred";
-        if (status === 401) {
+          status === 403 && flavor.name === "java"
+            ? "需要管理员权限"
+            : error.response?.data?.message || error.message || "An unexpected error occurred";
+        if (status === 401 && !error.config?.url?.startsWith("/api/v1/auth/")) {
           localStorage.removeItem("access_token");
           localStorage.removeItem("refresh_token");
           localStorage.removeItem("token_expires_at");

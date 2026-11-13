@@ -1,3 +1,4 @@
+/** Runs on the anonymous app stack. See e2e/README.md. */
 /**
  * app LoginPage Turnstile widget — Buffer Day 62 (B Step 2).
  *
@@ -22,9 +23,7 @@
 import { test, expect } from "@playwright/test";
 
 test.describe("app LoginPage — Turnstile widget (dev sentinel)", () => {
-  test("renders Turnstile container and enables submit when token is present", async ({
-    page,
-  }) => {
+  test("renders Turnstile container and enables submit when token is present", async ({ page }) => {
     await page.goto("/login");
 
     await expect(page.getByTestId("turnstile-container")).toBeAttached();
@@ -39,8 +38,6 @@ test.describe("app LoginPage — Turnstile widget (dev sentinel)", () => {
     // error rather than the Turnstile gate (proves the token check
     // came after the form-validation early-return).
     await submit.click();
-    await expect(
-      page.getByText("Please enter username and password"),
-    ).toBeVisible();
+    await expect(page.getByTestId("auth-error")).toBeVisible();
   });
 });

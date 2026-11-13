@@ -1,3 +1,4 @@
+/** Runs on the anonymous app stack. See e2e/README.md. */
 /**
  * app ChatPage shell + auth gating.
  *

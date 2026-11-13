@@ -1,3 +1,4 @@
+/** Requires Java dev profile with admin configured and the authenticated runtime. */
 /**
  * admin Dashboard — 4 stat cards render past loading.
  *
@@ -21,18 +22,20 @@
 
 import { test, expect } from "@playwright/test";
 
-async function loginAsAlice(page: import("@playwright/test").Page) {
+async function loginAsAdmin(page: import("@playwright/test").Page) {
   await page.goto("/login");
   await page.evaluate(() => localStorage.clear());
-  await page.locator('input[autocomplete="username"]').fill("alice");
-  await page.locator('input[autocomplete="current-password"]').fill("dev-secret");
+  await page.locator('input[autocomplete="username"]').fill("admin");
+  await page
+    .locator('input[autocomplete="current-password"]')
+    .fill(process.env.E2E_ADMIN_PASSWORD ?? "admin-password-123");
   await page.getByRole("button", { name: /sign in/i }).click();
   await page.waitForURL(/\/dashboard$/, { timeout: 10_000 });
 }
 
 test.describe("admin dashboard", () => {
   test("four stat cards render past loading", async ({ page }) => {
-    await loginAsAlice(page);
+    await loginAsAdmin(page);
 
     const statCards = page.locator(".stat-number");
     await expect(statCards).toHaveCount(4);

@@ -28,7 +28,7 @@ function describeError(err: unknown): string {
     if (status === 400) return serverMessage || "Bad request. Check your inputs.";
     if (status && status >= 500) return `Server error (${status}). Try again later.`;
     if (err.code === "ERR_NETWORK" || !err.response) {
-      return "Cannot reach Java backend. Is it running on http://localhost:8080?";
+      return "网络连接失败，请稍后重试。";
     }
     return serverMessage || err.message;
   }

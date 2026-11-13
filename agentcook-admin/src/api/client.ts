@@ -9,10 +9,9 @@ import { ElNotification } from "element-plus";
  * 共享：401 拦截、token 注入、ElNotification 错误提示。区别仅在 baseURL。
  */
 
-const PYTHON_BASE_URL =
-  import.meta.env.VITE_PYTHON_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+const PYTHON_BASE_URL = import.meta.env.VITE_PYTHON_API_BASE_URL || import.meta.env.VITE_API_BASE_URL || "";
 
-const JAVA_BASE_URL = import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+const JAVA_BASE_URL = import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 interface ClientFlavor {
   name: "python" | "java";

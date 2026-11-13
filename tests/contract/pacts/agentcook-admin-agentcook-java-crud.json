@@ -11,27 +11,40 @@
         }
       ],
       "request": {
+        "headers": {
+          "Authorization": "Bearer admin-access-token"
+        },
         "method": "GET",
         "path": "/api/v1/sessions",
         "query": {
-          "userId": [
-            "01HXYZAB000000000000000001"
-          ]
+          "userId": ["00000000-0000-0000-0000-000000000001"]
         }
       },
       "response": {
         "body": [
           {
             "createdAt": "2026-05-30T10:00:00Z",
-            "id": "01HXYZSE000000000000000001",
+            "id": "00000000-0000-0000-0000-000000000002",
             "status": "ACTIVE",
             "title": "Debugging payment flow",
             "updatedAt": "2026-05-30T10:30:00Z",
-            "userId": "01HXYZAB000000000000000001"
+            "userId": "00000000-0000-0000-0000-000000000001"
           }
         ],
         "headers": {
           "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
         },
         "status": 200
       }
@@ -46,9 +59,10 @@
       "request": {
         "body": {
           "title": "New debugging session",
-          "userId": "01HXYZAB000000000000000001"
+          "userId": "00000000-0000-0000-0000-000000000001"
         },
         "headers": {
+          "Authorization": "Bearer admin-access-token",
           "Content-Type": "application/json"
         },
         "method": "POST",
@@ -57,11 +71,11 @@
       "response": {
         "body": {
           "createdAt": "2026-05-30T11:00:00Z",
-          "id": "01HXYZSE000000000000000002",
+          "id": "00000000-0000-0000-0000-000000000003",
           "status": "ACTIVE",
           "title": "New debugging session",
           "updatedAt": "2026-05-30T11:00:00Z",
-          "userId": "01HXYZAB000000000000000001"
+          "userId": "00000000-0000-0000-0000-000000000001"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -77,30 +91,37 @@
         }
       ],
       "request": {
+        "headers": {
+          "Authorization": "Bearer admin-access-token"
+        },
         "method": "GET",
         "path": "/api/v1/connectors",
         "query": {
-          "pluginId": [
-            "01HXYZPL000000000000000001"
-          ]
+          "pluginId": ["00000000-0000-0000-0000-000000000004"]
         }
       },
       "response": {
         "body": [
           {
-            "config": {
-              "channel": "#alerts",
-              "webhookUrl": "https://hooks.slack.com/services/T00/B00/XXX"
-            },
-            "createdAt": "2026-06-05T09:30:00Z",
-            "id": "01HXYZCO000000000000000001",
-            "name": "Slack notifications",
-            "pluginId": "01HXYZPL000000000000000001",
-            "status": "ENABLED"
+            "id": "00000000-0000-0000-0000-000000000005",
+            "pluginId": "00000000-0000-0000-0000-000000000004",
+            "status": "CONNECTED"
           }
         ],
         "headers": {
           "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
         },
         "status": 200
       }
@@ -113,8 +134,11 @@
         }
       ],
       "request": {
+        "headers": {
+          "Authorization": "Bearer admin-access-token"
+        },
         "method": "DELETE",
-        "path": "/api/v1/connectors/01HXYZCO000000000000000001"
+        "path": "/api/v1/connectors/00000000-0000-0000-0000-000000000005"
       },
       "response": {
         "status": 204

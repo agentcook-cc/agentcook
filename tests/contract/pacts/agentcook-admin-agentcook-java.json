@@ -4,16 +4,16 @@
   },
   "interactions": [
     {
-      "description": "login with valid credentials",
+      "description": "admin password login",
       "providerStates": [
         {
-          "name": "Java dev profile auth is enabled"
+          "name": "admin account with a password exists"
         }
       ],
       "request": {
         "body": {
-          "password": "dev-secret",
-          "username": "alice"
+          "password": "admin-password-123",
+          "username": "admin"
         },
         "headers": {
           "Content-Type": "application/json"
@@ -23,64 +23,168 @@
       },
       "response": {
         "body": {
-          "accessToken": "dev-token-alice",
+          "accessToken": "signed.access.token",
           "expiresIn": 3600,
+          "refreshExpiresIn": 2592000,
+          "refreshToken": "signed.refresh.token",
           "tokenType": "Bearer"
         },
         "headers": {
           "Content-Type": "application/json"
         },
+        "matchingRules": {
+          "body": {
+            "$.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
         "status": 200
       }
     },
     {
-      "description": "list users for the admin user list view",
+      "description": "admin lists users",
       "providerStates": [
         {
-          "name": "at least one user exists"
+          "name": "an administrator and at least one user exist"
         }
       ],
       "request": {
+        "headers": {
+          "Authorization": "Bearer admin-access-token"
+        },
         "method": "GET",
         "path": "/api/v1/users"
       },
       "response": {
         "body": [
           {
-            "createdAt": "2026-05-30T08:00:00Z",
-            "displayName": "Alice",
+            "createdAt": "2026-01-01T00:00:00Z",
             "email": "alice@example.com",
-            "id": "01HXYZAB000000000000000001",
-            "status": "ACTIVE"
+            "id": "00000000-0000-0000-0000-000000000001",
+            "nickname": "Alice",
+            "status": "ACTIVE",
+            "updatedAt": "2026-01-01T00:00:00Z"
           }
         ],
         "headers": {
           "Content-Type": "application/json"
         },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$[*].id": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "^([0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}|[0-9A-F]{8}(-[0-9A-F]{4}){3}-[0-9A-F]{12})$"
+                }
+              ]
+            }
+          }
+        },
         "status": 200
       }
     },
     {
-      "description": "upload a plugin (multipart body verified provider-side)",
+      "description": "admin uploads a plugin zip",
       "providerStates": [
         {
-          "name": "the admin uploader has a valid plugin zip"
+          "name": "the plugin version has not been registered"
         }
       ],
       "request": {
+        "body": "LS1jb250cmFjdC1ib3VuZGFyeQ0KQ29udGVudC1EaXNwb3NpdGlvbjogZm9ybS1kYXRhOyBuYW1lPSJmaWxlIjsgZmlsZW5hbWU9ImNvbnRyYWN0LXBsdWdpbi56aXAiDQpDb250ZW50LVR5cGU6IGFwcGxpY2F0aW9uL3ppcA0KDQpQSwMEFAAAAAAA9XltXdymB/hlAAAAZQAAAAsAAABwbHVnaW4uanNvbnsibmFtZSI6ICJjb250cmFjdC1wbHVnaW4iLCAidmVyc2lvbiI6ICIxLjAuMCIsICJraW5kIjogIldFQkhPT0siLCAiZGVzY3JpcHRpb24iOiAiQ29udHJhY3QgZml4dHVyZSJ9UEsBAhQDFAAAAAAA9XltXdymB/hlAAAAZQAAAAsAAAAAAAAAAAAAAIABAAAAAHBsdWdpbi5qc29uUEsFBgAAAAABAAEAOQAAAI4AAAAAAA0KLS1jb250cmFjdC1ib3VuZGFyeS0tDQo=",
+        "headers": {
+          "Authorization": "Bearer admin-access-token",
+          "Content-Type": "multipart/form-data; boundary=contract-boundary"
+        },
+        "matchingRules": {
+          "body": {
+            "$.file": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "contentType",
+                  "value": "application/zip"
+                }
+              ]
+            }
+          },
+          "header": {
+            "Content-Type": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "regex",
+                  "regex": "multipart/form-data;(\\s*charset=[^;]*;)?\\s*boundary=.*"
+                }
+              ]
+            }
+          }
+        },
         "method": "POST",
         "path": "/api/v1/plugins"
       },
       "response": {
         "body": {
-          "createdAt": "2026-06-05T09:00:00Z",
-          "id": "01HXYZPL000000000000000001",
-          "name": "demo-skill",
+          "id": "00000000-0000-0000-0000-000000000002",
+          "kind": "WEBHOOK",
+          "name": "contract-plugin",
           "status": "DRAFT",
-          "version": "0.1.0"
+          "version": "1.0.0"
         },
         "headers": {
           "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
         },
         "status": 201
       }

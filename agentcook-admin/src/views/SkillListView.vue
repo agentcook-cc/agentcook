@@ -78,7 +78,7 @@ import type { SkillListResponse, SkillManifest } from "./skills/skillTypes";
 import SkillDetailDrawer from "./skills/SkillDetailDrawer.vue";
 import SkillTestDialog from "./skills/SkillTestDialog.vue";
 
-const PYTHON_BASE = import.meta.env.VITE_PYTHON_API_BASE_URL || "http://localhost:8000";
+const PYTHON_BASE = import.meta.env.VITE_PYTHON_API_BASE_URL || "";
 
 const skills = ref<SkillManifest[]>([]);
 const loading = ref(false);

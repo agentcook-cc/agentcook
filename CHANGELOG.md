@@ -11,7 +11,8 @@ All notable changes to the **agentcook** monorepo. Format follows [Keep a Change
 - **agentcook-core 0.2.0**：`AgentRunner` 流式 ReAct 循环（类型化事件、并行工具与超时、`ToolPolicy`、`RunHooks`）、`@tool` 装饰器与参数校验、`ContextWindow`、`AgentTool` 子 Agent 委派、`SystemPromptBuilder`、会话存储协议、CJK 友好的 token 估算。
 - **agentcook-providers 0.2.0**：Anthropic 工具调用与提示缓存、OpenAI 兼容流式 usage、离线 `MockProvider`（驱动真实循环：工具、委派、流式）、`create_provider_chain("qwen,zhipu,mock")`、缺少 Key 时明确报错。
 - **agentcook 2.0.0（运行时）**：`Settings` + `AppContainer`；YAML Agent 规格（assistant → researcher / analyst）；工具包（core / web / commerce-demo / memory）；`RunManager`（运行独立于连接、`POST /chat/runs/{id}/cancel`、单会话单运行）；会话 API 与 Postgres 存储（Alembic 0002）；真实的技能目录、日志流、委派记录；`/api/v1/agents`、`/toolkits`、`/runtime`；按路由模板的指标；生产模式安全校验。
-- **用户端**：`useAgentChat`、规范的 SSE 解析器、工具/委派卡片、停止生成、会话侧栏、Agent 选择、refresh token 自动续期。
+- **Java 业务后端**：密码注册与登录、refresh token、管理员角色、会话归属校验、原子扣减额度，以及可透传身份和处理取消的 SSE → gRPC 桥。
+- **用户端**：注册与登录界面、`useAgentChat`、规范的 SSE 解析器、工具/委派卡片、停止生成、会话侧栏、Agent 选择、refresh token 自动续期。
 - **agentcook-starter**：教程第 22–25 讲的可运行项目，60 个测试，章节练习参考答案。
 - **容器**：`agentcook/Dockerfile` 生产镜像；swarm 各镜像可从仓库根目录构建；SPA 支持子路径部署（`VITE_BASE_PATH`）。
 - **契约**：Pact 契约改为描述前端真实调用，并在 CI 中对真实运行时本地校验。

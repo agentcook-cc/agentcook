@@ -1,11 +1,6 @@
 /**
- * Agent chat, end to end: React app (Vite :5174) → proxy → Python runtime
- * (:8000) running the offline mock model. No Java needed — the runtime
- * defaults to AGENTCOOK_AUTH_MODE=optional, so the app works anonymously.
- *
- * Start the stack:
- *   AGENTCOOK_MOCK_DELAY_MS=20 uv run uvicorn agentcook_app.main:app --port 8000
- *   pnpm --filter @agentcook-cc/app dev
+ * Requires app :5175 → runtime :8001 in optional auth with the offline provider.
+ * See e2e/README.md for the commands.
  *
  * The mock model is deterministic, so assertions can be exact: the
  * calculator really runs, delegation really happens, transcripts really

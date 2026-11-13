@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import httpx
 import pytest
-from pact.v3 import Pact
+from pact.v3 import Pact, match
 
 CONSUMER = "agentcook-admin"
 PROVIDER = "agentcook-java-crud"
@@ -46,22 +46,23 @@ def test_admin_java_crud_contract(pacts_dir):
             method="GET",
             path="/api/v1/sessions",
         )
-        .with_query_parameter("userId", "01HXYZAB000000000000000001")
+        .with_query_parameter("userId", "00000000-0000-0000-0000-000000000001")
+        .with_header("Authorization", "Bearer admin-access-token")
         .will_respond_with(200)
         .with_body(
             content_type="application/json",
             # SessionResponse record — id is UUID-shaped, userId references
             # the User entity, status reflects session state, createdAt is ISO-8601.
-            body=[
+            body=match.each_like(
                 {
-                    "id": "01HXYZSE000000000000000001",
-                    "userId": "01HXYZAB000000000000000001",
+                    "id": "00000000-0000-0000-0000-000000000002",
+                    "userId": "00000000-0000-0000-0000-000000000001",
                     "title": "Debugging payment flow",
                     "status": "ACTIVE",
                     "createdAt": "2026-05-30T10:00:00Z",
                     "updatedAt": "2026-05-30T10:30:00Z",
                 },
-            ],
+            ),
         )
     )
 
@@ -76,16 +77,17 @@ def test_admin_java_crud_contract(pacts_dir):
         .with_body(
             content_type="application/json",
             body={
-                "userId": "01HXYZAB000000000000000001",
+                "userId": "00000000-0000-0000-0000-000000000001",
                 "title": "New debugging session",
             },
         )
+        .with_header("Authorization", "Bearer admin-access-token")
         .will_respond_with(201)
         .with_body(
             content_type="application/json",
             body={
-                "id": "01HXYZSE000000000000000002",
-                "userId": "01HXYZAB000000000000000001",
+                "id": "00000000-0000-0000-0000-000000000003",
+                "userId": "00000000-0000-0000-0000-000000000001",
                 "title": "New debugging session",
                 "status": "ACTIVE",
                 "createdAt": "2026-05-30T11:00:00Z",
@@ -102,26 +104,21 @@ def test_admin_java_crud_contract(pacts_dir):
             method="GET",
             path="/api/v1/connectors",
         )
-        .with_query_parameter("pluginId", "01HXYZPL000000000000000001")
+        .with_query_parameter("pluginId", "00000000-0000-0000-0000-000000000004")
+        .with_header("Authorization", "Bearer admin-access-token")
         .will_respond_with(200)
         .with_body(
             content_type="application/json",
             # ConnectorResponse record — id is UUID-shaped, pluginId references
             # the Plugin entity, config holds connector-specific settings,
             # status indicates whether the connector is enabled.
-            body=[
+            body=match.each_like(
                 {
-                    "id": "01HXYZCO000000000000000001",
-                    "pluginId": "01HXYZPL000000000000000001",
-                    "name": "Slack notifications",
-                    "config": {
-                        "webhookUrl": "https://hooks.slack.com/services/T00/B00/XXX",
-                        "channel": "#alerts",
-                    },
-                    "status": "ENABLED",
-                    "createdAt": "2026-06-05T09:30:00Z",
+                    "id": "00000000-0000-0000-0000-000000000005",
+                    "pluginId": "00000000-0000-0000-0000-000000000004",
+                    "status": "CONNECTED",
                 },
-            ],
+            ),
         )
     )
 
@@ -131,28 +128,34 @@ def test_admin_java_crud_contract(pacts_dir):
         .given("the connector exists and belongs to the requesting admin")
         .with_request(
             method="DELETE",
-            path="/api/v1/connectors/01HXYZCO000000000000000001",
+            path="/api/v1/connectors/00000000-0000-0000-0000-000000000005",
         )
+        .with_header("Authorization", "Bearer admin-access-token")
         .will_respond_with(204)
     )
 
-    with pact.serve() as mock:
+    with (
+        pact.serve() as mock,
+        httpx.Client(
+            headers={"Authorization": "Bearer admin-access-token"}, trust_env=False
+        ) as client,
+    ):
         # Interaction 1 — list sessions
-        r1 = httpx.get(
+        r1 = client.get(
             f"{mock.url}/api/v1/sessions",
-            params={"userId": "01HXYZAB000000000000000001"},
+            params={"userId": "00000000-0000-0000-0000-000000000001"},
         )
         assert r1.status_code == 200
         sessions = r1.json()
         assert isinstance(sessions, list) and sessions
         assert sessions[0]["status"] == "ACTIVE"
-        assert sessions[0]["userId"] == "01HXYZAB000000000000000001"
+        assert sessions[0]["userId"] == "00000000-0000-0000-0000-000000000001"
 
         # Interaction 2 — create session
-        r2 = httpx.post(
+        r2 = client.post(
             f"{mock.url}/api/v1/sessions",
             json={
-                "userId": "01HXYZAB000000000000000001",
+                "userId": "00000000-0000-0000-0000-000000000001",
                 "title": "New debugging session",
             },
         )
@@ -162,19 +165,19 @@ def test_admin_java_crud_contract(pacts_dir):
         assert new_session["status"] == "ACTIVE"
 
         # Interaction 3 — list connectors
-        r3 = httpx.get(
+        r3 = client.get(
             f"{mock.url}/api/v1/connectors",
-            params={"pluginId": "01HXYZPL000000000000000001"},
+            params={"pluginId": "00000000-0000-0000-0000-000000000004"},
         )
         assert r3.status_code == 200
         connectors = r3.json()
         assert isinstance(connectors, list) and connectors
-        assert connectors[0]["pluginId"] == "01HXYZPL000000000000000001"
-        assert connectors[0]["status"] == "ENABLED"
+        assert connectors[0]["pluginId"] == "00000000-0000-0000-0000-000000000004"
+        assert connectors[0]["status"] == "CONNECTED"
 
         # Interaction 4 — delete connector
-        r4 = httpx.delete(
-            f"{mock.url}/api/v1/connectors/01HXYZCO000000000000000001",
+        r4 = client.delete(
+            f"{mock.url}/api/v1/connectors/00000000-0000-0000-0000-000000000005",
         )
         assert r4.status_code == 204
 

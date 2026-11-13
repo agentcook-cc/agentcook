@@ -34,12 +34,12 @@ flowchart LR
     Business --> pg2[(Postgres<br/>agentcook_business)]
 ```
 
-| 关注点                       | 归属                  | 说明                                                                                            |
-| ---------------------------- | --------------------- | ----------------------------------------------------------------------------------------------- |
-| 账号、密码、角色、签发 JWT   | Java                  | access token 带 `sub`（用户 UUID）、`roles`、`scope`、`typ=access`；refresh token `typ=refresh` |
-| 校验 JWT                     | 两边                  | 同一 HS256 密钥；运行时拒绝 `typ=refresh`；`admin` 角色/scope 才能看全局日志、他人记忆          |
-| 对话、运行、工具、技能、记忆 | 运行时                | 会话按用户隔离，访问他人会话返回 404                                                            |
-| 免费额度                     | Java 记账，运行时消费 | 每轮完成后运行时调用 `POST /api/v1/quota/consume`（透传用户 token）                             |
+| 关注点                       | 归属                  | 说明                                                                                                       |
+| ---------------------------- | --------------------- | ---------------------------------------------------------------------------------------------------------- |
+| 账号、密码、角色、签发 JWT   | Java                  | access token 带 `sub`（用户 UUID）、`roles`、`scope`、`typ=access`；refresh token `typ=refresh`            |
+| 校验 JWT                     | 两边                  | 同一 HS256 密钥；两端校验签发者和有效期，并拒绝 `typ=refresh`；`admin` 角色/scope 才能看全局日志、他人记忆 |
+| 对话、运行、工具、技能、记忆 | 运行时                | 会话按用户隔离，访问他人会话返回 404                                                                       |
+| 免费额度                     | Java 记账，运行时消费 | 每轮完成后运行时调用 `POST /api/v1/quota/consume`（透传用户 token）                                        |
 
 ## 2. 运行时内部
 
@@ -87,7 +87,7 @@ sequenceDiagram
 ## 4. 前端
 
 - **用户端**（React + react-query + zustand）：`useAgentChat` 一个 reducer 管一整轮——文本增量、工具卡片按 id 更新、运行元数据；`stop()` 调取消接口。访问令牌过期时自动用 refresh token 换新并重试一次。运行时允许匿名（`AGENTCOOK_AUTH_MODE=optional`）时无需登录即可对话。
-- **管理端**（Vue 3 + Element Plus）：用户/插件/权限走 Java，技能目录与实时日志（`/api/v1/logs/stream?follow=true`）走运行时。
+- **管理端**（Vue 3 + Element Plus）：登录、启动和刷新时检查管理员声明，实际授权由 Java 负责。用户/插件/权限走 Java，技能目录与实时日志（`/api/v1/logs/stream?follow=true`）走运行时。
 
 ## 5. 部署形态
 

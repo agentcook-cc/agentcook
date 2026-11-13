@@ -10,16 +10,7 @@ export interface UserInfo {
   roles: string[];
 }
 
-/**
- * Day 26 Phase 3 — auth wired to Java backend's POST /api/v1/auth/login.
- *
- * Day 26 reverse fact-check #1: D ships fields as camelCase (Jackson default
- * for Java records — accessToken/tokenType/expiresIn). Brief specified
- * snake_case. Adapter below normalises both so the store keeps a single
- * internal representation. Long-term D should set
- * `spring.jackson.property-naming-strategy: SNAKE_CASE` to match Python
- * runtime's wire convention (ADR-008/013 consistency).
- */
+/** Java returns camelCase token envelopes; older adapters may still use snake_case. */
 interface LoginResponseSnake {
   access_token?: string;
   token_type?: string;

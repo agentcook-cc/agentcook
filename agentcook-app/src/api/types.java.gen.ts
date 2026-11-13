@@ -4,390 +4,1729 @@
  */
 
 export interface paths {
-    "/api/v1/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Register a new user. */
-        post: operations["createUser"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+  "/api/v1/users/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/sessions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Open a new conversation session for an existing user. */
-        post: operations["createSession"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    /** Fetch a user by id. */
+    get: operations["getUser"];
+    /** Update a user's profile (nickname). */
+    put: operations["updateUser"];
+    post?: never;
+    /** Soft-delete (suspend) a user. */
+    delete: operations["deleteUser"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/suspend": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/plugins/{id}/activate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Activate a plugin for a user -- establishes a Connector. */
-        post: operations["activate"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Suspend a user: login, refresh and quota consumption are refused until re-activated. */
+    put: operations["suspendUser"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{id}/activate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/users/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Fetch a user by id. */
-        get: operations["getUser"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Re-activate a suspended user. */
+    put: operations["activateUser"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/plugins/{id}/publish": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/sessions/{id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Fetch a session by id. */
-        get: operations["getSession"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Publish a DRAFT plugin (transitions status to PUBLISHED). */
+    put: operations["publishPlugin"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/connectors/{id}/config": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
-    "/api/v1/plugins": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List plugins, optionally filtered by status. */
-        get: operations["listPlugins"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
+    get?: never;
+    /** Update a Connector's configuration JSON. */
+    put: operations["updateConfig"];
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
     };
+    /** List users, optionally filtered by status. */
+    get: operations["listUsers"];
+    put?: never;
+    /** Register a new user. */
+    post: operations["createUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/{userId}/permissions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a user's permissions. */
+    get: operations["listForUser"];
+    put?: never;
+    /** Grant or deny a permission to the user. */
+    post: operations["grantForUser"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sessions": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List a user's sessions. Defaults to the caller; other users' lists are admin-only. */
+    get: operations["listSessions"];
+    put?: never;
+    /** Open a new conversation session. Owner defaults to the JWT subject when body.userId is omitted; only admins may open a session for another user. */
+    post: operations["createSession"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/quota/consume": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Record one completed chat turn against the caller's free-tier quota.
+     * @description Atomic per user: concurrent calls are serialised on the user row, so none is lost. An exhausted quota is not an error — the response says `exhausted: true` and the counters are unchanged (ADR-018: the runtime downgrades to the cheaper model).
+     */
+    post: operations["consume"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/plugins": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List plugins, optionally filtered by status. */
+    get: operations["listPlugins"];
+    put?: never;
+    /**
+     * Upload a plugin .zip package and register the plugin metadata.
+     * @description The zip must contain a plugin.json with name / version / kind / description. Sandbox loading + execution lives in the Python runtime per ADR-013 — this endpoint only registers metadata.
+     */
+    post: operations["uploadPlugin"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/plugins/{id}/activate": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Activate a plugin for a user — establishes a Connector. */
+    post: operations["activate"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/connectors": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** List connectors for a given plugin. */
+    get: operations["listConnectors"];
+    put?: never;
+    /** Create (establish) a Connector for an existing Plugin. */
+    post: operations["createConnector"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/connectors/{id}/ping": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Ping the Connector and record a health check.
+     * @description Phase 3 returns mock latency; Phase 4 swaps in real upstream IM SDK probes.
+     */
+    post: operations["pingConnector"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/connectors/oauth/callback": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Receive an OAuth authorization-code callback. Phase 3 returns a dummy bearer token. */
+    post: operations["callback"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/register": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /** Create an account with a password and log it in. */
+    post: operations["register"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/refresh": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Exchange a refresh token for a new access + refresh token pair.
+     * @description Access tokens are refused here and refresh tokens are refused everywhere else.
+     */
+    post: operations["refresh"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/auth/login": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    /**
+     * Log in with username (or e-mail) and password.
+     * @description Unknown users are rejected unless `agentcook.auth.auto-provision` is on (dev profile), in which case the account is created with this password. Accounts without a password (seed data, pre-password rows) are claimed by their first login only under auto-provision.
+     */
+    post: operations["login"];
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/users/me": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Fetch the currently-authenticated user and the roles of the presented token. JWT subject is the user UUID. */
+    get: operations["getCurrentUser"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/sessions/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Fetch a session by id (owner or admin). */
+    get: operations["getSession"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/quota": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Get the calling user's chat quota state. */
+    get: operations["getQuota"];
+    put?: never;
+    post?: never;
+    delete?: never;
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/connectors/{id}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    /** Fetch a connector by id. */
+    get: operations["getConnector"];
+    put?: never;
+    post?: never;
+    /** Delete a Connector. */
+    delete: operations["deleteConnector"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
+  "/api/v1/permissions/{permissionId}": {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    get?: never;
+    put?: never;
+    post?: never;
+    /** Revoke (delete) a permission by id. */
+    delete: operations["revoke"];
+    options?: never;
+    head?: never;
+    patch?: never;
+    trace?: never;
+  };
 }
 export type webhooks = Record<string, never>;
 export interface components {
-    schemas: {
-        /** @description Payload to register a new user. */
-        CreateUserRequest: {
-            /** @example alice@example.com */
-            email: string;
-            /** @example Alice */
-            nickname?: string;
-        };
-        /** @description Flat error envelope. Field names match frontend-conventions Â§7.6 (B canonical). */
-        ApiError: {
-            /** @example DUPLICATE_EMAIL */
-            code?: string;
-            /** @example User already exists with email: alice@example.com */
-            message?: string;
-        };
-        /** @description User aggregate snapshot. */
-        UserResponse: {
-            /** Format: uuid */
-            id?: string;
-            email?: string;
-            nickname?: string;
-            /** @enum {string} */
-            status?: "ACTIVE" | "SUSPENDED" | "DELETED";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        /** @description Payload to open a conversation session for an existing user. */
-        CreateSessionRequest: {
-            /**
-             * Format: uuid
-             * @example 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
-             */
-            userId: string;
-            /** @example Trip planning */
-            title?: string;
-        };
-        /** @description Session aggregate snapshot. */
-        SessionResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            userId?: string;
-            title?: string;
-            /** @enum {string} */
-            status?: "ACTIVE" | "ARCHIVED" | "DELETED";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
-        /** @description Payload to activate a plugin for a user, establishing a Connector. */
-        ActivatePluginRequest: {
-            /**
-             * Format: uuid
-             * @example 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
-             */
-            userId: string;
-            /** @example {"webhook_url":"https://example.com/webhook"} */
-            connectorConfig?: string;
-        };
-        /** @description Connector aggregate snapshot returned by activate-plugin. */
-        ConnectorResponse: {
-            /** Format: uuid */
-            id?: string;
-            /** Format: uuid */
-            pluginId?: string;
-            status?: string;
-        };
-        /** @description Plugin aggregate snapshot. */
-        PluginResponse: {
-            /** Format: uuid */
-            id?: string;
-            name?: string;
-            version?: string;
-            /** @enum {string} */
-            kind?: "MCP" | "HTTP" | "OAUTH" | "WEBHOOK";
-            description?: string;
-            /** @enum {string} */
-            status?: "DRAFT" | "PUBLISHED" | "DEPRECATED";
-            /** Format: date-time */
-            createdAt?: string;
-            /** Format: date-time */
-            updatedAt?: string;
-        };
+  schemas: {
+    /** @description Update a user's profile. */
+    UpdateUserRequest: {
+      /** @description New nickname. */
+      nickname: string;
     };
-    responses: never;
-    parameters: never;
-    requestBodies: never;
-    headers: never;
-    pathItems: never;
+    /** @description User aggregate snapshot. */
+    UserResponse: {
+      /** Format: uuid */
+      id?: string;
+      email?: string;
+      nickname?: string;
+      /** @enum {string} */
+      status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+    };
+    /** @description Flat error envelope. Field names match frontend-conventions §7.6 (B canonical). */
+    ApiError: {
+      /** @example DUPLICATE_EMAIL */
+      code?: string;
+      /** @example User already exists with email: alice@example.com */
+      message?: string;
+    };
+    /** @description Plugin aggregate snapshot. */
+    PluginResponse: {
+      /** Format: uuid */
+      id?: string;
+      name?: string;
+      version?: string;
+      /** @enum {string} */
+      kind?: "MCP" | "HTTP" | "OAUTH" | "WEBHOOK";
+      description?: string;
+      /** @enum {string} */
+      status?: "DRAFT" | "PUBLISHED" | "DEPRECATED";
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+    };
+    /** @description Updates a Connector's configuration JSON without changing its status. */
+    UpdateConnectorConfigRequest: {
+      /** @example {"webhook_url":"https://example.com/v2"} */
+      config?: string;
+    };
+    /** @description Connector aggregate snapshot returned by activate-plugin. */
+    ConnectorResponse: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      pluginId?: string;
+      status?: string;
+    };
+    /** @description Payload to register a new user. */
+    CreateUserRequest: {
+      /** @example alice@example.com */
+      email: string;
+      /** @example Alice */
+      nickname?: string;
+    };
+    /** @description Payload to grant or deny a permission to a user. */
+    GrantPermissionRequest: {
+      /** @example plugin:dingtalk */
+      resource: string;
+      /** @example activate */
+      action: string;
+      /**
+       * @example ALLOW
+       * @enum {string}
+       */
+      effect: "ALLOW" | "DENY";
+    };
+    /** @description Permission aggregate snapshot. */
+    PermissionResponse: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      userId?: string;
+      resource?: string;
+      action?: string;
+      /** @enum {string} */
+      effect?: "ALLOW" | "DENY";
+      /** Format: date-time */
+      createdAt?: string;
+    };
+    /** @description Payload to open a conversation session for an existing user. When omitted, {@code userId} defaults to the JWT subject (the authenticated caller's UUID). */
+    CreateSessionRequest: {
+      /**
+       * Format: uuid
+       * @description Owner UUID. Optional — falls back to the JWT subject when blank.
+       * @example 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+       */
+      userId?: string | null;
+      /** @example Trip planning */
+      title?: string;
+    };
+    /** @description Session aggregate snapshot. */
+    SessionResponse: {
+      /** Format: uuid */
+      id?: string;
+      /** Format: uuid */
+      userId?: string;
+      title?: string;
+      /** @enum {string} */
+      status?: "ACTIVE" | "ARCHIVED" | "DELETED";
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+    };
+    /** @description Free-tier quota state after recording one chat turn. */
+    ConsumeQuotaResponse: {
+      /**
+       * Format: uuid
+       * @description User aggregate id.
+       */
+      userId?: string;
+      /**
+       * Format: int32
+       * @description Free-tier questions consumed so far (after this call).
+       * @example 2
+       */
+      used?: number;
+      /**
+       * Format: int32
+       * @description Per-user quota ceiling.
+       * @example 2
+       */
+      quota?: number;
+      /**
+       * Format: int32
+       * @description Free questions still available (quota - used, clamped to 0).
+       * @example 0
+       */
+      remaining?: number;
+      /**
+       * @description true when the quota was already used up, so nothing was consumed and the counters are unchanged. Not an error: the runtime downgrades to the cheaper model instead of blocking the user.
+       * @example false
+       */
+      exhausted?: boolean;
+    };
+    /** @description Payload to activate a plugin for a user, establishing a Connector. */
+    ActivatePluginRequest: {
+      /**
+       * Format: uuid
+       * @example 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+       */
+      userId: string;
+      /** @example {"webhook_url":"https://example.com/webhook"} */
+      connectorConfig?: string;
+    };
+    /** @description Admin payload to directly establish a Connector for an existing Plugin (bypasses end-user permission check). */
+    CreateConnectorRequest: {
+      /**
+       * Format: uuid
+       * @example 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
+       */
+      pluginId: string;
+      /** @example {"webhook_url":"https://example.com"} */
+      connectorConfig?: string;
+    };
+    /** @description Result of a Connector ping. Phase 3 returns mock latency; Phase 4 swaps in real upstream IM SDK calls. */
+    ConnectorPingResponse: {
+      /** @example CONNECTED */
+      status?: string;
+      /**
+       * Format: int64
+       * @example 42
+       */
+      latencyMs?: number;
+    };
+    /** @description OAuth callback payload posted by the IM provider after user authorization. Phase 3 dev profile only — Phase 4 hooks real provider SDKs. */
+    OAuthCallbackRequest: {
+      /**
+       * @description IM provider id (dingtalk/feishu/telegram/discord/slack).
+       * @example dingtalk
+       */
+      provider: string;
+      /** @example auth-code-from-provider */
+      code: string;
+      /**
+       * @description CSRF state token echoed back by the provider.
+       * @example csrf-state-token
+       */
+      state?: string;
+    };
+    /** @description OAuth callback result. Phase 3 dev mode returns a dummy access token; Phase 4 swaps in a real one issued by the IM provider. */
+    OAuthCallbackResponse: {
+      /** @example dingtalk */
+      provider?: string;
+      /** @example dev-dingtalk-8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f */
+      accessToken?: string;
+      /**
+       * @default Bearer
+       * @example Bearer
+       */
+      tokenType: string;
+      /**
+       * Format: int64
+       * @example 3600
+       */
+      expiresIn?: number;
+    };
+    /** @description Self-service sign-up payload. On success the new user is signed in. */
+    RegisterRequest: {
+      /**
+       * @description E-mail address (stored lower-cased), or a bare username (3-32 of letters, digits, `_`, `.`, `-`) stored as `<username>@dev.local`.
+       * @example alice
+       */
+      username: string;
+      /** @example correct-horse-battery */
+      password: string;
+      /**
+       * @description Display name; defaults to the username (or the e-mail's local part).
+       * @example Alice
+       */
+      nickname?: string | null;
+      /**
+       * @description Cloudflare Turnstile response token; required when `agentcook.turnstile.secret` is configured.
+       * @example 0.cf-turnstile-response-token
+       */
+      turnstileToken?: string | null;
+    };
+    /** @description Token envelope returned by login, register and refresh. */
+    LoginResponse: {
+      /** @description HS256 JWT for the `Authorization: Bearer` header (claims: sub, iss, iat, exp, typ=access, roles, scope, preferred_username). */
+      accessToken?: string;
+      /**
+       * @default Bearer
+       * @example Bearer
+       */
+      tokenType: string;
+      /**
+       * Format: int64
+       * @description Seconds until the access token is no longer accepted.
+       * @example 3600
+       */
+      expiresIn?: number;
+      /** @description HS256 JWT (typ=refresh) accepted only by `POST /api/v1/auth/refresh`. */
+      refreshToken?: string;
+      /**
+       * Format: int64
+       * @description Seconds until the refresh token is no longer accepted.
+       * @example 2592000
+       */
+      refreshExpiresIn?: number;
+    };
+    /** @description Refresh-token exchange payload. */
+    RefreshTokenRequest: {
+      /** @description The `refreshToken` from a previous login / register / refresh response. `refresh_token` is accepted as an alias. */
+      refreshToken: string;
+    };
+    /** @description Password login payload. */
+    LoginRequest: {
+      /**
+       * @description E-mail address, or a bare username (3-32 of letters, digits, `_`, `.`, `-`) which is the account `<username>@dev.local`.
+       * @example alice
+       */
+      username: string;
+      /** @example correct-horse-battery */
+      password: string;
+      /**
+       * @description Cloudflare Turnstile response token (Buffer Day 62 / backlog #11). Required when `agentcook.turnstile.secret` is configured; ignored in dev mode when the secret is unset.
+       * @example 0.cf-turnstile-response-token
+       */
+      turnstileToken?: string | null;
+    };
+    /** @description The authenticated user and the roles of the presented access token. */
+    CurrentUserResponse: {
+      /** Format: uuid */
+      id?: string;
+      email?: string;
+      nickname?: string;
+      /** @enum {string} */
+      status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+      /** Format: date-time */
+      createdAt?: string;
+      /** Format: date-time */
+      updatedAt?: string;
+      /** @description `user`, plus `admin` for accounts listed in `agentcook.auth.admins` (decided when the token was issued). */
+      roles?: string[];
+    };
+    /** @description Per-user free-tier chat quota state (ADR-018 v1). */
+    QuotaResponse: {
+      /**
+       * Format: uuid
+       * @description User aggregate id.
+       */
+      userId?: string;
+      /**
+       * Format: int32
+       * @description Free-tier questions consumed so far.
+       * @example 1
+       */
+      used?: number;
+      /**
+       * Format: int32
+       * @description Per-user quota ceiling (v1 default 2).
+       * @example 2
+       */
+      quota?: number;
+      /**
+       * Format: int32
+       * @description Free questions still available (quota - used, clamped to 0).
+       * @example 1
+       */
+      remaining?: number;
+      /** Format: int32 */
+      free_questions_used?: number;
+      /** Format: int32 */
+      free_questions_quota?: number;
+    };
+  };
+  responses: never;
+  parameters: never;
+  requestBodies: never;
+  headers: never;
+  pathItems: never;
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    createUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateUserRequest"];
-            };
-        };
-        responses: {
-            /** @description User created. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description Email already exists. */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  getUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    createSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
+    requestBody?: never;
+    responses: {
+      /** @description User found. */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSessionRequest"];
-            };
+        content: {
+          "*/*": components["schemas"]["UserResponse"];
         };
-        responses: {
-            /** @description Session created. */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["SessionResponse"];
-                };
-            };
-            /** @description User not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiError"];
-                };
-            };
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
         };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
     };
-    activate: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ActivatePluginRequest"];
-            };
-        };
-        responses: {
-            /** @description Connector established. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ConnectorResponse"];
-                };
-            };
-            /** @description User lacks activate permission. */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiError"];
-                };
-            };
-            /** @description Plugin not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiError"];
-                };
-            };
-        };
+  };
+  updateUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
-    getUser: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description User found. */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["UserResponse"];
-                };
-            };
-            /** @description User not found. */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["ApiError"];
-                };
-            };
-        };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateUserRequest"];
+      };
     };
-    getSession: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                id: string;
-            };
-            cookie?: never;
+    responses: {
+      /** @description User updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
         };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["SessionResponse"];
-                };
-            };
+        content: {
+          "*/*": components["schemas"]["UserResponse"];
         };
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
     };
-    listPlugins: {
-        parameters: {
-            query?: {
-                /** @description Optional status filter (DRAFT/PUBLISHED/DEPRECATED). */
-                status?: "DRAFT" | "PUBLISHED" | "DEPRECATED";
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "*/*": components["schemas"]["PluginResponse"][];
-                };
-            };
-        };
+  };
+  deleteUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
     };
+    requestBody?: never;
+    responses: {
+      /** @description User suspended. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  suspendUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User suspended. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  activateUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User active. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description User not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  publishPlugin: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Plugin published. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["PluginResponse"];
+        };
+      };
+      /** @description Plugin not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Plugin cannot be published (already deprecated). */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  updateConfig: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["UpdateConnectorConfigRequest"];
+      };
+    };
+    responses: {
+      /** @description Config updated. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConnectorResponse"];
+        };
+      };
+      /** @description Connector not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listUsers: {
+    parameters: {
+      query?: {
+        /** @description Optional status filter (ACTIVE/SUSPENDED/DELETED). */
+        status?: "ACTIVE" | "SUSPENDED" | "DELETED";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["UserResponse"][];
+        };
+      };
+    };
+  };
+  createUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateUserRequest"];
+      };
+    };
+    responses: {
+      /** @description User created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["UserResponse"];
+        };
+      };
+      /** @description Email already exists. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listForUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["PermissionResponse"][];
+        };
+      };
+    };
+  };
+  grantForUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        userId: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["GrantPermissionRequest"];
+      };
+    };
+    responses: {
+      /** @description Permission created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["PermissionResponse"];
+        };
+      };
+    };
+  };
+  listSessions: {
+    parameters: {
+      query?: {
+        /** @description User id (uuid). Optional — defaults to the JWT subject. */
+        userId?: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description USER_NOT_FOUND — another user's id requested by a non-admin. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  createSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateSessionRequest"];
+      };
+    };
+    responses: {
+      /** @description Session created. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["SessionResponse"];
+        };
+      };
+      /** @description INVALID_ARGUMENT — body.userId is not a UUID. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description USER_NOT_FOUND — owner missing or not the caller. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  consume: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Quota state after this call. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConsumeQuotaResponse"];
+        };
+      };
+      /** @description Missing or invalid Bearer token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description AUTH_ACCOUNT_DISABLED — the account is suspended. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description USER_NOT_FOUND — JWT subject does not resolve to a known user. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listPlugins: {
+    parameters: {
+      query?: {
+        /** @description Optional status filter (DRAFT/PUBLISHED/DEPRECATED). */
+        status?: "DRAFT" | "PUBLISHED" | "DEPRECATED";
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["PluginResponse"][];
+        };
+      };
+    };
+  };
+  uploadPlugin: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: {
+      content: {
+        "multipart/form-data": {
+          /** Format: binary */
+          file: string;
+        };
+      };
+    };
+    responses: {
+      /** @description Plugin registered. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["PluginResponse"];
+        };
+      };
+      /** @description Zip is missing plugin.json or has invalid manifest. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Plugin name + version already registered. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  activate: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["ActivatePluginRequest"];
+      };
+    };
+    responses: {
+      /** @description Connector established. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConnectorResponse"];
+        };
+      };
+      /** @description User lacks activate permission. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description Plugin not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  listConnectors: {
+    parameters: {
+      query: {
+        /** @description Plugin id (uuid). */
+        pluginId: string;
+      };
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description OK */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConnectorResponse"][];
+        };
+      };
+    };
+  };
+  createConnector: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["CreateConnectorRequest"];
+      };
+    };
+    responses: {
+      /** @description Connector established. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConnectorResponse"];
+        };
+      };
+      /** @description Plugin not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  pingConnector: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Ping completed. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ConnectorPingResponse"];
+        };
+      };
+      /** @description Connector not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  callback: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["OAuthCallbackRequest"];
+      };
+    };
+    responses: {
+      /** @description Token issued. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["OAuthCallbackResponse"];
+        };
+      };
+      /** @description Unsupported provider or malformed payload. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  register: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RegisterRequest"];
+      };
+    };
+    responses: {
+      /** @description Account created; tokens issued. */
+      201: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description VALIDATION_FAILED — bad username format, password outside 8-128 characters, or malformed JSON. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description TURNSTILE_REJECTED — Turnstile verification failed. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description AUTH_USER_EXISTS — the identity already has an account. */
+      409: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  refresh: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["RefreshTokenRequest"];
+      };
+    };
+    responses: {
+      /** @description New token pair issued. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description VALIDATION_FAILED — missing refreshToken. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description AUTH_INVALID_REFRESH_TOKEN — invalid, expired, not a refresh token, or the user is gone / not active. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  login: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody: {
+      content: {
+        "application/json": components["schemas"]["LoginRequest"];
+      };
+    };
+    responses: {
+      /** @description Login accepted. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["LoginResponse"];
+        };
+      };
+      /** @description VALIDATION_FAILED — blank username or password. */
+      400: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description AUTH_INVALID_CREDENTIALS, or TURNSTILE_REJECTED (only when `agentcook.turnstile.secret` is set). */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description AUTH_ACCOUNT_DISABLED — correct password, suspended account. */
+      403: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  getCurrentUser: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description User found. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["CurrentUserResponse"];
+        };
+      };
+      /** @description USER_NOT_FOUND — JWT subject does not resolve to a known user. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  getSession: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Session found. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["SessionResponse"];
+        };
+      };
+      /** @description SESSION_NOT_FOUND — missing or owned by another user. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  getQuota: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path?: never;
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Current quota snapshot. */
+      200: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["QuotaResponse"];
+        };
+      };
+      /** @description Missing or invalid Bearer token. */
+      401: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+      /** @description USER_NOT_FOUND — JWT subject does not resolve to a known user. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  getConnector: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Connector not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  deleteConnector: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        id: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Connector deleted. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Connector not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
+  revoke: {
+    parameters: {
+      query?: never;
+      header?: never;
+      path: {
+        permissionId: string;
+      };
+      cookie?: never;
+    };
+    requestBody?: never;
+    responses: {
+      /** @description Permission revoked. */
+      204: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content?: never;
+      };
+      /** @description Permission not found. */
+      404: {
+        headers: {
+          [name: string]: unknown;
+        };
+        content: {
+          "*/*": components["schemas"]["ApiError"];
+        };
+      };
+    };
+  };
 }

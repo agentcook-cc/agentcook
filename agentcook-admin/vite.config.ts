@@ -32,6 +32,8 @@ export default defineConfig({
     port: 5173,
     strictPort: true,
     proxy: {
+      "/health": { target: PY_API, changeOrigin: true },
+      "/metrics": { target: PY_API, changeOrigin: true },
       // Python agent runtime (docs/api/v1.yaml)
       "/api/v1/agents": { target: PY_API, changeOrigin: true },
       "/api/v1/skills": { target: PY_API, changeOrigin: true },

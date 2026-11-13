@@ -22,20 +22,10 @@
         :prefix-icon="Search"
         style="width: 320px"
       />
-      <el-select
-        v-model="providerFilter"
-        placeholder="Provider"
-        clearable
-        style="width: 160px; margin-left: 12px"
-      >
+      <el-select v-model="providerFilter" placeholder="Provider" clearable style="width: 160px; margin-left: 12px">
         <el-option v-for="p in PROVIDERS" :key="p" :label="PROVIDER_META[p].label" :value="p" />
       </el-select>
-      <el-select
-        v-model="statusFilter"
-        placeholder="Status"
-        clearable
-        style="width: 150px; margin-left: 12px"
-      >
+      <el-select v-model="statusFilter" placeholder="Status" clearable style="width: 150px; margin-left: 12px">
         <el-option label="Connected" value="CONNECTED" />
         <el-option label="Disconnected" value="DISCONNECTED" />
         <el-option label="Error" value="ERROR" />
@@ -63,9 +53,7 @@
       </template>
       <template #actions="{ row }">
         <el-button link type="primary" size="small" @click="handlePing(row)">Test</el-button>
-        <el-button link type="warning" size="small" @click="handleReauth(row)">
-          Re-auth
-        </el-button>
+        <el-button link type="warning" size="small" @click="handleReauth(row)"> Re-auth </el-button>
         <el-popconfirm
           :title="`Delete connector '${row.displayName}'?`"
           confirm-button-type="danger"
@@ -102,8 +90,7 @@ import {
 import ConnectorOAuthFlow from "./connectors/ConnectorOAuthFlow.vue";
 import ConnectorPingDialog from "./connectors/ConnectorPingDialog.vue";
 
-const JAVA_BASE =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+const JAVA_BASE = import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 const connectors = ref<ConnectorRow[]>([]);
 const loading = ref(false);
@@ -124,11 +111,35 @@ const columns = [
 ];
 
 const MOCK_CONNECTORS: ConnectorRow[] = [
-  { id: "c1", provider: "dingtalk", displayName: "DingTalk · Team Bot", status: "CONNECTED", lastConnectedAt: "2026-06-04 14:00" },
-  { id: "c2", provider: "feishu", displayName: "Feishu · Engineering", status: "CONNECTED", lastConnectedAt: "2026-06-04 09:30" },
+  {
+    id: "c1",
+    provider: "dingtalk",
+    displayName: "DingTalk · Team Bot",
+    status: "CONNECTED",
+    lastConnectedAt: "2026-06-04 14:00",
+  },
+  {
+    id: "c2",
+    provider: "feishu",
+    displayName: "Feishu · Engineering",
+    status: "CONNECTED",
+    lastConnectedAt: "2026-06-04 09:30",
+  },
   { id: "c3", provider: "telegram", displayName: "Telegram · Personal", status: "DISCONNECTED" },
-  { id: "c4", provider: "discord", displayName: "Discord · OSS Server", status: "ERROR", lastConnectedAt: "2026-06-03 22:15" },
-  { id: "c5", provider: "slack", displayName: "Slack · Customer Success", status: "CONNECTED", lastConnectedAt: "2026-06-04 11:45" },
+  {
+    id: "c4",
+    provider: "discord",
+    displayName: "Discord · OSS Server",
+    status: "ERROR",
+    lastConnectedAt: "2026-06-03 22:15",
+  },
+  {
+    id: "c5",
+    provider: "slack",
+    displayName: "Slack · Customer Success",
+    status: "CONNECTED",
+    lastConnectedAt: "2026-06-04 11:45",
+  },
 ];
 
 const filteredConnectors = computed(() => {

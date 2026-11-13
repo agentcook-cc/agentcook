@@ -6,27 +6,19 @@
         <el-tag v-if="dataSource === 'mock'" type="warning" size="small" effect="plain">
           mock fallback (Java /users 405, /permissions 404)
         </el-tag>
-        <el-tag v-else type="success" size="small" effect="plain">
-          live · {{ JAVA_BASE }}
-        </el-tag>
+        <el-tag v-else type="success" size="small" effect="plain"> live · {{ JAVA_BASE }} </el-tag>
         <el-button :icon="Refresh" link @click="loadUsers">Reload</el-button>
       </div>
     </div>
 
     <p class="hint">
-      Permissions are managed per user (no Role aggregate in Day 30 backend).
-      Pick a user on the left, edit the resource × action matrix on the right.
+      Permissions are managed per user (no Role aggregate in Day 30 backend). Pick a user on the left, edit the resource
+      × action matrix on the right.
     </p>
 
     <div class="split">
       <aside class="user-pane">
-        <el-input
-          v-model="searchQuery"
-          placeholder="Filter users..."
-          clearable
-          :prefix-icon="Search"
-          size="small"
-        />
+        <el-input v-model="searchQuery" placeholder="Filter users..." clearable :prefix-icon="Search" size="small" />
         <el-skeleton v-if="loading" :rows="6" animated />
         <ul v-else class="user-list">
           <li
@@ -43,26 +35,22 @@
             </div>
             <div class="user-email">{{ u.email }}</div>
           </li>
-          <el-empty
-            v-if="filteredUsers.length === 0"
-            description="No users"
-            :image-size="48"
-          />
+          <el-empty v-if="filteredUsers.length === 0" description="No users" :image-size="48" />
         </ul>
       </aside>
 
       <section class="matrix-pane">
-        <div v-if="!selectedUserId" class="placeholder">
-          Select a user to see their permission matrix.
-        </div>
+        <div v-if="!selectedUserId" class="placeholder">Select a user to see their permission matrix.</div>
         <template v-else>
           <div class="matrix-header">
-            <h3>{{ selectedUser?.nickname }} <small>· {{ selectedUser?.email }}</small></h3>
+            <h3>
+              {{ selectedUser?.nickname }} <small>· {{ selectedUser?.email }}</small>
+            </h3>
             <el-button type="primary" size="small" @click="openEdit">Edit permissions</el-button>
           </div>
 
           <el-tag v-if="permSource === 'mock'" type="warning" size="small" effect="plain">
-            mock · GET /users/{{ '{id}' }}/permissions 404
+            mock · GET /users/{{ "{id}" }}/permissions 404
           </el-tag>
 
           <table v-if="matrix.actions.length" class="perm-matrix">
@@ -100,11 +88,7 @@ import { ref, computed, watch, onMounted } from "vue";
 import { Search, Refresh } from "@element-plus/icons-vue";
 import { javaClient } from "@/api/client";
 import type { components } from "@/api/types.java.gen";
-import {
-  buildMatrix,
-  makeMockPermissions,
-  type PermissionDto,
-} from "./users/permissionTypes";
+import { buildMatrix, makeMockPermissions, type PermissionDto } from "./users/permissionTypes";
 import PermissionEditDialog from "./users/PermissionEditDialog.vue";
 
 type UserResponseDto = components["schemas"]["UserResponse"];
@@ -112,8 +96,7 @@ interface UserRow extends UserResponseDto {
   status: "ACTIVE" | "SUSPENDED" | "DELETED";
 }
 
-const JAVA_BASE =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+const JAVA_BASE = import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 const users = ref<UserRow[]>([]);
 const permissions = ref<PermissionDto[]>([]);
@@ -135,14 +118,10 @@ const MOCK_USERS: UserRow[] = [
 const filteredUsers = computed(() => {
   if (!searchQuery.value) return users.value;
   const q = searchQuery.value.toLowerCase();
-  return users.value.filter(
-    (u) => u.email?.toLowerCase().includes(q) || u.nickname?.toLowerCase().includes(q),
-  );
+  return users.value.filter((u) => u.email?.toLowerCase().includes(q) || u.nickname?.toLowerCase().includes(q));
 });
 
-const selectedUser = computed(() =>
-  users.value.find((u) => u.id === selectedUserId.value) ?? null,
-);
+const selectedUser = computed(() => users.value.find((u) => u.id === selectedUserId.value) ?? null);
 
 const matrix = computed(() => buildMatrix(permissions.value));
 
@@ -188,9 +167,7 @@ async function loadUsers() {
 
 async function loadPermissionsFor(userId: string) {
   try {
-    permissions.value = await javaClient.get<PermissionDto[]>(
-      `/api/v1/users/${userId}/permissions`,
-    );
+    permissions.value = await javaClient.get<PermissionDto[]>(`/api/v1/users/${userId}/permissions`);
     permSource.value = "backend";
   } catch {
     permissions.value = makeMockPermissions(userId);

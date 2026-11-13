@@ -66,12 +66,8 @@
         </el-tag>
       </template>
       <template #actions="{ row }">
-        <el-button link type="primary" size="small" @click="handleDetail(row)">
-          Detail
-        </el-button>
-        <el-button link type="primary" size="small" @click="handleEdit(row)">
-          Edit
-        </el-button>
+        <el-button link type="primary" size="small" @click="handleDetail(row)"> Detail </el-button>
+        <el-button link type="primary" size="small" @click="handleEdit(row)"> Edit </el-button>
         <el-button
           v-if="row.status === 'DISABLED' || row.status === 'DRAFT'"
           link
@@ -81,24 +77,14 @@
         >
           Enable
         </el-button>
-        <el-button
-          v-if="row.status === 'PUBLISHED'"
-          link
-          type="warning"
-          size="small"
-          @click="handleDisable(row)"
-        >
+        <el-button v-if="row.status === 'PUBLISHED'" link type="warning" size="small" @click="handleDisable(row)">
           Disable
         </el-button>
       </template>
     </ProTable>
 
     <PluginCreateDialog v-model="createOpen" @created="onPluginCreated" />
-    <PluginDetailDrawer
-      v-model="detailOpen"
-      :plugin-id="activeRow?.id"
-      :fallback="activeDto ?? undefined"
-    />
+    <PluginDetailDrawer v-model="detailOpen" :plugin-id="activeRow?.id" :fallback="activeDto ?? undefined" />
     <PluginEditDialog
       v-model="editOpen"
       :plugin-id="activeRow?.id"
@@ -160,8 +146,7 @@ interface PluginRow {
  */
 function fromJavaDto(dto: PluginResponseDto): PluginRow {
   const rawStatus = dto.status;
-  const status: PluginStatus =
-    rawStatus === "DEPRECATED" ? "DISABLED" : (rawStatus as PluginStatus);
+  const status: PluginStatus = rawStatus === "DEPRECATED" ? "DISABLED" : (rawStatus as PluginStatus);
   return {
     id: dto.id ?? crypto.randomUUID(),
     name: dto.name ?? "(unnamed)",
@@ -169,14 +154,11 @@ function fromJavaDto(dto: PluginResponseDto): PluginRow {
     kind: (dto.kind ?? "HTTP") as PluginKind,
     status,
     description: dto.description,
-    updatedAt: dto.updatedAt
-      ? new Date(dto.updatedAt).toLocaleString("zh-CN", { hour12: false })
-      : "—",
+    updatedAt: dto.updatedAt ? new Date(dto.updatedAt).toLocaleString("zh-CN", { hour12: false }) : "—",
   };
 }
 
-const JAVA_BASE_URL =
-  import.meta.env.VITE_JAVA_API_BASE_URL || "http://localhost:8080";
+const JAVA_BASE_URL = import.meta.env.VITE_JAVA_API_BASE_URL || "";
 
 const loading = ref(false);
 const searchQuery = ref("");
@@ -194,13 +176,62 @@ const columns = [
 ];
 
 const MOCK_PLUGINS: PluginRow[] = [
-  { id: "p1", name: "GitHub Connector", version: "1.2.0", kind: "HTTP", status: "PUBLISHED", updatedAt: "2026-05-15 10:30" },
-  { id: "p2", name: "Slack Integration", version: "2.0.1", kind: "WEBHOOK", status: "PUBLISHED", updatedAt: "2026-05-14 14:20" },
-  { id: "p3", name: "OAuth2 Provider", version: "0.9.0", kind: "OAUTH", status: "DRAFT", updatedAt: "2026-05-13 09:15" },
-  { id: "p4", name: "Model Context Protocol", version: "1.0.0", kind: "MCP", status: "PUBLISHED", updatedAt: "2026-05-12 16:45" },
-  { id: "p5", name: "Legacy API Bridge", version: "0.5.3", kind: "HTTP", status: "DISABLED", updatedAt: "2026-05-10 11:00" },
-  { id: "p6", name: "Custom Webhook Handler", version: "1.1.0", kind: "WEBHOOK", status: "DRAFT", updatedAt: "2026-05-08 13:30" },
-  { id: "p7", name: "Advanced MCP Server", version: "0.3.0", kind: "MCP", status: "DRAFT", updatedAt: "2026-05-05 08:00" },
+  {
+    id: "p1",
+    name: "GitHub Connector",
+    version: "1.2.0",
+    kind: "HTTP",
+    status: "PUBLISHED",
+    updatedAt: "2026-05-15 10:30",
+  },
+  {
+    id: "p2",
+    name: "Slack Integration",
+    version: "2.0.1",
+    kind: "WEBHOOK",
+    status: "PUBLISHED",
+    updatedAt: "2026-05-14 14:20",
+  },
+  {
+    id: "p3",
+    name: "OAuth2 Provider",
+    version: "0.9.0",
+    kind: "OAUTH",
+    status: "DRAFT",
+    updatedAt: "2026-05-13 09:15",
+  },
+  {
+    id: "p4",
+    name: "Model Context Protocol",
+    version: "1.0.0",
+    kind: "MCP",
+    status: "PUBLISHED",
+    updatedAt: "2026-05-12 16:45",
+  },
+  {
+    id: "p5",
+    name: "Legacy API Bridge",
+    version: "0.5.3",
+    kind: "HTTP",
+    status: "DISABLED",
+    updatedAt: "2026-05-10 11:00",
+  },
+  {
+    id: "p6",
+    name: "Custom Webhook Handler",
+    version: "1.1.0",
+    kind: "WEBHOOK",
+    status: "DRAFT",
+    updatedAt: "2026-05-08 13:30",
+  },
+  {
+    id: "p7",
+    name: "Advanced MCP Server",
+    version: "0.3.0",
+    kind: "MCP",
+    status: "DRAFT",
+    updatedAt: "2026-05-05 08:00",
+  },
   { id: "p8", name: "Web Search", version: "1.0.4", kind: "HTTP", status: "PUBLISHED", updatedAt: "2026-05-03 17:20" },
 ];
 

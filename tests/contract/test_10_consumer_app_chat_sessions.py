@@ -1,178 +1,98 @@
-"""Consumer Pact: agentcook-app → chat stream (Python) & sessions/plugins (Java).
+"""React app → Java: password login, refresh, quota and current profile.
 
-Day 35-37 — adds contract coverage for the two remaining app-facing surfaces:
-
-1. **Chat streaming** (Python FastAPI): POST /api/v1/chat/stream — SSE endpoint
-   where the React chat UI sends user messages and receives token-by-token
-   replies. Pact validates request shape + 200 status; SSE frame parsing is
-   e2e territory.
-
-2. **Sessions CRUD** (Java Spring Boot): GET/POST /api/v1/sessions — the app's
-   session sidebar lists existing conversations and creates new ones.
-
-3. **Plugin catalog** (Java Spring Boot): GET /api/v1/plugins — the app's
-   plugin picker shows available plugins the user can attach to a chat turn.
-
-Why split into two logical providers under one file:
-    The chat endpoint lives in the Python runtime (`agentcook`), while sessions
-    and plugins are served by the Java gateway (`agentcook-java`). Pact v3 keys
-    contracts by `(consumer, provider)` tuple, so we need two separate Pact
-    builders. Both write their own JSON into `pacts_dir`; the provider verify
-    CI job pulls every contract whose provider name matches the running service.
-
-SSE note:
-    Pact's mock server cannot replay a true `text/event-stream`. The contract
-    here asserts that the consumer sends the right JSON envelope and accepts
-    a 200 response. The actual SSE chunk parsing is covered by the e2e spec
-    `e2e/app/chat.spec.ts`.
+Conversations and tools belong to the runtime (test_05). These are the
+Java calls actually emitted by stores/auth.ts and hooks/useQuota.ts.
 """
 
 from __future__ import annotations
 
 import httpx
 import pytest
-from pact.v3 import Pact
-
-# ============================================================================
-# Part 2: agentcook-app → agentcook-java-app  (sessions + plugins)
-# ============================================================================
+from pact.v3 import Pact, match
 
 JAVA_CONSUMER = "agentcook-app"
 JAVA_PROVIDER = "agentcook-java-app"
+USERNAME = "contract-reader"
+PASSWORD = "contract-password-123"
+ACCESS = "contract-access"
+REFRESH = "contract-refresh"
+
+
+def token_body():
+    return {
+        "accessToken": match.string("signed.access.token"),
+        "tokenType": "Bearer",
+        "expiresIn": match.integer(3600),
+        "refreshToken": match.string("signed.refresh.token"),
+        "refreshExpiresIn": match.integer(2592000),
+    }
+
+
+def build_pact():
+    pact = Pact(JAVA_CONSUMER, JAVA_PROVIDER).with_specification("V3")
+    for path, body in [
+        ("login", {"username": USERNAME, "password": PASSWORD}),
+        ("refresh", {"refreshToken": REFRESH}),
+    ]:
+        (
+            pact.upon_receiving(f"app {path}")
+            .with_request("POST", f"/api/v1/auth/{path}")
+            .with_body(body, content_type="application/json")
+            .will_respond_with(200)
+            .with_body(token_body(), content_type="application/json")
+        )
+    (
+        pact.upon_receiving("app current quota")
+        .with_request("GET", "/api/v1/quota")
+        .with_header("Authorization", f"Bearer {ACCESS}")
+        .will_respond_with(200)
+        .with_body(
+            {
+                "free_questions_used": match.integer(0),
+                "free_questions_quota": match.integer(2),
+                "used": match.integer(0),
+                "quota": match.integer(2),
+                "remaining": match.integer(2),
+            },
+            content_type="application/json",
+        )
+    )
+    (
+        pact.upon_receiving("app current user")
+        .with_request("GET", "/api/v1/users/me")
+        .with_header("Authorization", f"Bearer {ACCESS}")
+        .will_respond_with(200)
+        .with_body(
+            match.like(
+                {
+                    "id": "00000000-0000-0000-0000-000000000001",
+                    "email": f"{USERNAME}@dev.local",
+                    "nickname": USERNAME,
+                    "status": "ACTIVE",
+                    "createdAt": "2026-01-01T00:00:00Z",
+                    "updatedAt": "2026-01-01T00:00:00Z",
+                }
+            ),
+            content_type="application/json",
+        )
+    )
+    return pact
 
 
 @pytest.mark.contract
-def test_app_sessions_and_plugins_contract(pacts_dir):
-    """GET/POST /api/v1/sessions + GET /api/v1/plugins — session sidebar & plugin picker."""
-    pact = Pact(JAVA_CONSUMER, JAVA_PROVIDER).with_specification("V3")
-
-    # --- Interaction 1: list sessions for a user ---------------------
-    (
-        pact.upon_receiving("list sessions for user usr-001")
-        .given("user usr-001 has two existing sessions")
-        .with_request(
-            method="GET",
-            path="/api/v1/sessions",
-        )
-        .with_query_parameter("userId", "usr-001")
-        .will_respond_with(200)
-        .with_body(
-            content_type="application/json",
-            body={
-                "items": [
-                    {
-                        "id": "sess-001",
-                        "title": "Pricing discussion",
-                        "agent_id": "agt-001",
-                        "created_at": "2026-05-20T10:00:00Z",
-                        "updated_at": "2026-05-21T15:30:00Z",
-                    },
-                    {
-                        "id": "sess-002",
-                        "title": "Feature comparison",
-                        "agent_id": "agt-002",
-                        "created_at": "2026-05-19T08:00:00Z",
-                        "updated_at": "2026-05-19T09:15:00Z",
-                    },
-                ],
-                "total": 2,
-            },
-        )
-    )
-
-    # --- Interaction 2: create a new session -------------------------
-    (
-        pact.upon_receiving("create a new session for user usr-001")
-        .given("agent agt-001 is available")
-        .with_request(
-            method="POST",
-            path="/api/v1/sessions",
-        )
-        .with_body(
-            content_type="application/json",
-            body={
-                "user_id": "usr-001",
-                "agent_id": "agt-001",
-                "title": "New conversation",
-            },
-        )
-        .will_respond_with(201)
-        .with_body(
-            content_type="application/json",
-            body={
-                "id": "sess-003",
-                "title": "New conversation",
-                "agent_id": "agt-001",
-                "user_id": "usr-001",
-                "created_at": "2026-05-21T19:00:00Z",
-                "updated_at": "2026-05-21T19:00:00Z",
-            },
-        )
-    )
-
-    # --- Interaction 3: list available plugins -----------------------
-    (
-        pact.upon_receiving("list available plugins for plugin picker")
-        .given("three plugins are registered")
-        .with_request(
-            method="GET",
-            path="/api/v1/plugins",
-        )
-        .will_respond_with(200)
-        .with_body(
-            content_type="application/json",
-            body={
-                "items": [
-                    {
-                        "id": "plugin-translate",
-                        "name": "Translate",
-                        "description": "Translate messages to another language.",
-                        "category": "utility",
-                    },
-                    {
-                        "id": "plugin-summarize",
-                        "name": "Summarize",
-                        "description": "Summarize long conversations.",
-                        "category": "memory",
-                    },
-                    {
-                        "id": "plugin-code-explain",
-                        "name": "Code Explain",
-                        "description": "Explain code snippets in natural language.",
-                        "category": "dev",
-                    },
-                ],
-                "total": 3,
-            },
-        )
-    )
-
-    with pact.serve() as mock:
-        # Interaction 1 — list sessions
-        r1 = httpx.get(f"{mock.url}/api/v1/sessions", params={"userId": "usr-001"})
-        assert r1.status_code == 200
-        body1 = r1.json()
-        assert "items" in body1 and isinstance(body1["items"], list)
-        assert len(body1["items"]) == 2
-        assert body1["items"][0]["id"] == "sess-001"
-
-        # Interaction 2 — create session
-        r2 = httpx.post(
-            f"{mock.url}/api/v1/sessions",
-            json={
-                "user_id": "usr-001",
-                "agent_id": "agt-001",
-                "title": "New conversation",
-            },
-        )
-        assert r2.status_code == 201
-        assert r2.json()["id"] == "sess-003"
-
-        # Interaction 3 — list plugins
-        r3 = httpx.get(f"{mock.url}/api/v1/plugins")
-        assert r3.status_code == 200
-        body3 = r3.json()
-        assert "items" in body3 and isinstance(body3["items"], list)
-        assert body3["items"][0]["id"] == "plugin-translate"
-
+def test_app_java_auth_and_quota_contract(pacts_dir):
+    pact = build_pact()
+    with pact.serve() as mock, httpx.Client(base_url=str(mock.url), trust_env=False) as client:
+        login = client.post("/api/v1/auth/login", json={"username": USERNAME, "password": PASSWORD})
+        assert login.status_code == 200
+        assert login.json()["refreshToken"]
+        refreshed = client.post("/api/v1/auth/refresh", json={"refreshToken": REFRESH})
+        assert refreshed.status_code == 200
+        assert refreshed.json()["tokenType"] == "Bearer"
+        quota = client.get("/api/v1/quota", headers={"Authorization": f"Bearer {ACCESS}"})
+        assert quota.status_code == 200
+        assert quota.json()["free_questions_used"] == quota.json()["used"]
+        profile = client.get("/api/v1/users/me", headers={"Authorization": f"Bearer {ACCESS}"})
+        assert profile.status_code == 200
+        assert profile.json()["nickname"] == USERNAME
     pact.write_file(str(pacts_dir), overwrite=True)

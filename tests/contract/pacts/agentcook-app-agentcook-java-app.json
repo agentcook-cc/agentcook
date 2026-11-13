@@ -4,118 +4,229 @@
   },
   "interactions": [
     {
-      "description": "list sessions for user usr-001",
-      "providerStates": [
-        {
-          "name": "user usr-001 has two existing sessions"
-        }
-      ],
-      "request": {
-        "method": "GET",
-        "path": "/api/v1/sessions",
-        "query": {
-          "userId": [
-            "usr-001"
-          ]
-        }
-      },
-      "response": {
-        "body": {
-          "items": [
-            {
-              "agent_id": "agt-001",
-              "created_at": "2026-05-20T10:00:00Z",
-              "id": "sess-001",
-              "title": "Pricing discussion",
-              "updated_at": "2026-05-21T15:30:00Z"
-            },
-            {
-              "agent_id": "agt-002",
-              "created_at": "2026-05-19T08:00:00Z",
-              "id": "sess-002",
-              "title": "Feature comparison",
-              "updated_at": "2026-05-19T09:15:00Z"
-            }
-          ],
-          "total": 2
-        },
-        "headers": {
-          "Content-Type": "application/json"
-        },
-        "status": 200
-      }
-    },
-    {
-      "description": "create a new session for user usr-001",
-      "providerStates": [
-        {
-          "name": "agent agt-001 is available"
-        }
-      ],
+      "description": "app login",
       "request": {
         "body": {
-          "agent_id": "agt-001",
-          "title": "New conversation",
-          "user_id": "usr-001"
+          "password": "contract-password-123",
+          "username": "contract-reader"
         },
         "headers": {
           "Content-Type": "application/json"
         },
         "method": "POST",
-        "path": "/api/v1/sessions"
+        "path": "/api/v1/auth/login"
       },
       "response": {
         "body": {
-          "agent_id": "agt-001",
-          "created_at": "2026-05-21T19:00:00Z",
-          "id": "sess-003",
-          "title": "New conversation",
-          "updated_at": "2026-05-21T19:00:00Z",
-          "user_id": "usr-001"
+          "accessToken": "signed.access.token",
+          "expiresIn": 3600,
+          "refreshExpiresIn": 2592000,
+          "refreshToken": "signed.refresh.token",
+          "tokenType": "Bearer"
         },
         "headers": {
           "Content-Type": "application/json"
         },
-        "status": 201
+        "matchingRules": {
+          "body": {
+            "$.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
       }
     },
     {
-      "description": "list available plugins for plugin picker",
-      "providerStates": [
-        {
-          "name": "three plugins are registered"
-        }
-      ],
+      "description": "app refresh",
       "request": {
-        "method": "GET",
-        "path": "/api/v1/plugins"
-      },
-      "response": {
         "body": {
-          "items": [
-            {
-              "category": "utility",
-              "description": "Translate messages to another language.",
-              "id": "plugin-translate",
-              "name": "Translate"
-            },
-            {
-              "category": "memory",
-              "description": "Summarize long conversations.",
-              "id": "plugin-summarize",
-              "name": "Summarize"
-            },
-            {
-              "category": "dev",
-              "description": "Explain code snippets in natural language.",
-              "id": "plugin-code-explain",
-              "name": "Code Explain"
-            }
-          ],
-          "total": 3
+          "refreshToken": "contract-refresh"
         },
         "headers": {
           "Content-Type": "application/json"
+        },
+        "method": "POST",
+        "path": "/api/v1/auth/refresh"
+      },
+      "response": {
+        "body": {
+          "accessToken": "signed.access.token",
+          "expiresIn": 3600,
+          "refreshExpiresIn": 2592000,
+          "refreshToken": "signed.refresh.token",
+          "tokenType": "Bearer"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.accessToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            },
+            "$.expiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshExpiresIn": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.refreshToken": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "app current quota",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer contract-access"
+        },
+        "method": "GET",
+        "path": "/api/v1/quota"
+      },
+      "response": {
+        "body": {
+          "free_questions_quota": 2,
+          "free_questions_used": 0,
+          "quota": 2,
+          "remaining": 2,
+          "used": 0
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$.free_questions_quota": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.free_questions_used": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.quota": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.remaining": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            },
+            "$.used": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "integer"
+                }
+              ]
+            }
+          }
+        },
+        "status": 200
+      }
+    },
+    {
+      "description": "app current user",
+      "request": {
+        "headers": {
+          "Authorization": "Bearer contract-access"
+        },
+        "method": "GET",
+        "path": "/api/v1/users/me"
+      },
+      "response": {
+        "body": {
+          "createdAt": "2026-01-01T00:00:00Z",
+          "email": "contract-reader@dev.local",
+          "id": "00000000-0000-0000-0000-000000000001",
+          "nickname": "contract-reader",
+          "status": "ACTIVE",
+          "updatedAt": "2026-01-01T00:00:00Z"
+        },
+        "headers": {
+          "Content-Type": "application/json"
+        },
+        "matchingRules": {
+          "body": {
+            "$": {
+              "combine": "AND",
+              "matchers": [
+                {
+                  "match": "type"
+                }
+              ]
+            }
+          }
         },
         "status": 200
       }

@@ -1,16 +1,4 @@
-"""Provider-side Pact verification: echo-api against the broker.
-
-Runs the full e2e:
-    1. boot the sample FastAPI provider on a random localhost port
-    2. invoke `pact-verifier` (CLI shipped with pact-python) pointing at
-       the running provider + the local broker
-    3. pact-verifier pulls every contract for `provider="echo-api"`,
-       replays each interaction's request, and asserts the response matches
-    4. teardown — kill the FastAPI server
-
-Day 22 Agent A swaps `sample_provider` for the real `agentcook` FastAPI
-shell and the same verify pattern continues to work.
-"""
+"""Verify the sample FastAPI provider against pacts published to the local broker."""
 
 from __future__ import annotations
 
@@ -24,6 +12,7 @@ from pathlib import Path
 
 import httpx
 import pytest
+from pact.v3 import Verifier
 
 PROVIDER_NAME = "echo-api"
 PROVIDER_VERSION = os.environ.get("PACT_PROVIDER_VERSION", "0.1.0-dev")
@@ -89,19 +78,10 @@ def provider_server() -> Iterator[str]:
 def test_provider_satisfies_broker_contracts(broker_url, broker_auth, provider_server):
     user, password = broker_auth
 
-    cmd = [
-        "pact-verifier",
-        f"--provider-base-url={provider_server}",
-        f"--pact-broker-url={broker_url}",
-        f"--pact-broker-username={user}",
-        f"--pact-broker-password={password}",
-        f"--provider={PROVIDER_NAME}",
-        f"--provider-app-version={PROVIDER_VERSION}",
-        "--publish-verification-results",
-    ]
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
-
-    assert result.returncode == 0, (
-        f"pact-verifier failed (exit {result.returncode}):\n"
-        f"STDOUT:\n{result.stdout}\nSTDERR:\n{result.stderr}"
+    (
+        Verifier(PROVIDER_NAME, host="127.0.0.1")
+        .add_transport(url=provider_server)
+        .broker_source(broker_url, username=user, password=password)
+        .set_publish_options(PROVIDER_VERSION)
+        .verify()
     )

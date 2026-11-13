@@ -4,9 +4,9 @@ Owner: Agent C. Implements ADR-007 测试金字塔 — Pact 契约层。
 
 ## 当前覆盖
 
-| Consumer | Provider | Status | Pact spec |
-|---|---|---|---|
-| `agentcook-admin` | `echo-api`(sample) | ✅ Day 10 真链路通(3 PASSED in 2.59s)| V3 |
+| Consumer          | Provider           | Status                                | Pact spec |
+| ----------------- | ------------------ | ------------------------------------- | --------- |
+| `agentcook-admin` | `echo-api`(sample) | ✅ Day 10 真链路通(3 PASSED in 2.59s) | V3        |
 
 `echo-api` 是 `EchoProvider` 的 FastAPI sample wrapper (`sample_provider/main.py`),Day 22 Agent A 用真正的 `agentcook` FastAPI 主壳替换。
 
@@ -158,7 +158,7 @@ uv run pytest tests/contract/test_03_provider_verify_echo.py -v -s
 INFO: Verification results published to http://localhost:9292/pacts/provider/echo-api/consumer/agentcook-admin/pact-version/<hash>/verification-results/<N>
 ```
 
-直接 GET 那个 URL 就能看到完整 `success/testResults/...`。`pb:latest-verification-results` link(用 GET /pacts/.../latest 拿到的)指的是 *list* endpoint,空列表常见(有些 broker 版本 / pact-version 链路只暴露单个 latest result,不是 list)。
+直接 GET 那个 URL 就能看到完整 `success/testResults/...`。`pb:latest-verification-results` link(用 GET /pacts/.../latest 拿到的)指的是 _list_ endpoint,空列表常见(有些 broker 版本 / pact-version 链路只暴露单个 latest result,不是 list)。
 
 要在 UI 里看 verify 状态,直接打开 `http://localhost:9292`(Basic Auth `pact:pact`),点 consumer/provider 的 row,verification 状态就在 row 上(✓ / ✗)。
 
@@ -308,16 +308,16 @@ Day 22 写好 CI 脚手架,Day 24 起切自动模式 — **每次 A 改 spec 或
 
 ### 触发路径(`.github/workflows/pact-provider-ci.yml` path-gated)
 
-| 路径 | 谁会改 | 含义 |
-|------|--------|------|
-| `agentcook/**` | A | 主壳代码改 → 可能破坏既有契约 |
-| `agentcook-core/**` | A | 业务逻辑改 → handler 行为变 → contract 不再满足 |
-| `agentcook-providers/**` / `agentcook-storage/**` | A | 间接影响 handler 行为 |
-| `tests/contract/**` | A 写 consumer / C 写 provider verify | 显式 contract 改动必须重跑 |
-| `docs/api/v1.yaml` | A | Day 24 冻结后任何 spec 改动都应触发 contract drift 检查 |
-| `pyproject.toml` / `uv.lock` | 全员 | pact-python 版本变,环境变 |
-| `docker-compose.dev.yml` | C | broker / postgres 版本变 |
-| `.github/workflows/pact-provider-ci.yml` | C | workflow 自身改 → 必跑自测 |
+| 路径                                              | 谁会改                               | 含义                                                    |
+| ------------------------------------------------- | ------------------------------------ | ------------------------------------------------------- |
+| `agentcook/**`                                    | A                                    | 主壳代码改 → 可能破坏既有契约                           |
+| `agentcook-core/**`                               | A                                    | 业务逻辑改 → handler 行为变 → contract 不再满足         |
+| `agentcook-providers/**` / `agentcook-storage/**` | A                                    | 间接影响 handler 行为                                   |
+| `tests/contract/**`                               | A 写 consumer / C 写 provider verify | 显式 contract 改动必须重跑                              |
+| `docs/api/v1.yaml`                                | A                                    | Day 24 冻结后任何 spec 改动都应触发 contract drift 检查 |
+| `pyproject.toml` / `uv.lock`                      | 全员                                 | pact-python 版本变,环境变                               |
+| `docker-compose.dev.yml`                          | C                                    | broker / postgres 版本变                                |
+| `.github/workflows/pact-provider-ci.yml`          | C                                    | workflow 自身改 → 必跑自测                              |
 
 ### 2 job 流程
 
@@ -347,7 +347,7 @@ job2 重 publish 是因为 service container 在 job 间不共享(GitHub Actions
 4. job1 PASS = consumer 自洽 + pact 发到 broker;失败通常是 mock 与声明不符 → A 自查
 5. job2 PASS = 真 agentcook FastAPI 满足所有声明 contract;失败常见三类:
    - handler 实现与 spec 不一致(A 修 handler)
-   - spec 改了但 consumer test 没同步(A 补 test_01_*)
+   - spec 改了但 consumer test 没同步(A 补 test*01*\*)
    - excluded path / auth 缺失(检视 `setup_telemetry` 的 `excluded_urls` + 是否需要 JWT)
 
 ### Phase 4 上线后的演进(本期不做)
@@ -366,3 +366,14 @@ job2 重 publish 是因为 service container 在 job 间不共享(GitHub Actions
 - broker SOP:`_internal/audit/host-setup-guide.md §7`
 - 自托管 vs SaaS 决策:`_internal/audit/pact-broker-self-hosting-justification.md`
 - Day 11 verify_provider.py CLI:`tests/contract/scripts/verify_provider.py`
+
+## 本地校验 Java 提供方
+
+先按 [端到端测试说明](../../e2e/README.md) 启动 Java 和开发数据库，然后运行：
+
+```bash
+AGENTCOOK_JAVA_PROVIDER_URL=http://127.0.0.1:8080 \
+  uv run pytest -m contract tests/contract -q --no-cov
+```
+
+测试在开发库里准备专用账号，以真实令牌校验登录、续期、额度和个人资料四个交互。没有设置地址时，该项会说明原因并跳过。

@@ -22,18 +22,20 @@ export interface SseStreamOptions {
 interface ParseResult {
   content: string;
   done: boolean;
+  textChunkCount: number;
   remainder: string;
 }
 
 export function parseSseLines(raw: string): ParseResult {
   const lastNewline = raw.lastIndexOf("\n");
-  if (lastNewline === -1) return { content: "", done: false, remainder: raw };
+  if (lastNewline === -1) return { content: "", done: false, remainder: raw, textChunkCount: 0 };
 
   const complete = raw.slice(0, lastNewline + 1);
   const remainder = raw.slice(lastNewline + 1);
   const lines = complete.split("\n");
   let content = "";
   let done = false;
+  let textChunkCount = 0;
 
   for (const line of lines) {
     const trimmed = line.trim();
@@ -46,13 +48,18 @@ export function parseSseLines(raw: string): ParseResult {
       }
       try {
         const parsed = JSON.parse(payload);
-        content += parsed.content ?? parsed.delta ?? parsed.text ?? "";
+        const text = parsed.content ?? parsed.delta ?? parsed.text;
+        if (typeof text === "string" && text.length > 0) {
+          content += text;
+          textChunkCount++;
+        }
       } catch {
         content += payload;
+        textChunkCount++;
       }
     }
   }
-  return { content, done, remainder };
+  return { content, done, remainder, textChunkCount };
 }
 
 const BASE_DELAY_MS = 500;
@@ -66,6 +73,7 @@ function computeBackoff(attempt: number): number {
 
 export function useSseStream() {
   const accumulated = ref("");
+  const textChunkCount = ref(0);
   const running = ref(false);
   const error = ref<string | null>(null);
   let abortController: AbortController | null = null;
@@ -86,6 +94,7 @@ export function useSseStream() {
   async function start(opts: SseStreamOptions): Promise<void> {
     cancel();
     accumulated.value = "";
+    textChunkCount.value = 0;
     error.value = null;
     running.value = true;
 
@@ -157,6 +166,7 @@ export function useSseStream() {
 
           if (parsed.content) {
             accumulated.value += parsed.content;
+            textChunkCount.value += parsed.textChunkCount;
           }
 
           if (parsed.done) {
@@ -196,10 +206,11 @@ export function useSseStream() {
   function reset() {
     cancel();
     accumulated.value = "";
+    textChunkCount.value = 0;
     error.value = null;
   }
 
   onScopeDispose(() => cancel());
 
-  return { accumulated, running, error, start, cancel, reset };
+  return { accumulated, textChunkCount, running, error, start, cancel, reset };
 }

@@ -1,3 +1,4 @@
+/** Runs on the anonymous app stack. See e2e/README.md. */
 /**
  * app ChatPage quota banner — ADR-018 cascade B Day 58.
  *

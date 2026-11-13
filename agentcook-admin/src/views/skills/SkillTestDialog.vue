@@ -26,9 +26,7 @@
         placeholder="e.g. summarise the last meeting transcript"
         :disabled="running"
       />
-      <div class="section-label" style="margin-top: 12px">
-        Args (optional JSON · Phase 5)
-      </div>
+      <div class="section-label" style="margin-top: 12px">Args (optional JSON · Phase 5)</div>
       <el-input
         v-model="argsJson"
         type="textarea"
@@ -47,10 +45,10 @@
       <div class="output-header">
         <span class="section-label">Output</span>
         <el-tag v-if="running" type="primary" size="small" effect="dark">
-          streaming · {{ chunks.length }} chunks
+          streaming · {{ textChunkCount }} chunks
         </el-tag>
         <el-tag v-else-if="hasOutput" type="success" size="small" effect="plain">
-          done · {{ chunks.length }} chunks
+          done · {{ textChunkCount }} chunks
         </el-tag>
       </div>
       <div ref="outputBoxRef" class="output-box">
@@ -62,14 +60,7 @@
     <template #footer>
       <el-button @click="visible = false" :disabled="running">Close</el-button>
       <el-button v-if="running" type="warning" @click="cancel">Cancel</el-button>
-      <el-button
-        v-else
-        type="primary"
-        :disabled="!skillId || !argsValid"
-        @click="handleRun"
-      >
-        Run
-      </el-button>
+      <el-button v-else type="primary" :disabled="!skillId || !argsValid" @click="handleRun"> Run </el-button>
     </template>
   </el-dialog>
 </template>
@@ -91,19 +82,14 @@ const visible = computed({
   set: (v) => emit("update:modelValue", v),
 });
 
-const PYTHON_BASE =
-  import.meta.env.VITE_PYTHON_API_BASE_URL || "http://localhost:8000";
+const PYTHON_BASE = import.meta.env.VITE_PYTHON_API_BASE_URL || "";
 
 const inputText = ref("");
 const argsJson = ref("");
 const outputBoxRef = ref<HTMLDivElement | null>(null);
 
-const { accumulated, running, error, start, cancel, reset } = useSseStream();
+const { accumulated, textChunkCount, running, error, start, cancel, reset } = useSseStream();
 
-const chunks = computed(() => {
-  if (!accumulated.value) return [];
-  return accumulated.value.split(/\n+/).filter(Boolean);
-});
 const hasOutput = computed(() => !!accumulated.value);
 
 const argsValid = computed(() => {

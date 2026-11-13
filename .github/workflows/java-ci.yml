@@ -108,6 +108,7 @@ jobs:
           --health-retries 12
           --health-start-period 30s
     env:
+      PACT_BROKER_ENABLE: "true"
       PACT_BROKER_URL: http://localhost:9292
       PACT_BROKER_USER: pact
       PACT_BROKER_PASSWORD: pact
@@ -132,6 +133,13 @@ jobs:
           done
           echo "Pact broker did not become healthy in 60s" >&2
           exit 1
+
+      - name: Publish the admin consumer pact
+        run: |
+          curl -fsS -X PUT -u "$PACT_BROKER_USER:$PACT_BROKER_PASSWORD" \
+            -H 'Content-Type: application/json' \
+            --data-binary @tests/contract/pacts/agentcook-admin-agentcook-java.json \
+            "$PACT_BROKER_URL/pacts/provider/agentcook-java/consumer/agentcook-admin/version/$PACT_PROVIDER_VERSION"
 
       - name: Run Pact provider verify (group=pact-verify)
         run: ./mvnw -B -ntp test -Dgroups=pact-verify

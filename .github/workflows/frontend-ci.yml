@@ -3,6 +3,7 @@ name: Frontend CI
 on:
   push:
     branches: [main, develop]
+  workflow_call:
   pull_request:
     branches: [main]
 
@@ -16,9 +17,9 @@ jobs:
         with:
           node-version: '20'
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@9.12.0
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       - name: Run lint
         run: pnpm turbo run lint
       - name: Build and type check
@@ -33,22 +34,12 @@ jobs:
         with:
           node-version: '20'
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@9.12.0
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
       - name: Run tests
         run: pnpm turbo run test
 
-  # Phase 3 Day 27 — Agent C.
-  #
-  # Real e2e: postgres-business + redis service containers + real Java
-  # backend via `mvn spring-boot:run` + admin dev server. Runs the three
-  # admin specs (login / dashboard / plugin-list) plus the existing
-  # mock-friendly smoke.
-  #
-  # Why not `docker compose up`: building agentcook-java's multi-stage
-  # image in CI adds ~3-5 min; service containers + mvn-from-source skips
-  # the Docker layer entirely (Maven cache is hot on warm CI).
   e2e:
     runs-on: ubuntu-latest
     needs: [lint-and-type-check]
@@ -77,14 +68,9 @@ jobs:
           --health-timeout 3s
           --health-retries 10
     env:
-      # admin dev server reads these to point its API clients at the
-      # mvn-launched Java backend on host networking (service containers
-      # are reachable via localhost when ports are mapped above).
-      VITE_JAVA_API_BASE_URL: http://127.0.0.1:8080
-      VITE_PYTHON_API_BASE_URL: http://127.0.0.1:8000   # Python not started; admin gracefully no-ops
-      # Override Spring's hardcoded `postgres:5432` in application-docker.yml
-      # so mvn spring-boot:run finds the service-container PG on :5433.
-      SPRING_PROFILES_ACTIVE: docker
+      SPRING_PROFILES_ACTIVE: dev
+      AGENTCOOK_PY_API: http://127.0.0.1:8000
+      AGENTCOOK_JAVA_API: http://127.0.0.1:8080
       SPRING_DATASOURCE_URL: jdbc:postgresql://127.0.0.1:5433/agentcook_business
       SPRING_DATASOURCE_USERNAME: agentcook
       SPRING_DATASOURCE_PASSWORD: agentcook_dev
@@ -105,23 +91,29 @@ jobs:
         with:
           node-version: '20'
       - name: Install pnpm
-        run: npm install -g pnpm
+        run: npm install -g pnpm@9.12.0
 
       - name: Install frontend deps
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile && pnpm --filter @agentcook-cc/design-tokens build
       - name: Install Playwright browsers (chromium)
         run: pnpm exec playwright install --with-deps chromium
 
-      # Java backend — runs from source. spring-boot:run streams stdout to
-      # nohup.out so a failed boot is recoverable from the upload step.
-      - name: Build Java backend (skip tests)
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v3
+      - name: Install runtime dependencies
+        run: uv sync --all-packages --all-extras --group dev
+
+      - name: Build Java backend
         working-directory: agentcook-java
         run: ./mvnw -B -ntp -DskipTests package
-      - name: Start Java backend (spring-boot:run)
-        working-directory: agentcook-java
+      - name: Start Java backend
         run: |
-          nohup ./mvnw -B -ntp -pl agentcook-api spring-boot:run > spring-boot.log 2>&1 &
-          echo $! > spring-boot.pid
+          nohup java -jar agentcook-java/agentcook-api/target/agentcook-api-0.1.0-SNAPSHOT.jar > java-dev.log 2>&1 &
+          echo $! > java-dev.pid
       - name: Wait for Java actuator/health UP
         run: |
           for i in {1..60}; do
@@ -131,45 +123,69 @@ jobs:
             sleep 2
           done
           echo "Java backend failed to come up in 120s" >&2
-          tail -200 agentcook-java/spring-boot.log >&2 || true
+          tail -200 java-dev.log >&2 || true
           exit 1
 
-      - name: Start admin dev server (:5173)
-        run: pnpm --filter @agentcook-cc/admin dev --port 5173 --host 127.0.0.1 > admin-dev.log 2>&1 &
-      - name: Start app dev server (:5174)
-        run: pnpm --filter @agentcook-cc/app dev --port 5174 --host 127.0.0.1 > app-dev.log 2>&1 &
-      - name: Wait for both dev servers
+      - name: Initialize local administrator
+        run: |
+          curl -fsS http://127.0.0.1:8080/api/v1/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username":"admin","password":"admin-password-123"}' -o /dev/null
+
+      - name: Start both runtimes
+        run: |
+          AGENTCOOK_AUTH_MODE=required AGENTCOOK_JWT_ISSUER=agentcook-java \
+          AGENTCOOK_JAVA_BASE_URL=http://127.0.0.1:8080 AGENTCOOK_QUOTA_ENABLED=true \
+          AGENTCOOK_QUOTA_PRIMARY_PROVIDER=mock AGENTCOOK_QUOTA_PRIMARY_MODEL='' \
+          AGENTCOOK_QUOTA_FALLBACK_PROVIDER=mock AGENTCOOK_QUOTA_FALLBACK_MODEL='' \
+          AGENTCOOK_MOCK_DELAY_MS=20 uv run uvicorn agentcook_app.main:app --port 8000 > runtime-required.log 2>&1 &
+          AGENTCOOK_AUTH_MODE=optional AGENTCOOK_MOCK_DELAY_MS=20 \
+            uv run uvicorn agentcook_app.main:app --port 8001 > runtime-optional.log 2>&1 &
+
+      - name: Start web apps
+        run: |
+          pnpm --filter @agentcook-cc/admin dev --port 5173 --host 127.0.0.1 > admin-dev.log 2>&1 &
+          pnpm --filter @agentcook-cc/app dev --port 5174 --host 127.0.0.1 > app-dev.log 2>&1 &
+          AGENTCOOK_PY_API=http://127.0.0.1:8001 \
+            pnpm --filter @agentcook-cc/app dev --port 5175 --host 127.0.0.1 > app-anonymous.log 2>&1 &
+
+      - name: Wait for runtimes and web apps
         run: |
           wait_one() {
-            local url=$1 label=$2
+            local url=$1
             for i in {1..30}; do
               if curl -fs "$url" >/dev/null; then
-                echo " ← $label up"; return 0
+                return 0
               fi
               sleep 2
             done
-            echo "$label failed to come up in 60s" >&2
+            echo "$url did not become ready in 60s" >&2
             return 1
           }
-          wait_one http://127.0.0.1:5173/ "admin dev server" || (tail -100 admin-dev.log >&2; exit 1)
-          wait_one http://127.0.0.1:5174/ "app dev server" || (tail -100 app-dev.log >&2; exit 1)
+          wait_one http://127.0.0.1:8000/health
+          wait_one http://127.0.0.1:8001/health
+          wait_one http://127.0.0.1:5173/
+          wait_one http://127.0.0.1:5174/
+          wait_one http://127.0.0.1:5175/
 
-      # All three Playwright projects run in one invocation. Each project
-      # pins its own baseURL via env so admin specs hit :5173 and app
-      # specs hit :5174, while the legacy smoke project keeps the
-      # PLAYWRIGHT_BASE_URL fallback.
-      - name: Run Playwright (admin + app + smoke)
+      - name: Verify Java provider contract
+        env:
+          AGENTCOOK_JAVA_PROVIDER_URL: http://127.0.0.1:8080
+        run: uv run pytest tests/contract/test_12_provider_verify_java_local.py -q --no-cov
+
+      - name: Run Playwright
         env:
           PLAYWRIGHT_BASE_URL_ADMIN: http://127.0.0.1:5173
           PLAYWRIGHT_BASE_URL_APP: http://127.0.0.1:5174
+          PLAYWRIGHT_BASE_URL_ANONYMOUS: http://127.0.0.1:5175
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:5173
-        run: pnpm exec playwright test --project=admin --project=app --project=smoke
+        run: pnpm exec playwright test
 
       - name: Stop Java backend
         if: always()
         run: |
-          if [ -f agentcook-java/spring-boot.pid ]; then
-            kill "$(cat agentcook-java/spring-boot.pid)" || true
+          if [ -f java-dev.pid ]; then
+            kill "$(cat java-dev.pid)" || true
           fi
 
       - name: Upload Playwright + dev server logs on failure
@@ -180,6 +196,9 @@ jobs:
           path: |
             playwright-report/
             test-results/
-            agentcook-java/spring-boot.log
+            java-dev.log
+            runtime-required.log
+            runtime-optional.log
+            app-anonymous.log
             admin-dev.log
             app-dev.log

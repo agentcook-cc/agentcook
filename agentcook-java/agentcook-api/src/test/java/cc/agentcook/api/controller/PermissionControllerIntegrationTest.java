@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class PermissionControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private PermissionRepository permissionRepository;
 

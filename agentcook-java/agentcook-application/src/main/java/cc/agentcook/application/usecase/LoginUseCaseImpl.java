@@ -48,7 +48,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     private final boolean autoProvision;
 
     /** Hash of a random value, compared against on rejected logins (timing equaliser). */
-    private volatile String decoyHash;
+    private final String decoyHash;
 
     public LoginUseCaseImpl(UserRepository userRepository,
                             PasswordHasher passwordHasher,
@@ -58,6 +58,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
         this.passwordHasher = passwordHasher;
         this.tokenIssuer = tokenIssuer;
         this.autoProvision = autoProvision;
+        this.decoyHash = passwordHasher.hash(UUID.randomUUID().toString());
     }
 
     @Override
@@ -103,6 +104,7 @@ public class LoginUseCaseImpl implements LoginUseCase {
     private User claim(UserId userId, String password) {
         User locked = userRepository.findByIdForUpdate(userId)
                 .orElseThrow(InvalidCredentialsException::new);
+        requireActive(locked);
         if (locked.hasPassword()) {
             // Claimed concurrently between our read and the lock: verify instead.
             if (!passwordHasher.matches(password, locked.getPasswordHash())) {
@@ -121,16 +123,8 @@ public class LoginUseCaseImpl implements LoginUseCase {
     }
 
     private InvalidCredentialsException reject(String password) {
-        passwordHasher.matches(password, decoyHash());
+        passwordHasher.matches(password, decoyHash);
         return new InvalidCredentialsException();
     }
 
-    private String decoyHash() {
-        String hash = decoyHash;
-        if (hash == null) {
-            hash = passwordHasher.hash(UUID.randomUUID().toString());
-            decoyHash = hash;
-        }
-        return hash;
-    }
 }

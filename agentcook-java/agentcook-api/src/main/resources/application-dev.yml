@@ -16,3 +16,8 @@ logging:
   level:
     cc.agentcook: DEBUG
     org.hibernate.SQL: DEBUG
+
+agentcook:
+  auth:
+    admins: ${AGENTCOOK_AUTH_ADMINS:admin}
+    auto-provision: ${AGENTCOOK_AUTH_AUTO_PROVISION:true}

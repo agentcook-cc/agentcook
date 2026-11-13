@@ -23,7 +23,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class PluginControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private PluginRepository pluginRepository;
 
     @Test

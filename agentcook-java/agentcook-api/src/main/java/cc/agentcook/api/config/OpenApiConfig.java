@@ -31,9 +31,10 @@ public class OpenApiConfig {
                         docs/api/v1.yaml (maintained by Agent A).
 
                         ## Authentication
-                        All `/api/v1/**` endpoints (except `/api/v1/auth/login`) require a `Bearer` JWT
-                        in the `Authorization` header. Obtain one by POSTing username/password to
-                        `/api/v1/auth/login`; the token is an HS256-signed JWT with a 1h TTL.
+                        Register or log in with a username and password to receive an access token and a
+                        refresh token. Send the access token as `Authorization: Bearer <token>` on
+                        protected routes. Send the refresh token only to `POST /api/v1/auth/refresh`.
+                        Access tokens expire after one hour by default. Admin routes also require the admin role.
 
                         ## Versioning
                         URL-versioned (`/api/v1/...`). Breaking changes open a new `/api/v2/...` namespace
@@ -53,7 +54,7 @@ public class OpenApiConfig {
                         .type(SecurityScheme.Type.HTTP)
                         .scheme("bearer")
                         .bearerFormat("JWT")
-                        .description("HS256-signed JWT issued by `POST /api/v1/auth/login`."));
+                        .description("HS256 access JWT issued by the auth endpoints."));
 
         return new OpenAPI()
                 .info(info)

@@ -90,52 +90,36 @@ export TESTCONTAINERS_RYUK_DISABLED=true
 
 ```bash
 # Option A: IDEA / mvn spring-boot:run
-# default profile expects postgres-business on host port 5433 + redis on 6379
+# dev profile expects postgres-business on host port 5433 + redis on 6379
 docker compose -f ../docker-compose.dev.yml up -d postgres-business redis
-mvn -pl agentcook-api spring-boot:run
+mvn -B -DskipTests package
+java -jar agentcook-api/target/agentcook-api-0.1.0-SNAPSHOT.jar --spring.profiles.active=dev
 
 # Option B: docker (uses the docker profile, in-container hostnames)
 docker compose -f ../docker-compose.dev.yml up -d agentcook-java
 ```
 
-### Hit the API
+### 鉴权与授权
 
-- Swagger UI: <http://localhost:8080/swagger-ui.html>
-- OpenAPI spec: <http://localhost:8080/v3/api-docs.yaml>
-- Login (returns a JWT — paste into Swagger UI "Authorize"). Login also
-  auto-provisions the corresponding User aggregate on first call, so
-  the JWT's `sub` claim is a real persisted UUID:
+Swagger UI 在 <http://localhost:8080/swagger-ui.html>，OpenAPI 在
+<http://localhost:8080/v3/api-docs.yaml>。
 
-  ```bash
-  TOKEN=$(curl -sS -X POST http://localhost:8080/api/v1/auth/login \
-      -H 'Content-Type: application/json' \
-      -d '{"username":"alice","password":"dev"}' | jq -r .accessToken)
-  ```
+```bash
+# 首次注册返回 201，之后使用相同密码登录。
+curl -fsS http://localhost:8080/api/v1/auth/register \
+  -H 'Content-Type: application/json' \
+  -d '{"username":"alice","password":"local-demo-password"}' > /tmp/agentcook-auth.json
+TOKEN=$(jq -r .accessToken /tmp/agentcook-auth.json)
+curl -fsS http://localhost:8080/api/v1/users/me -H "Authorization: Bearer $TOKEN"
+```
 
-- Resolve the current user from the JWT — the `/me` endpoint reads
-  the subject out of the token, no body / path parameter needed:
-
-  ```bash
-  curl -sS http://localhost:8080/api/v1/users/me \
-      -H "Authorization: Bearer $TOKEN" | jq .
-  # → { "id": "...uuid...", "email": "alice@dev.local", "nickname": "alice", ... }
-  ```
-
-- Open a session — `userId` is now optional. When the body omits it
-  the controller falls back to the JWT subject, so the typical
-  end-to-end call is:
-
-  ```bash
-  curl -sS -X POST http://localhost:8080/api/v1/sessions \
-      -H "Authorization: Bearer $TOKEN" \
-      -H 'Content-Type: application/json' \
-      -d '{"title":"Hello"}' | jq .
-  # admin tooling that needs to act on someone else can still pass
-  # `"userId": "<other-uuid>"` explicitly — body wins over JWT subject.
-  ```
-
-- Health probes: `/actuator/health/liveness` + `/actuator/health/readiness`
-- Prometheus scrape: `/actuator/prometheus`
+- 注册接受邮箱或 3–32 位用户名，密码 8–128 位。邮箱转小写，用户名映射到同名的 `@dev.local` 邮箱。登录失败返回 JSON 错误，未知账号和密码错误共用 `AUTH_INVALID_CREDENTIALS`。
+- 登录与注册都返回 `accessToken`、`refreshToken`、`tokenType`、`expiresIn`、`refreshExpiresIn`。资源请求使用 access token，默认有效期 1 小时。向 `POST /api/v1/auth/refresh` 发送 `{ "refreshToken": "…" }` 取得新的一对令牌，refresh token 默认有效 30 天。
+- Java 和运行时校验同一个 HS256 签名和 `agentcook-java` 签发者。生产部署给 Java 设置 `AGENTCOOK_AUTH_JWT_SECRET`，给 Python 设置同值的 `AGENTCOOK_JWT_SECRET` 和 `AGENTCOOK_JWT_ISSUER=agentcook-java`。
+- 普通用户可访问自己的资料、会话和额度，以及插件目录。用户管理、权限、连接器和插件写操作需要管理员角色。会话默认使用调用者 UUID，访问其他用户的会话返回 404，管理员可显式指定归属。
+- `AGENTCOOK_AUTH_ADMINS` 接受逗号分隔的用户名或邮箱。默认空，dev 默认 `admin`。管理员身份按账号名授予，先在私有环境完成配置账号的注册，再开放公网注册。
+- `AGENTCOOK_AUTH_AUTO_PROVISION` 默认 false，dev 默认 true。开启时首次登录可创建用户或为旧账号设置密码，只在隔离的开发环境启用。
+- 运行时每轮完成后以调用者身份请求 `POST /api/v1/quota/consume`。耗尽仍返回 200 和 `exhausted: true`，由运行时按 [ADR-018](../docs/adr/ADR-018-chat-quota-tiered-models.md) 降级。
 
 ## Deployment
 
@@ -183,7 +167,7 @@ Full config / Secret split: see [`docs/k8s-config-mapping.md`](../docs/k8s-confi
 
 | Resource    | Endpoints                                                                        |
 | ----------- | -------------------------------------------------------------------------------- |
-| Auth        | `POST /api/v1/auth/login` (public, returns JWT)                                  |
+| Auth        | `POST /api/v1/auth/{login,register,refresh}`                                     |
 | Users       | `GET/POST /api/v1/users`, `GET /api/v1/users/me`, `GET /api/v1/users/{id}`       |
 | Permissions | `GET/POST /api/v1/users/{userId}/permissions`, `DELETE /api/v1/permissions/{id}` |
 | Sessions    | `GET/POST /api/v1/sessions`, `GET /api/v1/sessions/{id}`                         |
@@ -197,7 +181,7 @@ Frozen spec: `../docs/api/java-v1.yaml`. Versioning policy:
 
 The api module exposes a gRPC server on container port 9090 (see
 `grpc/GrpcServerConfig.java`). `ChatService` bridges SSE chat into
-unary streaming so the Python runtime can call back over gRPC.
+a server stream. The bridge forwards incoming Authorization metadata to the Python HTTP runtime and closes its upstream read when the client cancels. The only schema is [proto/agentcook.proto](../proto/agentcook.proto).
 
 Prereq — install grpcurl: `brew install grpcurl` (macOS) /
 `apt install grpcurl` (Debian/Ubuntu).
@@ -224,7 +208,6 @@ The gRPC service name is fully-qualified `cc.agentcook.grpc.ChatService`
 agentcook-java/
 ├── pom.xml                   # parent — versions for grpc, protobuf, jetcd, jjwt
 ├── Dockerfile                # multi-stage; K8s-aware JVM defaults (Day 41)
-├── proto/                    # checked-in protobuf (../../../proto/)
 ├── agentcook-domain/         # pure Java domain
 ├── agentcook-application/    # @Service UseCases
 ├── agentcook-infrastructure/ # JPA + Flyway + Redis + etcd

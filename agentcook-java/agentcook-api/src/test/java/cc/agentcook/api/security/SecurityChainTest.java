@@ -51,7 +51,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         webEnvironment = SpringBootTest.WebEnvironment.MOCK,
         properties = {
                 "agentcook.auth.jwt-secret=test-secret-must-be-at-least-32-bytes!!",
-                "agentcook.auth.jwt-ttl-seconds=3600"
+                "agentcook.auth.jwt-ttl-seconds=3600",
+                "agentcook.auth.auto-provision=true"
         }
 )
 @AutoConfigureMockMvc
@@ -62,7 +63,12 @@ class SecurityChainTest {
      * No JPA, no Flyway, no Redis, no Testcontainers.
      */
     @Configuration
-    @Import({SecurityConfig.class, JwtTokenIssuer.class, TurnstileVerifier.class, AuthController.class})
+    @Import({SecurityConfig.class, JwtTokenIssuer.class, TurnstileVerifier.class, AuthController.class, cc.agentcook.api.config.ApiErrorSecurityHandler.class,
+            cc.agentcook.api.exception.GlobalExceptionHandler.class,
+            cc.agentcook.api.auth.BCryptPasswordHasher.class,
+            cc.agentcook.application.usecase.LoginUseCaseImpl.class,
+            cc.agentcook.application.usecase.RegisterUserUseCaseImpl.class,
+            cc.agentcook.application.usecase.RefreshTokenUseCaseImpl.class})
     @org.springframework.boot.autoconfigure.SpringBootApplication(
             exclude = {
                     org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration.class,
@@ -86,6 +92,7 @@ class SecurityChainTest {
         @Bean
         UserRepository inMemoryUserRepository() {
             return new UserRepository() {
+                @Override public Optional<User> findByIdForUpdate(UserId id) { return findById(id); }
                 @Override public Optional<User> findById(UserId id) { return Optional.empty(); }
                 @Override public Optional<User> findByEmail(String email) { return Optional.empty(); }
                 @Override public List<User> findAll() { return List.of(); }
@@ -113,7 +120,7 @@ class SecurityChainTest {
 
     @Test
     void protectedEndpoint_withValidToken_passesSecurityChain() throws Exception {
-        String token = tokenIssuer.issue("alice");
+        String token = tokenIssuer.issueAccessToken("alice", "alice", true);
         // /api/v1/users is not mapped (only AuthController loaded),
         // so 404 — but NOT 401/403: security chain passed.
         mockMvc.perform(get("/api/v1/users")
@@ -246,7 +253,7 @@ class SecurityChainTest {
     @Test
     @DisplayName("JWT boundary: tampered payload (valid sig over original) → 401")
     void jwt_tamperedPayload_returns401() throws Exception {
-        String token = tokenIssuer.issue("alice");
+        String token = tokenIssuer.issueAccessToken("alice", "alice", true);
         String[] parts = token.split("\\.");
 
         // Replace the payload segment with one that decodes but won't match

@@ -1,37 +1,220 @@
 openapi: 3.0.1
 info:
   title: agentcook Java Business API
-  description: "Java business backend (ADR-013): User / Session / Plugin / Connector\
-    \ / Permission. Memory / Soul / Identity APIs live in the Python runtime and are\
-    \ documented in docs/api/v1.yaml (maintained by Agent A)."
+  description: |
+    Java business backend (ADR-013): User / Session / Plugin / Connector / Permission.
+    Memory / Soul / Identity APIs live in the Python runtime and are documented in
+    docs/api/v1.yaml (maintained by Agent A).
+
+    ## Authentication
+    Register or log in with a username and password to receive an access token and a
+    refresh token. Send the access token as `Authorization: Bearer <token>` on
+    protected routes. Send the refresh token only to `POST /api/v1/auth/refresh`.
+    Access tokens expire after one hour by default. Admin routes also require the admin role.
+
+    ## Versioning
+    URL-versioned (`/api/v1/...`). Breaking changes open a new `/api/v2/...` namespace
+    with a 6-month deprecation window — see docs/api/DEPRECATION-POLICY.md.
   contact:
     name: agentcook
     url: https://agentcook.cc
   license:
     name: Apache-2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
   version: 1.0.0
   x-source: springdoc-openapi (auto-generated from controllers)
-  x-scope: java-business
   x-frozen: 2026-05-31
+  x-scope: java-business
 servers:
-- url: http://localhost
-  description: Generated server url
+- url: http://localhost:8080
+  description: Local dev
+- url: https://api.agentcook.cc
+  description: Production
+security:
+- bearerAuth: []
 tags:
 - name: Permissions
   description: Permission CRUD (RBAC building blocks).
-- name: Plugins
-  description: Plugin registry and activation.
+- name: Quota
+  description: Chat quota state (ADR-018).
+- name: Sessions
+  description: Conversation session lifecycle (owner or admin only).
 - name: Connectors-OAuth
   description: OAuth callback for IM provider authorization (Phase 3 dev dummy).
+- name: Connectors
+  description: Connector lifecycle (admin only).
+- name: Auth
+  description: "Password authentication: register, login, refresh. Issues HS256-signed\
+    \ JWTs."
 - name: Users
   description: User aggregate lifecycle.
-- name: Auth
-  description: Authentication. Phase 3 dev mode returns dummy bearer tokens.
-- name: Sessions
-  description: Conversation session lifecycle.
-- name: Connectors
-  description: Connector lifecycle (admin path).
+- name: Plugins
+  description: "Plugin registry and activation (listing for every user, changes admin\
+    \ only)."
 paths:
+  /api/v1/users/{id}:
+    get:
+      tags:
+      - Users
+      summary: Fetch a user by id.
+      operationId: getUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: User found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+    put:
+      tags:
+      - Users
+      summary: Update a user's profile (nickname).
+      operationId: updateUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+        required: true
+      responses:
+        "200":
+          description: User updated.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+    delete:
+      tags:
+      - Users
+      summary: Soft-delete (suspend) a user.
+      operationId: deleteUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "204":
+          description: User suspended.
+  /api/v1/users/{id}/suspend:
+    put:
+      tags:
+      - Users
+      summary: "Suspend a user: login, refresh and quota consumption are refused until\
+        \ re-activated."
+      operationId: suspendUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "200":
+          description: User suspended.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/users/{id}/activate:
+    put:
+      tags:
+      - Users
+      summary: Re-activate a suspended user.
+      operationId: activateUser
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: User not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: User active.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/UserResponse"
+  /api/v1/plugins/{id}/publish:
+    put:
+      tags:
+      - Plugins
+      summary: Publish a DRAFT plugin (transitions status to PUBLISHED).
+      operationId: publishPlugin
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: Plugin not found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: Plugin published.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/PluginResponse"
+        "409":
+          description: Plugin cannot be published (already deprecated).
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/v1/connectors/{id}/config:
     put:
       tags:
@@ -49,7 +232,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateConnectorConfigRequest'
+              $ref: "#/components/schemas/UpdateConnectorConfigRequest"
         required: true
       responses:
         "200":
@@ -57,13 +240,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ConnectorResponse'
+                $ref: "#/components/schemas/ConnectorResponse"
         "404":
           description: Connector not found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
   /api/v1/users:
     get:
       tags:
@@ -89,7 +272,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/UserResponse'
+                  $ref: "#/components/schemas/UserResponse"
     post:
       tags:
       - Users
@@ -99,21 +282,21 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUserRequest'
+              $ref: "#/components/schemas/CreateUserRequest"
         required: true
       responses:
-        "409":
-          description: Email already exists.
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ApiError'
         "201":
           description: User created.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: "#/components/schemas/UserResponse"
+        "409":
+          description: Email already exists.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/v1/users/{userId}/permissions:
     get:
       tags:
@@ -135,7 +318,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PermissionResponse'
+                  $ref: "#/components/schemas/PermissionResponse"
     post:
       tags:
       - Permissions
@@ -152,7 +335,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/GrantPermissionRequest'
+              $ref: "#/components/schemas/GrantPermissionRequest"
         required: true
       responses:
         "201":
@@ -160,32 +343,95 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PermissionResponse'
+                $ref: "#/components/schemas/PermissionResponse"
   /api/v1/sessions:
+    get:
+      tags:
+      - Sessions
+      summary: List a user's sessions. Defaults to the caller; other users' lists
+        are admin-only.
+      operationId: listSessions
+      parameters:
+      - name: userId
+        in: query
+        description: User id (uuid). Optional — defaults to the JWT subject.
+        required: false
+        schema:
+          type: string
+          format: uuid
+      responses:
+        "404":
+          description: USER_NOT_FOUND — another user's id requested by a non-admin.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
     post:
       tags:
       - Sessions
-      summary: Open a new conversation session for an existing user.
+      summary: Open a new conversation session. Owner defaults to the JWT subject
+        when body.userId is omitted; only admins may open a session for another user.
       operationId: createSession
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateSessionRequest'
+              $ref: "#/components/schemas/CreateSessionRequest"
         required: true
       responses:
         "404":
-          description: User not found.
+          description: USER_NOT_FOUND — owner missing or not the caller.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
         "201":
           description: Session created.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/SessionResponse'
+                $ref: "#/components/schemas/SessionResponse"
+        "400":
+          description: INVALID_ARGUMENT — body.userId is not a UUID.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+  /api/v1/quota/consume:
+    post:
+      tags:
+      - Quota
+      summary: Record one completed chat turn against the caller's free-tier quota.
+      description: "Atomic per user: concurrent calls are serialised on the user row,\
+        \ so none is lost. An exhausted quota is not an error — the response says\
+        \ `exhausted: true` and the counters are unchanged (ADR-018: the runtime downgrades\
+        \ to the cheaper model)."
+      operationId: consume
+      responses:
+        "200":
+          description: Quota state after this call.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ConsumeQuotaResponse"
+        "401":
+          description: Missing or invalid Bearer token.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: AUTH_ACCOUNT_DISABLED — the account is suspended.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: USER_NOT_FOUND — JWT subject does not resolve to a known user.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/v1/plugins:
     get:
       tags:
@@ -211,14 +457,14 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/PluginResponse'
+                  $ref: "#/components/schemas/PluginResponse"
     post:
       tags:
       - Plugins
       summary: Upload a plugin .zip package and register the plugin metadata.
       description: The zip must contain a plugin.json with name / version / kind /
         description. Sandbox loading + execution lives in the Python runtime per ADR-013
-        â this endpoint only registers metadata.
+        — this endpoint only registers metadata.
       operationId: uploadPlugin
       requestBody:
         content:
@@ -237,24 +483,24 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/PluginResponse'
+                $ref: "#/components/schemas/PluginResponse"
         "400":
           description: Zip is missing plugin.json or has invalid manifest.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
         "409":
           description: Plugin name + version already registered.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
   /api/v1/plugins/{id}/activate:
     post:
       tags:
       - Plugins
-      summary: Activate a plugin for a user â establishes a Connector.
+      summary: Activate a plugin for a user — establishes a Connector.
       operationId: activate
       parameters:
       - name: id
@@ -267,7 +513,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/ActivatePluginRequest'
+              $ref: "#/components/schemas/ActivatePluginRequest"
         required: true
       responses:
         "200":
@@ -275,19 +521,19 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ConnectorResponse'
-        "403":
-          description: User lacks activate permission.
-          content:
-            '*/*':
-              schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ConnectorResponse"
         "404":
           description: Plugin not found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
+        "403":
+          description: User lacks activate permission.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
   /api/v1/connectors:
     get:
       tags:
@@ -309,7 +555,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/ConnectorResponse'
+                  $ref: "#/components/schemas/ConnectorResponse"
     post:
       tags:
       - Connectors
@@ -319,7 +565,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateConnectorRequest'
+              $ref: "#/components/schemas/CreateConnectorRequest"
         required: true
       responses:
         "201":
@@ -327,13 +573,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ConnectorResponse'
+                $ref: "#/components/schemas/ConnectorResponse"
         "404":
           description: Plugin not found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
   /api/v1/connectors/{id}/ping:
     post:
       tags:
@@ -355,13 +601,13 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ConnectorPingResponse'
+                $ref: "#/components/schemas/ConnectorPingResponse"
         "404":
           description: Connector not found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
   /api/v1/connectors/oauth/callback:
     post:
       tags:
@@ -373,7 +619,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/OAuthCallbackRequest'
+              $ref: "#/components/schemas/OAuthCallbackRequest"
         required: true
       responses:
         "400":
@@ -381,69 +627,155 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
         "200":
           description: Token issued.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/OAuthCallbackResponse'
+                $ref: "#/components/schemas/OAuthCallbackResponse"
+  /api/v1/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Create an account with a password and log it in.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+        required: true
+      responses:
+        "201":
+          description: Account created; tokens issued.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "400":
+          description: "VALIDATION_FAILED — bad username format, password outside\
+            \ 8-128 characters, or malformed JSON."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "401":
+          description: TURNSTILE_REJECTED — Turnstile verification failed.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "409":
+          description: AUTH_USER_EXISTS — the identity already has an account.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security: []
+  /api/v1/auth/refresh:
+    post:
+      tags:
+      - Auth
+      summary: Exchange a refresh token for a new access + refresh token pair.
+      description: Access tokens are refused here and refresh tokens are refused everywhere
+        else.
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefreshTokenRequest"
+        required: true
+      responses:
+        "400":
+          description: VALIDATION_FAILED — missing refreshToken.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: New token pair issued.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: "AUTH_INVALID_REFRESH_TOKEN — invalid, expired, not a refresh\
+            \ token, or the user is gone / not active."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security: []
   /api/v1/auth/login:
     post:
       tags:
       - Auth
-      summary: Phase 3 dev login. Returns a dummy bearer token.
+      summary: Log in with username (or e-mail) and password.
+      description: "Unknown users are rejected unless `agentcook.auth.auto-provision`\
+        \ is on (dev profile), in which case the account is created with this password.\
+        \ Accounts without a password (seed data, pre-password rows) are claimed by\
+        \ their first login only under auto-provision."
       operationId: login
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/LoginRequest'
+              $ref: "#/components/schemas/LoginRequest"
         required: true
       responses:
+        "403":
+          description: "AUTH_ACCOUNT_DISABLED — correct password, suspended account."
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
         "200":
           description: Login accepted.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/LoginResponse'
-        "400":
-          description: Empty username or password.
+                $ref: "#/components/schemas/LoginResponse"
+        "401":
+          description: "AUTH_INVALID_CREDENTIALS, or TURNSTILE_REJECTED (only when\
+            \ `agentcook.turnstile.secret` is set)."
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
-  /api/v1/users/{id}:
+                $ref: "#/components/schemas/ApiError"
+        "400":
+          description: VALIDATION_FAILED — blank username or password.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+      security: []
+  /api/v1/users/me:
     get:
       tags:
       - Users
-      summary: Fetch a user by id.
-      operationId: getUser
-      parameters:
-      - name: id
-        in: path
-        required: true
-        schema:
-          type: string
-          format: uuid
+      summary: Fetch the currently-authenticated user and the roles of the presented
+        token. JWT subject is the user UUID.
+      operationId: getCurrentUser
       responses:
         "404":
-          description: User not found.
+          description: USER_NOT_FOUND — JWT subject does not resolve to a known user.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
         "200":
           description: User found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/UserResponse'
+                $ref: "#/components/schemas/CurrentUserResponse"
   /api/v1/sessions/{id}:
     get:
       tags:
       - Sessions
-      summary: Fetch a session by id.
+      summary: Fetch a session by id (owner or admin).
       operationId: getSession
       parameters:
       - name: id
@@ -453,12 +785,43 @@ paths:
           type: string
           format: uuid
       responses:
-        "200":
-          description: OK
+        "404":
+          description: SESSION_NOT_FOUND — missing or owned by another user.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/SessionResponse'
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: Session found.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/SessionResponse"
+  /api/v1/quota:
+    get:
+      tags:
+      - Quota
+      summary: Get the calling user's chat quota state.
+      operationId: getQuota
+      responses:
+        "401":
+          description: Missing or invalid Bearer token.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "404":
+          description: USER_NOT_FOUND — JWT subject does not resolve to a known user.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/ApiError"
+        "200":
+          description: Current quota snapshot.
+          content:
+            '*/*':
+              schema:
+                $ref: "#/components/schemas/QuotaResponse"
   /api/v1/connectors/{id}:
     get:
       tags:
@@ -473,12 +836,12 @@ paths:
           type: string
           format: uuid
       responses:
-        "200":
-          description: OK
+        "404":
+          description: Connector not found.
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ConnectorResponse'
+                $ref: "#/components/schemas/ApiError"
     delete:
       tags:
       - Connectors
@@ -499,7 +862,7 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
   /api/v1/permissions/{permissionId}:
     delete:
       tags:
@@ -519,53 +882,20 @@ paths:
           content:
             '*/*':
               schema:
-                $ref: '#/components/schemas/ApiError'
+                $ref: "#/components/schemas/ApiError"
         "204":
           description: Permission revoked.
 components:
   schemas:
-    UpdateConnectorConfigRequest:
-      type: object
-      properties:
-        config:
-          type: string
-          example: "{\"webhook_url\":\"https://example.com/v2\"}"
-      description: Updates a Connector's configuration JSON without changing its status.
-    ConnectorResponse:
-      type: object
-      properties:
-        id:
-          type: string
-          format: uuid
-        pluginId:
-          type: string
-          format: uuid
-        status:
-          type: string
-      description: Connector aggregate snapshot returned by activate-plugin.
-    ApiError:
-      type: object
-      properties:
-        code:
-          type: string
-          example: DUPLICATE_EMAIL
-        message:
-          type: string
-          example: "User already exists with email: alice@example.com"
-      description: Flat error envelope. Field names match frontend-conventions Â§7.6
-        (B canonical).
-    CreateUserRequest:
+    UpdateUserRequest:
       required:
-      - email
+      - nickname
       type: object
       properties:
-        email:
-          type: string
-          example: alice@example.com
         nickname:
           type: string
-          example: Alice
-      description: Payload to register a new user.
+          description: New nickname.
+      description: Update a user's profile.
     UserResponse:
       type: object
       properties:
@@ -589,6 +919,80 @@ components:
           type: string
           format: date-time
       description: User aggregate snapshot.
+    ApiError:
+      type: object
+      properties:
+        code:
+          type: string
+          example: DUPLICATE_EMAIL
+        message:
+          type: string
+          example: "User already exists with email: alice@example.com"
+      description: Flat error envelope. Field names match frontend-conventions §7.6
+        (B canonical).
+    PluginResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+          enum:
+          - MCP
+          - HTTP
+          - OAUTH
+          - WEBHOOK
+        description:
+          type: string
+        status:
+          type: string
+          enum:
+          - DRAFT
+          - PUBLISHED
+          - DEPRECATED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      description: Plugin aggregate snapshot.
+    UpdateConnectorConfigRequest:
+      type: object
+      properties:
+        config:
+          type: string
+          example: "{\"webhook_url\":\"https://example.com/v2\"}"
+      description: Updates a Connector's configuration JSON without changing its status.
+    ConnectorResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        pluginId:
+          type: string
+          format: uuid
+        status:
+          type: string
+      description: Connector aggregate snapshot returned by activate-plugin.
+    CreateUserRequest:
+      required:
+      - email
+      type: object
+      properties:
+        email:
+          type: string
+          example: alice@example.com
+        nickname:
+          type: string
+          example: Alice
+      description: Payload to register a new user.
     GrantPermissionRequest:
       required:
       - action
@@ -632,18 +1036,20 @@ components:
           format: date-time
       description: Permission aggregate snapshot.
     CreateSessionRequest:
-      required:
-      - userId
       type: object
       properties:
         userId:
           type: string
+          description: Owner UUID. Optional — falls back to the JWT subject when blank.
           format: uuid
+          nullable: true
           example: 8aa3f6e6-3a9c-4f1f-9f1c-9f8b9c1d2e3f
         title:
           type: string
           example: Trip planning
-      description: Payload to open a conversation session for an existing user.
+      description: "Payload to open a conversation session for an existing user. When\
+        \ omitted, {@code userId} defaults to the JWT subject (the authenticated caller's\
+        \ UUID)."
     SessionResponse:
       type: object
       properties:
@@ -668,38 +1074,35 @@ components:
           type: string
           format: date-time
       description: Session aggregate snapshot.
-    PluginResponse:
+    ConsumeQuotaResponse:
       type: object
       properties:
-        id:
+        userId:
           type: string
+          description: User aggregate id.
           format: uuid
-        name:
-          type: string
-        version:
-          type: string
-        kind:
-          type: string
-          enum:
-          - MCP
-          - HTTP
-          - OAUTH
-          - WEBHOOK
-        description:
-          type: string
-        status:
-          type: string
-          enum:
-          - DRAFT
-          - PUBLISHED
-          - DEPRECATED
-        createdAt:
-          type: string
-          format: date-time
-        updatedAt:
-          type: string
-          format: date-time
-      description: Plugin aggregate snapshot.
+        used:
+          type: integer
+          description: Free-tier questions consumed so far (after this call).
+          format: int32
+          example: 2
+        quota:
+          type: integer
+          description: Per-user quota ceiling.
+          format: int32
+          example: 2
+        remaining:
+          type: integer
+          description: "Free questions still available (quota - used, clamped to 0)."
+          format: int32
+          example: 0
+        exhausted:
+          type: boolean
+          description: "true when the quota was already used up, so nothing was consumed\
+            \ and the counters are unchanged. Not an error: the runtime downgrades\
+            \ to the cheaper model instead of blocking the user."
+          example: false
+      description: Free-tier quota state after recording one chat turn.
     ActivatePluginRequest:
       required:
       - userId
@@ -757,7 +1160,7 @@ components:
           description: CSRF state token echoed back by the provider.
           example: csrf-state-token
       description: OAuth callback payload posted by the IM provider after user authorization.
-        Phase 3 dev profile only â Phase 4 hooks real provider SDKs.
+        Phase 3 dev profile only — Phase 4 hooks real provider SDKs.
     OAuthCallbackResponse:
       type: object
       properties:
@@ -777,6 +1180,73 @@ components:
           example: 3600
       description: OAuth callback result. Phase 3 dev mode returns a dummy access
         token; Phase 4 swaps in a real one issued by the IM provider.
+    RegisterRequest:
+      required:
+      - password
+      - username
+      type: object
+      properties:
+        username:
+          type: string
+          description: "E-mail address (stored lower-cased), or a bare username (3-32\
+            \ of letters, digits, `_`, `.`, `-`) stored as `<username>@dev.local`."
+          example: alice
+        password:
+          maxLength: 128
+          minLength: 8
+          type: string
+          example: correct-horse-battery
+        nickname:
+          maxLength: 255
+          minLength: 0
+          type: string
+          description: Display name; defaults to the username (or the e-mail's local
+            part).
+          nullable: true
+          example: Alice
+        turnstileToken:
+          type: string
+          description: Cloudflare Turnstile response token; required when `agentcook.turnstile.secret`
+            is configured.
+          nullable: true
+          example: 0.cf-turnstile-response-token
+      description: Self-service sign-up payload. On success the new user is signed
+        in.
+    LoginResponse:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          description: "HS256 JWT for the `Authorization: Bearer` header (claims:\
+            \ sub, iss, iat, exp, typ=access, roles, scope, preferred_username)."
+        tokenType:
+          type: string
+          example: Bearer
+          default: Bearer
+        expiresIn:
+          type: integer
+          description: Seconds until the access token is no longer accepted.
+          format: int64
+          example: 3600
+        refreshToken:
+          type: string
+          description: HS256 JWT (typ=refresh) accepted only by `POST /api/v1/auth/refresh`.
+        refreshExpiresIn:
+          type: integer
+          description: Seconds until the refresh token is no longer accepted.
+          format: int64
+          example: 2592000
+      description: "Token envelope returned by login, register and refresh."
+    RefreshTokenRequest:
+      required:
+      - refreshToken
+      type: object
+      properties:
+        refreshToken:
+          type: string
+          description: The `refreshToken` from a previous login / register / refresh
+            response. `refresh_token` is accepted as an alias.
+      description: Refresh-token exchange payload.
     LoginRequest:
       required:
       - password
@@ -785,26 +1255,82 @@ components:
       properties:
         username:
           type: string
+          description: "E-mail address, or a bare username (3-32 of letters, digits,\
+            \ `_`, `.`, `-`) which is the account `<username>@dev.local`."
           example: alice
         password:
           type: string
-          example: dev
-      description: Phase 3 dev login payload (Phase 4 Day 31-32 replaces with OAuth2
-        / B3 tokens).
-    LoginResponse:
+          example: correct-horse-battery
+        turnstileToken:
+          type: string
+          description: "Cloudflare Turnstile response token (Buffer Day 62 / backlog\
+            \ #11). Required when `agentcook.turnstile.secret` is configured; ignored\
+            \ in dev mode when the secret is unset."
+          nullable: true
+          example: 0.cf-turnstile-response-token
+      description: Password login payload.
+    CurrentUserResponse:
       type: object
       properties:
-        accessToken:
+        id:
           type: string
-          example: dev-token-alice
-        tokenType:
+          format: uuid
+        email:
           type: string
-          example: Bearer
-          default: Bearer
-        expiresIn:
+        nickname:
+          type: string
+        status:
+          type: string
+          enum:
+          - ACTIVE
+          - SUSPENDED
+          - DELETED
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        roles:
+          type: array
+          description: "`user`, plus `admin` for accounts listed in `agentcook.auth.admins`\
+            \ (decided when the token was issued)."
+          items:
+            type: string
+            example: user
+      description: The authenticated user and the roles of the presented access token.
+    QuotaResponse:
+      type: object
+      properties:
+        userId:
+          type: string
+          description: User aggregate id.
+          format: uuid
+        used:
           type: integer
-          description: Seconds until the token is no longer accepted.
-          format: int64
-          example: 3600
-      description: OAuth2-shaped token envelope. Phase 3 returns a dev dummy token;
-        Phase 4 Day 31-32 swaps it for a signed JWT.
+          description: Free-tier questions consumed so far.
+          format: int32
+          example: 1
+        quota:
+          type: integer
+          description: Per-user quota ceiling (v1 default 2).
+          format: int32
+          example: 2
+        remaining:
+          type: integer
+          description: "Free questions still available (quota - used, clamped to 0)."
+          format: int32
+          example: 1
+        free_questions_used:
+          type: integer
+          format: int32
+        free_questions_quota:
+          type: integer
+          format: int32
+      description: Per-user free-tier chat quota state (ADR-018 v1).
+  securitySchemes:
+    bearerAuth:
+      type: http
+      description: HS256 access JWT issued by the auth endpoints.
+      scheme: bearer
+      bearerFormat: JWT

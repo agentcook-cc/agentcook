@@ -37,11 +37,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class LiveEndpointDemoTest extends ApiIntegrationTestBase {
 
     @Autowired private TestRestTemplate restTemplate;
+    @Autowired private cc.agentcook.api.auth.JwtTokenIssuer tokenIssuer;
     @Autowired private PluginRepository pluginRepository;
     @Autowired private PermissionRepository permissionRepository;
 
     @Test
     void runsAllFiveEndpointsAndWritesDemoTranscript() throws Exception {
+        String token = tokenIssuer.issueAccessToken(UUID.randomUUID().toString(), "admin", true);
+        restTemplate.getRestTemplate().setInterceptors(java.util.List.of((request, body, execution) -> {
+            request.getHeaders().setBearerAuth(token);
+            return execution.execute(request, body);
+        }));
         ObjectMapper json = new ObjectMapper();
         StringBuilder transcript = new StringBuilder();
         transcript.append("# Live Endpoint Demo — agentcook-java\n\n");

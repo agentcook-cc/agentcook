@@ -9,14 +9,14 @@ real-LLM chat (ADR-017) to the `agent-core` service.
 
 ## Service Topology
 
-| Service | Responsibility | Port | Tech | Source |
-|---------|----------------|------|------|--------|
-| **gateway** | Traefik ingress + routing + rate limit | `:80` / `:443` | Traefik v3 | `gateway/` |
-| **agent-core** | Chat / Stream + LLM routing + Memory + gRPC bridge | `:8000` (HTTP) + `:50051` (gRPC) | Python FastAPI + grpcio | `services/agent-core/` |
-| **connector** | Plugin sandbox runner + external integrations | `:8082` | Python FastAPI | `services/connector/` |
-| **admin-bff** | Business CRUD (User / Plugin / Session / Connector / Permission) | `:8080` (HTTP) + `:9090` (gRPC) | Java Spring Boot | `agentcook-java/` (sibling repo) |
-| **admin-static** | Vue 3 admin dashboard | `:80` (behind gateway) | nginx + dist | `services/admin-static/` |
-| **app-static** | React 19 chat app | `:80` (behind gateway) | nginx + dist | `services/app-static/` |
+| Service          | Responsibility                                                   | Port                             | Tech                    | Source                           |
+| ---------------- | ---------------------------------------------------------------- | -------------------------------- | ----------------------- | -------------------------------- |
+| **gateway**      | Traefik ingress + routing + rate limit                           | `:80` / `:443`                   | Traefik v3              | `gateway/`                       |
+| **agent-core**   | Chat / Stream + LLM routing + Memory + gRPC bridge               | `:8000` (HTTP) + `:50051` (gRPC) | Python FastAPI + grpcio | `services/agent-core/`           |
+| **connector**    | Plugin sandbox runner + external integrations                    | `:8082`                          | Python FastAPI          | `services/connector/`            |
+| **admin-bff**    | Business CRUD (User / Plugin / Session / Connector / Permission) | `:8080` (HTTP) + `:9090` (gRPC)  | Java Spring Boot        | `agentcook-java/` (sibling repo) |
+| **admin-static** | Vue 3 admin dashboard                                            | `:80` (behind gateway)           | nginx + dist            | `services/admin-static/`         |
+| **app-static**   | React 19 chat app                                                | `:80` (behind gateway)           | nginx + dist            | `services/app-static/`           |
 
 Backing services in the compose stack: PostgreSQL (with pgvector),
 Redis, etcd (service discovery), Jaeger, Prometheus, Grafana, Loki,
@@ -89,6 +89,7 @@ agent-core / connector       core spans (tracing Protocol)
 ```
 
 Dashboards land in `grafana/dashboards/`:
+
 - `overview.json` — request volume / error rate / p95 / p99 / status codes
 - `llm-metrics.json` — LLM calls / tokens / estimated cost / latency by provider
 - `service-health.json` — service up/down / CPU / mem / gRPC rates
@@ -106,14 +107,10 @@ LANGFUSE_ENABLED             true | false (force NoOp without unsetting keys)
 
 ## gRPC Bridge (ADR-014)
 
-`agent-core` exposes a gRPC server on `:50051` carrying
-`ChatService.StreamChat` + Health + Reflection. The Java
-`admin-bff` calls it via the generated `cc.agentcook.api.grpc.chat`
-client to reach the Python LLM path from Java endpoints. Proto
-sources live in `agentcook-java/proto/` (single source of truth for
-both languages; the swarm Python build re-generates the stubs at
-container build time — see
-`services/agent-core/Dockerfile` proto-builder stage).
+Java `admin-bff` exposes `cc.agentcook.grpc.ChatService/StreamChat`
+and bridges it to `agent-core`'s HTTP SSE endpoint. The bridge forwards the
+caller's Authorization metadata. Both languages generate from
+[the root proto](../proto/agentcook.proto).
 
 ## Service Discovery (etcd)
 
@@ -125,14 +122,14 @@ without etcd falls back to the static endpoint table baked into
 
 ## ADR References
 
-| ADR | Topic | Affects |
-|-----|-------|---------|
-| ADR-005 | OTel-shaped observability stack with Jaeger + Prometheus + Loki | all services |
-| ADR-006 | Blue-Green deployment with Helm-managed traffic switch | `deploy/helm/agentcook/` |
-| ADR-013 | Java owns business backend (admin-bff) | `admin-bff` lives in `agentcook-java`, not in `services/` |
-| ADR-014 | gRPC bridge between Python `agent-core` and Java `admin-bff` | `services/agent-core/grpc_server.py` + `proto/` |
-| ADR-016 | Default LLM provider = Qwen | `services/agent-core/` reads `AGENTCOOK_LLM_PROVIDER` |
-| ADR-017 | `/api/v1/chat/stream` real-LLM integration (Phase 4.6) | `services/agent-core/` — `agentcook` package shares chat.py |
+| ADR     | Topic                                                           | Affects                                                     |
+| ------- | --------------------------------------------------------------- | ----------------------------------------------------------- |
+| ADR-005 | OTel-shaped observability stack with Jaeger + Prometheus + Loki | all services                                                |
+| ADR-006 | Blue-Green deployment with Helm-managed traffic switch          | `deploy/helm/agentcook/`                                    |
+| ADR-013 | Java owns business backend (admin-bff)                          | `admin-bff` lives in `agentcook-java`, not in `services/`   |
+| ADR-014 | gRPC bridge between Python `agent-core` and Java `admin-bff`    | `services/agent-core/grpc_server.py` + `proto/`             |
+| ADR-016 | Default LLM provider = Qwen                                     | `services/agent-core/` reads `AGENTCOOK_LLM_PROVIDER`       |
+| ADR-017 | `/api/v1/chat/stream` real-LLM integration (Phase 4.6)          | `services/agent-core/` — `agentcook` package shares chat.py |
 
 ## Operations
 

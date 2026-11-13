@@ -24,7 +24,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class ConnectorControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private PluginRepository pluginRepository;
     @Autowired private ObjectMapper objectMapper;
 

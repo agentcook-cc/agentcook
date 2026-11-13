@@ -5,13 +5,11 @@ import cc.agentcook.infrastructure.persistence.jpa.JpaPermissionRepository;
 import cc.agentcook.infrastructure.persistence.jpa.JpaPluginRepository;
 import cc.agentcook.infrastructure.persistence.jpa.JpaSessionRepository;
 import cc.agentcook.infrastructure.persistence.jpa.JpaUserRepository;
-import cc.agentcook.api.config.TestSecurityConfig;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
-import org.springframework.context.annotation.Import;
 import org.springframework.test.context.ActiveProfiles;
 import org.testcontainers.containers.PostgreSQLContainer;
 
@@ -34,7 +32,6 @@ import org.testcontainers.containers.PostgreSQLContainer;
 )
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
-@Import(TestSecurityConfig.class)
 public abstract class ApiIntegrationTestBase {
 
     /** JVM-wide singleton — see IntegrationTestBase for rationale. */
@@ -55,6 +52,25 @@ public abstract class ApiIntegrationTestBase {
     @Autowired private JpaSessionRepository sessionsForCleanup;
     @Autowired private JpaPluginRepository pluginsForCleanup;
     @Autowired private JpaUserRepository usersForCleanup;
+
+    @Autowired private org.springframework.web.context.WebApplicationContext webContext;
+    @Autowired protected org.springframework.test.web.servlet.MockMvc mockMvc;
+
+    protected boolean defaultAdmin() { return true; }
+
+    @BeforeEach
+    void configureSecurity() {
+        var builder = org.springframework.test.web.servlet.setup.MockMvcBuilders.webAppContextSetup(webContext)
+                .apply(org.springframework.security.test.web.servlet.setup.SecurityMockMvcConfigurers.springSecurity());
+        if (defaultAdmin()) {
+            builder.defaultRequest(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get("/")
+                    .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt()
+                            .jwt(jwt -> jwt.subject("00000000-0000-0000-0000-000000000001"))
+                            .authorities(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_ADMIN"))));
+        }
+        mockMvc = builder.build();
+
+    }
 
     @BeforeEach
     void wipeAllTables() {

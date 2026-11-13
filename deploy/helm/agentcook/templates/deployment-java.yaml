@@ -101,6 +101,8 @@ spec:
                 secretKeyRef:
                   name: {{ include "agentcook.fullname" . }}-secret
                   key: JWT_SECRET
+            - name: AGENTCOOK_AUTH_ADMINS
+              value: {{ .Values.adminBff.admins | default "" | quote }}
             # ── Logging ───────────────────────────────────────────────────
             - name: LOGGING_LEVEL_ROOT
               valueFrom:

@@ -12,7 +12,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class OAuthCallbackControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
 
     @Test
     void issuesDummyTokenForSupportedProvider() throws Exception {

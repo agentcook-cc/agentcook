@@ -18,14 +18,14 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+@org.springframework.test.context.TestPropertySource(properties = "agentcook.auth.auto-provision=true")
 class AuthControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Test
-    void loginReturnsDummyBearerToken() throws Exception {
+    void loginReturnsSignedBearerToken() throws Exception {
         mockMvc.perform(post("/api/v1/auth/login")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""

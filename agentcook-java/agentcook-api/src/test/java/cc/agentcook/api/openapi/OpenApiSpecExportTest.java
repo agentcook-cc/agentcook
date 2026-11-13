@@ -1,15 +1,15 @@
 package cc.agentcook.api.openapi;
 
 import cc.agentcook.api.ApiIntegrationTestBase;
+import com.fasterxml.jackson.dataformat.yaml.YAMLMapper;
 import org.junit.jupiter.api.Test;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -24,16 +24,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class OpenApiSpecExportTest extends ApiIntegrationTestBase {
 
-    @Autowired
-    private MockMvc mockMvc;
-
     @Test
     void exportsJavaV1Yaml() throws Exception {
         MvcResult result = mockMvc.perform(get("/v3/api-docs.yaml"))
                 .andExpect(status().isOk())
                 .andReturn();
 
-        String yaml = result.getResponse().getContentAsString();
+        String yaml = result.getResponse().getContentAsString(StandardCharsets.UTF_8);
 
         assertTrue(yaml.contains("/api/v1/users"), "spec must include UserController paths");
         assertTrue(yaml.contains("/api/v1/sessions"), "spec must include SessionController paths");
@@ -51,32 +48,13 @@ class OpenApiSpecExportTest extends ApiIntegrationTestBase {
                 .andExpect(status().isOk())
                 .andReturn()
                 .getResponse()
-                .getContentAsString();
+                .getContentAsString(StandardCharsets.UTF_8);
 
-        // Module cwd is agentcook-cc/agentcook-java/agentcook-api at test runtime.
         Path published = Path.of("..", "..", "docs", "api", "java-v1.yaml");
-        if (!Files.exists(published)) {
-            // Skip silently if the published copy is not in this checkout — the
-            // assertion still fires from a full repo where it exists.
-            return;
-        }
-        String publishedYaml = Files.readString(published);
-
-        // Drift detection: the controller-level surface should match exactly.
-        // Order/whitespace inside the spec is springdoc-deterministic so we
-        // assert path-prefix containment + the version + scope marker.
-        for (String marker : List.of(
-                "/api/v1/users",
-                "/api/v1/sessions",
-                "/api/v1/plugins",
-                "title: agentcook Java Business API",
-                "version: 1.0.0",
-                "x-scope: java-business")) {
-            assertTrue(live.contains(marker),
-                    "live spec missing marker: " + marker);
-            assertTrue(publishedYaml.contains(marker),
-                    "published java-v1.yaml missing marker (drift): " + marker
-                            + " — re-run OpenApiSpecExportTest and copy target/openapi/java-v1.yaml.");
-        }
+        assertTrue(Files.isRegularFile(published), "published OpenAPI file is missing");
+        // Compare the parsed documents because map ordering may differ between JVMs.
+        var mapper = new YAMLMapper();
+        assertEquals(mapper.readTree(live), mapper.readTree(Files.readString(published)),
+                "Regenerate docs/api/java-v1.yaml from /v3/api-docs.yaml.");
     }
 }

@@ -42,7 +42,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class CrossLangIntegrationIT extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
 
     private HttpServer pythonStub;

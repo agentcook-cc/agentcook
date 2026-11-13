@@ -31,6 +31,13 @@ public record QuotaResponse(
                         + "(quota - used, clamped to 0).")
         int remaining
 ) {
+    /** Compatibility fields consumed by the runtime and existing chat clients. */
+    @com.fasterxml.jackson.annotation.JsonProperty("free_questions_used")
+    public int freeQuestionsUsed() { return used; }
+
+    @com.fasterxml.jackson.annotation.JsonProperty("free_questions_quota")
+    public int freeQuestionsQuota() { return quota; }
+
     public static QuotaResponse from(User user) {
         return new QuotaResponse(
                 user.getId().value(),

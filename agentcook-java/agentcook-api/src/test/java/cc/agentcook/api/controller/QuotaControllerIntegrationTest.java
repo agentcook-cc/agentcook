@@ -40,7 +40,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 class QuotaControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -91,6 +90,8 @@ class QuotaControllerIntegrationTest extends ApiIntegrationTestBase {
                         .with(jwt().jwt(b -> b.subject(sub))))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.used").value(1))
+                .andExpect(jsonPath("$.free_questions_used").value(1))
+                .andExpect(jsonPath("$.free_questions_quota").value(User.DEFAULT_FREE_QUOTA))
                 .andExpect(jsonPath("$.remaining").value(User.DEFAULT_FREE_QUOTA - 1));
     }
 
@@ -111,16 +112,11 @@ class QuotaControllerIntegrationTest extends ApiIntegrationTestBase {
     }
 
     @Test
-    void getQuota_withoutPrincipal_returns404UnderPermitAll() throws Exception {
-        // Under the base's permitAll TestSecurityConfig, "no auth"
-        // surfaces inside the controller as a null Jwt rather than as
-        // a 401 from the filter chain. The controller treats null sub
-        // the same way it treats an unparseable sub: 404 "no resolvable
-        // user". Production (real SecurityConfig + bearer enforcement)
-        // returns 401 at the filter — covered by the JWT boundary
-        // tests in SecurityChainTest.
-        mockMvc.perform(get("/api/v1/quota"))
-                .andExpect(status().isNotFound());
+    void getQuota_withoutPrincipal_returns401() throws Exception {
+        mockMvc.perform(get("/api/v1/quota")
+                        .with(org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.anonymous()))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.code").isNotEmpty());
     }
 
     @Test

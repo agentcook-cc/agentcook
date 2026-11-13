@@ -97,6 +97,9 @@ agentcook:
   python-upstream-url: ${PYTHON_UPSTREAM_URL:http://localhost:8000}
   auth:
     jwt-secret: ${AGENTCOOK_AUTH_JWT_SECRET:phase3-dev-secret-not-for-prod-32bytes!!}
+    admins: ${AGENTCOOK_AUTH_ADMINS:}
+    auto-provision: ${AGENTCOOK_AUTH_AUTO_PROVISION:false}
+    refresh-ttl-seconds: ${AGENTCOOK_AUTH_REFRESH_TTL_SECONDS:2592000}
     jwt-ttl-seconds: ${AGENTCOOK_AUTH_JWT_TTL_SECONDS:3600}
   # Buffer Day 62 / Phase 5 backlog #11 — Cloudflare Turnstile.
   # Empty secret means "skip verification" (dev / test profile).

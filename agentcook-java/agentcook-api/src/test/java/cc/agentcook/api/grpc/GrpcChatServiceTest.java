@@ -54,7 +54,7 @@ class GrpcChatServiceTest {
         ChatRequest request = ChatRequest.newBuilder()
                 .setSessionId("test-session-1")
                 .setMessage("Hello")
-                .setModel("gpt-4")
+                .setModel("test-model")
                 .build();
         try {
             Iterator<ChatFrame> frames = blockingStub.streamChat(request);
@@ -63,9 +63,8 @@ class GrpcChatServiceTest {
             fail("Expected exception when upstream is down");
         } catch (io.grpc.StatusRuntimeException e) {
             assertTrue(
-                    e.getStatus().getCode() == Status.Code.UNAVAILABLE
-                            || e.getStatus().getCode() == Status.Code.INTERNAL,
-                    "Expected UNAVAILABLE or INTERNAL, got: " + e.getStatus().getCode()
+                    e.getStatus().getCode() == Status.Code.UNAVAILABLE,
+                    "Expected UNAVAILABLE, got: " + e.getStatus().getCode()
             );
         }
     }
@@ -93,9 +92,9 @@ class GrpcChatServiceTest {
     void parseChatFramePopulatesMetadataWhenPresent() {
         GrpcChatService service = new GrpcChatService("http://localhost:19999");
         String json = "{\"role\":\"assistant\",\"content\":\"hi\",\"done\":false,"
-                + "\"metadata\":{},\"model\":\"qwen-turbo\",\"request_id\":\"req-42\"}";
+                + "\"metadata\":{\"model\":\"test-model\",\"request_id\":\"req-42\"}}";
         ChatFrame frame = service.parseChatFrame(json);
-        assertEquals("qwen-turbo", frame.getMetadata().getModel());
+        assertEquals("test-model", frame.getMetadata().getModel());
         assertEquals("req-42", frame.getMetadata().getRequestId());
     }
 
@@ -115,7 +114,7 @@ class GrpcChatServiceTest {
             String body = "data: {\"role\":\"assistant\",\"content\":\"你好\",\"done\":false}\n"
                     + "\n"
                     + "data: {\"role\":\"assistant\",\"content\":\"\",\"done\":true,"
-                    + "\"metadata\":{},\"model\":\"qwen-turbo\",\"request_id\":\"req-7\"}\n"
+                    + "\"metadata\":{\"model\":\"test-model\",\"request_id\":\"req-7\"}}\n"
                     + "\n"
                     + "data: [DONE]\n\n";
             byte[] payload = body.getBytes(StandardCharsets.UTF_8);
@@ -141,7 +140,7 @@ class GrpcChatServiceTest {
             ChatRequest request = ChatRequest.newBuilder()
                     .setSessionId("s-1")
                     .setMessage("你好\\\"world")
-                    .setModel("qwen-turbo")
+                    .setModel("test-model")
                     .setTemperature(0.7f)
                     .setMaxTokens(128)
                     .addPluginIds("dingtalk-bot")

@@ -19,7 +19,6 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 class SessionControllerIntegrationTest extends ApiIntegrationTestBase {
 
-    @Autowired private MockMvc mockMvc;
     @Autowired private UserRepository userRepository;
     @Autowired private SessionRepository sessionRepository;
 
@@ -78,20 +77,18 @@ class SessionControllerIntegrationTest extends ApiIntegrationTestBase {
     }
 
     @Test
-    void createSessionStillAcceptsExplicitBodyUserIdWhenJwtPresent() throws Exception {
+    void createSessionRejectsAnotherOwnerForOrdinaryUser() throws Exception {
         User explicit = userRepository.save(User.create("explicit@example.com", "Ex"));
         User jwtUser = userRepository.save(User.create("jwt-user@example.com", "Jw"));
 
-        // body.userId wins over JWT subject when both are supplied — admin
-        // tooling can still operate on behalf of another user without a
-        // session swap.
+        // Ordinary users cannot select someone else as session owner.
         mockMvc.perform(post("/api/v1/sessions")
                         .with(jwt().jwt(b -> b.subject(jwtUser.getId().value().toString())))
                         .contentType(MediaType.APPLICATION_JSON)
                         .content("""
                                 {"userId":"%s","title":"Explicit wins"}
                                 """.formatted(explicit.getId().value())))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.userId").value(explicit.getId().value().toString()));
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("USER_NOT_FOUND"));
     }
 }

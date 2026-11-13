@@ -121,6 +121,7 @@ agentCore:
 # native headroom, which is what eclipse-temurin-17 expects on a JVM
 # carrying springdoc + JPA + grpc-netty + jetcd.
 adminBff:
+  admins: ""
   image:
     repository: agentcook/admin-bff
     tag: latest

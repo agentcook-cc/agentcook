@@ -40,7 +40,8 @@ public class GrpcServerConfig {
         healthStatusManager = new HealthStatusManager();
 
         grpcServer = ServerBuilder.forPort(grpcPort)
-                .addService(new GrpcChatService(pythonUpstreamUrl))
+                .addService(io.grpc.ServerInterceptors.intercept(
+                        new GrpcChatService(pythonUpstreamUrl), new AuthorizationInterceptor()))
                 .addService(healthStatusManager.getHealthService())
                 .addService(ProtoReflectionService.newInstance())
                 .build()

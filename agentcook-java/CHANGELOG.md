@@ -10,6 +10,12 @@ versioning of the REST surface follows
 
 ---
 
+## 2.0.0
+
+- 注册和登录使用 BCrypt 密码校验，返回 access 和 refresh token。Java 与 Python 共用签名密钥，资源请求拒绝 refresh token。
+- 管理接口按角色授权，会话按归属授权。额度扣减在数据库行锁内完成，耗尽时返回当前额度状态。
+- gRPC 使用根目录 proto，把 Python SSE 转为服务器流，透传认证头并映射错误，客户端取消时关闭上游连接。
+
 ## 1.0.0 — Phase 4 Day 44 (2026-06-20)
 
 First numbered release. The module has been continuously delivered

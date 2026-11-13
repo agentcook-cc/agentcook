@@ -50,8 +50,17 @@ spec:
                 name: {{ include "agentcook.fullname" . }}-config
             - secretRef:
                 name: {{ include "agentcook.fullname" . }}-secret
-          {{- if .Values.observability.enabled }}
           env:
+            - name: AGENTCOOK_AUTH_MODE
+              value: "required"
+            - name: AGENTCOOK_JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "agentcook.fullname" . }}-secret
+                  key: JWT_SECRET
+            - name: AGENTCOOK_JWT_ISSUER
+              value: "agentcook-java"
+            {{- if .Values.observability.enabled }}
             - name: OTEL_EXPORTER_OTLP_ENDPOINT
               value: {{ .Values.observability.otelEndpoint | quote }}
             - name: OTEL_EXPORTER_OTLP_PROTOCOL
